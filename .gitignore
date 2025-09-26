@@ -1,0 +1,80 @@
+# Archivos de Entorno
+# Contiene secretos y configuraciones locales. ¡Nunca subir a Git!
+.env
+.env.*
+
+# Dependencias y Entornos Virtuales
+# Estos se pueden reinstalar usando requirements.txt
+venv/
+.venv/
+env/
+.env/
+env.bak/
+venv.bak/
+
+# Artefactos y Caché de Python
+# Archivos generados por Python que no son necesarios en el repositorio
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Caché de pytest
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+
+# Bases de datos locales
+# Si usas SQLite para pruebas locales, no querrás subir la base de datos
+*.sqlite3
+*.db
+
+# Archivos de IDE y editores de código
+# Configuraciones específicas del entorno de desarrollo de cada persona
+.idea/
+.vscode/
+*.swp
+*~
+*.sublime-project
+*.sublime-workspace
+
+# Archivos de Sistema Operativo
+# Archivos generados por macOS, Windows y Linux que no son parte del proyecto
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Logs
+# No es una buena práctica subir archivos de logs al repositorio
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Archivos generados por Docker
+# A veces se pueden generar archivos locales al trabajar con Docker
+.dockerignore
+docker-compose.override.yml

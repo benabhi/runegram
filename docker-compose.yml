@@ -1,0 +1,44 @@
+# docker-compose.yml
+
+# La línea 'version' ya no es necesaria, puedes omitirla.
+
+services:
+  bot:
+    # Construye la imagen a partir del Dockerfile en el directorio actual
+    build: .
+    # El comando para iniciar la aplicación. Apunta a tu nuevo script.
+    command: python run.py
+    # Carga las variables de entorno desde el archivo .env
+    env_file:
+      - .env
+    # Se asegura de que postgres y redis se inicien antes que el bot
+    depends_on:
+      - postgres
+      - redis
+    # Mapea tu código local al contenedor para ver los cambios al instante
+    volumes:
+      - ./src:/app/src
+      - ./run.py:/app/run.py
+      - ./alembic:/app/alembic
+      - ./alembic.ini:/app/alembic.ini
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    ports:
+      # Expone el puerto de postgres a tu máquina local (opcional)
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      # Expone el puerto de redis a tu máquina local (opcional)
+      - "6379:6379"
+
+volumes:
+  postgres_data:

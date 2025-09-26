@@ -1,8 +1,3 @@
-### Archivo `README.md` Completo
-
-Copia y pega este contenido en tu archivo `README.md`.
-
-```markdown
 # Runegram MUD
 
 ![Python](https://img.shields.io/badge/python-3.11-blue.svg)![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)![PostgreSQL](https://img.shields.io/badge/postgresql-%23316192.svg?style=for-the-badge&logo=postgresql&logoColor=white)![Redis](https://img.shields.io/badge/redis-%23DD0031.svg?style=for-the-badge&logo=redis&logoColor=white)
@@ -127,4 +122,3 @@ Esta sección documenta las próximas mejoras y problemas conocidos a resolver p
 
 *   **Broadcasting de Mensajes:**
     *   **Tarea:** El comando `decir` actualmente solo responde al que habla. Se debe implementar un sistema (en `broadcaster.py`) que tome el mensaje y lo envíe a todos los demás jugadores que se encuentren en la misma sala.
-```

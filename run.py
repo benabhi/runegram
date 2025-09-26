@@ -1,21 +1,26 @@
+# run.py
+
 import logging
 import sys
 from pathlib import Path
 
-# --- INICIO DE LA SOLUCIÓN INFALIBLE ---
-# 1. Obtiene la ruta absoluta del archivo actual (run.py)
-# 2. Sube un nivel para obtener la ruta raíz del proyecto (la carpeta 'runegram')
-# 3. Añade esta ruta raíz a la lista de rutas de Python.
-# Ahora, Python siempre sabrá buscar desde 'runegram/' para cualquier importación.
+# --- Añade la raíz del proyecto al path ---
 ROOT_DIR = Path(__file__).resolve().parent
 sys.path.append(str(ROOT_DIR))
-# --- FIN DE LA SOLUCIÓN INFALIBLE ---
 
+# --- Importaciones de Aiogram ---
 from aiogram import executor
-
-# Ahora estas importaciones funcionarán sin ninguna duda
 from src.bot.dispatcher import dp
-from src import handlers
+
+
+# --- LA LÍNEA MÁS IMPORTANTE ---
+# Importamos nuestros paquetes de handlers explícitamente aquí.
+# Esto fuerza a Python a ejecutar los archivos __init__.py de los handlers
+# y registrar todos los decoradores @dp.message_handler en el orden correcto
+# ANTES de que executor.start_polling se ejecute.
+from src.handlers import admin_commands
+from src.handlers import user_commands
+
 
 async def on_startup(dispatcher):
     logging.info("Bot iniciando...")

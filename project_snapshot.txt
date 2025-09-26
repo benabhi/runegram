@@ -1,0 +1,1398 @@
+# === Archivos Raíz ===
+
+# === INICIO: .gitignore ===
+# Archivos de Entorno
+# Contiene secretos y configuraciones locales. ¡Nunca subir a Git!
+.env
+.env.*
+
+# Dependencias y Entornos Virtuales
+# Estos se pueden reinstalar usando requirements.txt
+venv/
+.venv/
+env/
+.env/
+env.bak/
+venv.bak/
+
+# Artefactos y Caché de Python
+# Archivos generados por Python que no son necesarios en el repositorio
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Caché de pytest
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+
+# Bases de datos locales
+# Si usas SQLite para pruebas locales, no querrás subir la base de datos
+*.sqlite3
+*.db
+
+# Archivos de IDE y editores de código
+# Configuraciones específicas del entorno de desarrollo de cada persona
+.idea/
+.vscode/
+*.swp
+*~
+*.sublime-project
+*.sublime-workspace
+
+# Archivos de Sistema Operativo
+# Archivos generados por macOS, Windows y Linux que no son parte del proyecto
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Logs
+# No es una buena práctica subir archivos de logs al repositorio
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Archivos generados por Docker
+# A veces se pueden generar archivos locales al trabajar con Docker
+.dockerignore
+docker-compose.override.yml
+# === FIN: .gitignore ===
+
+
+# === INICIO: alembic.ini ===
+# alembic.ini
+
+# ==============================================================================
+# SECCIÓN PRINCIPAL DE ALEMBIC
+# Aquí se definen las configuraciones más importantes.
+# ==============================================================================
+[alembic]
+
+# --- Ubicación de los Scripts de Migración ---
+# Esta es la ruta a la carpeta que contiene el entorno de Alembic.
+# En nuestro caso, es la carpeta "alembic" en la raíz del proyecto.
+script_location = alembic
+
+# --- URL de la Base de Datos ---
+# ESTA ES LA LÍNEA MÁS IMPORTANTE.
+# Le dice a Alembic cómo conectarse a tu base de datos PostgreSQL.
+# La magia aquí es que no ponemos la contraseña directamente.
+# El archivo `alembic/env.py` se encargará de leer esta URL
+# desde nuestras variables de entorno (del archivo .env) para mantener
+# los secretos seguros.
+sqlalchemy.url = postgresql+asyncpg://user:password@host:port/database
+
+# --- Plantillas para Nuevos Archivos ---
+# Define cómo se nombran los nuevos archivos de migración.
+# {rev} es el ID de la revisión, {slug} es el mensaje descriptivo.
+# El formato por defecto es perfecto.
+# Ejemplo: 2d19...._crear_tablas_de_cuentas.py
+file_template = %%(rev)s_%%(slug)s
+
+# --- Otras Configuraciones ---
+# huso horario para los nombres de archivo, etc.
+# No es necesario tocar esto.
+timezone =
+
+# ==============================================================================
+# HOOKS POST-ESCRITURA (Opcional pero recomendado)
+# Permite ejecutar comandos después de que se genera un nuevo archivo de migración.
+# Es muy útil para formatear automáticamente el código con herramientas
+# como 'black' o 'ruff'. Por ahora, lo dejamos comentado.
+# ==============================================================================
+[post_write_hooks]
+# hooks = ruff
+# ruff.type = ruff
+# ruff.options = --fix %%(path)s
+
+# ==============================================================================
+# CONFIGURACIÓN DE LOGGING
+# Define cómo se muestran los mensajes de Alembic en la consola.
+# No necesitas modificar nada aquí, la configuración por defecto es excelente.
+# ==============================================================================
+[loggers]
+keys = root,sqlalchemy,alembic
+
+[handlers]
+keys = console
+
+[formatters]
+keys = generic
+
+[logger_root]
+level = WARN
+handlers = console
+qualname =
+
+[logger_sqlalchemy]
+level = WARN
+handlers =
+qualname = sqlalchemy.engine
+
+[logger_alembic]
+level = INFO
+handlers =
+qualname = alembic
+
+[handler_console]
+class = StreamHandler
+args = (sys.stderr,)
+level = NOTSET
+formatter = generic
+
+[formatter_generic]
+format = %%(levelname)-5.5s [%%(name)s] %%(message)s
+datefmt = %%H:%%M:%%S
+# === FIN: alembic.ini ===
+
+
+# === INICIO: docker-compose.yml ===
+# docker-compose.yml
+
+# La línea 'version' ya no es necesaria, puedes omitirla.
+
+services:
+  bot:
+    # Construye la imagen a partir del Dockerfile en el directorio actual
+    build: .
+    # El comando para iniciar la aplicación. Apunta a tu nuevo script.
+    command: python run.py
+    # Carga las variables de entorno desde el archivo .env
+    env_file:
+      - .env
+    # Se asegura de que postgres y redis se inicien antes que el bot
+    depends_on:
+      - postgres
+      - redis
+    # Mapea tu código local al contenedor para ver los cambios al instante
+    volumes:
+      - ./src:/app/src
+      - ./run.py:/app/run.py
+      - ./alembic:/app/alembic
+      - ./alembic.ini:/app/alembic.ini
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    ports:
+      # Expone el puerto de postgres a tu máquina local (opcional)
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      # Expone el puerto de redis a tu máquina local (opcional)
+      - "6379:6379"
+
+volumes:
+  postgres_data:
+# === FIN: docker-compose.yml ===
+
+
+# === INICIO: Dockerfile ===
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+CMD ["python", "run.py"]
+# === FIN: Dockerfile ===
+
+
+# === INICIO: requirements.txt ===
+aiogram==2.25.1
+SQLAlchemy==2.0.21
+alembic==1.12.0
+asyncpg==0.28.0
+redis==4.6.0
+pydantic==1.10.12
+python-dotenv==1.0.0
+python-dateutil
+# === FIN: requirements.txt ===
+
+
+# === INICIO: run.py ===
+# run.py
+
+import logging
+import sys
+from pathlib import Path
+
+# --- Añade la raíz del proyecto al path ---
+ROOT_DIR = Path(__file__).resolve().parent
+sys.path.append(str(ROOT_DIR))
+
+# --- Importaciones de Aiogram ---
+from aiogram import executor
+from src.bot.dispatcher import dp
+
+
+# --- LA LÍNEA MÁS IMPORTANTE ---
+# Importamos nuestros paquetes de handlers explícitamente aquí.
+# Esto fuerza a Python a ejecutar los archivos __init__.py de los handlers
+# y registrar todos los decoradores @dp.message_handler en el orden correcto
+# ANTES de que executor.start_polling se ejecute.
+from src.handlers import admin_commands
+from src.handlers import user_commands
+
+
+async def on_startup(dispatcher):
+    logging.info("Bot iniciando...")
+
+async def on_shutdown(dispatcher):
+    logging.warning("Bot deteniéndose...")
+
+def main():
+    logging.basicConfig(level=logging.INFO, stream=sys.stdout)
+    executor.start_polling(dp, on_startup=on_startup, on_shutdown=on_shutdown)
+
+if __name__ == "__main__":
+    main()
+# === FIN: run.py ===
+
+
+# === INICIO: README.md ===
+# Runegram MUD
+
+![Python](https://img.shields.io/badge/python-3.11-blue.svg)![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)![PostgreSQL](https://img.shields.io/badge/postgresql-%23316192.svg?style=for-the-badge&logo=postgresql&logoColor=white)![Redis](https://img.shields.io/badge/redis-%23DD0031.svg?style=for-the-badge&logo=redis&logoColor=white)
+
+Runegram es un proyecto para crear un juego de rol textual multijugador (MUD - Multi-User Dungeon) que se juega a través de la interacción con un bot de Telegram. Este repositorio contiene la estructura base para una aplicación escalable y fácil de mantener, lista para que se empiece a construir la lógica del juego.
+
+## Stack Tecnológico
+
+La arquitectura del proyecto está diseñada para ser robusta y escalable, utilizando tecnologías modernas:
+
+*   **Lenguaje**: Python 3.11
+*   **Framework de Bot**: Aiogram
+*   **Contenerización**: Docker & Docker Compose
+*   **Base de Datos**: PostgreSQL
+*   **Almacenamiento en Memoria**: Redis (para FSM - Máquina de Estados Finitos y caché)
+*   **ORM**: SQLAlchemy
+*   **Migraciones de BD**: Alembic
+
+## Estructura del Proyecto
+
+La estructura está organizada para separar responsabilidades y facilitar el crecimiento del proyecto.
+
+```
+runegram/
+├── alembic/              # Migraciones de base de datos de Alembic
+├── src/                  # Código fuente principal de la aplicación
+│   ├── __init__.py
+│   ├── bot/              # Configuración del bot y dispatcher de Aiogram
+│   ├── config.py         # Carga de variables de entorno y configuración
+│   ├── handlers/         # Manejadores de comandos y mensajes de Telegram
+│   ├── models/           # Modelos de datos de SQLAlchemy
+│   └── services/         # Lógica de negocio y servicios del juego
+├── .env                  # Archivo local para variables de entorno (ignorado por Git)
+├── .gitignore            # Archivos y directorios a ignorar por Git
+├── alembic.ini           # Configuración de Alembic
+├── docker-compose.yml    # Orquestación de los contenedores de Docker
+├── Dockerfile            # Definición de la imagen Docker para la app Python
+├── requirements.txt      # Dependencias de Python
+└── run.py                # Punto de entrada para iniciar la aplicación
+```
+
+## Puesta en Marcha
+
+Para levantar el proyecto, solo necesitas tener Docker y Docker Compose instalados.
+
+### 1. Prerrequisitos
+
+*   [Docker](https://www.docker.com/get-started)
+*   [Docker Compose](https://docs.docker.com/compose/install/) (generalmente viene incluido con Docker Desktop)
+
+### 2. Configuración del Entorno
+
+El bot necesita algunas variables de entorno para funcionar, principalmente el token de Telegram.
+
+1.  **Crear el archivo `.env`**:
+    Copia el contenido de abajo y pégalo en un nuevo archivo llamado `.env` en la raíz del proyecto.
+
+    ```env
+    # Telegram Bot Token (obtenido de @BotFather)
+    BOT_TOKEN=TU_BOT_TOKEN_AQUI
+
+    # Configuración de PostgreSQL
+    POSTGRES_USER=runegram
+    POSTGRES_PASSWORD=supersecret
+    POSTGRES_DB=runegram_db
+    POSTGRES_HOST=postgres
+    POSTGRES_PORT=5432
+
+    # Configuración de Redis
+    REDIS_HOST=redis
+    REDIS_PORT=6379
+    REDIS_DB=0
+    ```
+
+2.  **Añadir tu Token**:
+    Reemplaza `TU_BOT_TOKEN_AQUI` con el token que te proporcionó `@BotFather` en Telegram.
+
+### 3. Construir y Ejecutar con Docker
+
+Abre una terminal en la raíz del proyecto y ejecuta el siguiente comando:
+
+```bash
+docker-compose up --build
+```
+
+Este comando hará lo siguiente:
+*   Construirá la imagen de Docker para la aplicación de Python, instalando todas las dependencias.
+*   Levantará los contenedores para el bot, la base de datos PostgreSQL y Redis.
+*   Conectará todos los contenedores en una misma red para que puedan comunicarse.
+*   Mostrará los logs de todos los servicios en tiempo real.
+
+Para ejecutar los contenedores en segundo plano, puedes usar:
+```bash
+docker-compose up --build -d
+```
+
+### 4. Verificar que todo funciona
+
+*   **Logs**: Deberías ver en la terminal un mensaje que dice `INFO:root:Bot iniciando...` seguido de `INFO:aiogram.dispatcher.dispatcher:Start polling.`.
+*   **Telegram**: Abre Telegram, busca tu bot y envíale el comando `/start`. Debería responderte con: `¡Hola, mundo! Runegram está en línea.`
+
+Para detener todos los servicios, presiona `Ctrl + C` en la terminal donde se están ejecutando, o ejecuta `docker-compose down` si los lanzaste en segundo plano.
+
+---
+# === FIN: README.md ===
+
+
+
+# === Contenido del Directorio: src ===
+
+# === INICIO: src/__init__.py ===
+
+# === FIN: src/__init__.py ===
+
+
+# === INICIO: src/config.py ===
+
+from pydantic import BaseSettings, SecretStr
+
+class Settings(BaseSettings):
+    bot_token: SecretStr
+
+    # Database
+    postgres_user: str
+    postgres_password: str
+    postgres_db: str
+    postgres_host: str
+    postgres_port: int
+
+    # Redis
+    redis_host: str
+    redis_port: int
+    redis_db: int
+
+    @property
+    def database_url(self) -> str:
+        return (
+            f"postgresql+asyncpg://"
+            f"{self.postgres_user}:{self.postgres_password}@"
+            f"{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
+        )
+
+    class Config:
+        env_file = '.env'
+        env_file_encoding = 'utf-8'
+
+settings = Settings()
+# === FIN: src/config.py ===
+
+
+# === INICIO: src/db.py ===
+# src/db.py
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+from src.config import settings
+
+# Creamos el motor de la base de datos asíncrono
+async_engine = create_async_engine(
+    settings.database_url,
+    echo=False, # Ponlo en True para ver las queries SQL en la consola
+)
+
+# Creamos una fábrica de sesiones asíncronas
+async_session_factory = async_sessionmaker(
+    async_engine,
+    expire_on_commit=False
+)
+# === FIN: src/db.py ===
+
+
+# === INICIO: src/bot/__init__.py ===
+
+# === FIN: src/bot/__init__.py ===
+
+
+# === INICIO: src/bot/bot.py ===
+from aiogram import Bot
+
+from src.config import settings
+
+bot = Bot(token=settings.bot_token.get_secret_value())
+# === FIN: src/bot/bot.py ===
+
+
+# === INICIO: src/bot/dispatcher.py ===
+from aiogram import Dispatcher
+from aiogram.contrib.fsm_storage.redis import RedisStorage2
+from src.config import settings
+from src.bot.bot import bot
+
+storage = RedisStorage2(host=settings.redis_host, port=settings.redis_port, db=settings.redis_db)
+dp = Dispatcher(bot, storage=storage)
+# === FIN: src/bot/dispatcher.py ===
+
+
+# === INICIO: src/handlers/__init__.py ===
+
+# === FIN: src/handlers/__init__.py ===
+
+
+# === INICIO: src/handlers/admin_commands.py ===
+# src/handlers/admin_commands.py
+
+from aiogram import types
+from aiogram.dispatcher.filters import Command
+
+from src.bot.dispatcher import dp
+from src.db import async_session_factory
+from src.services import player_service, world_service
+# Importamos la función de presentación para reutilizarla después del teleport
+from src.handlers.user_commands import show_current_room
+
+# --- Filtro de Permisos ---
+
+async def is_admin(message: types.Message) -> bool:
+    """
+    Filtro de permisos. Verifica si el usuario que envía el mensaje
+    tiene el rol de 'ADMINISTRADOR' en la base de datos.
+    """
+
+    # Usamos una única sesión para evitar abrir múltiples conexiones
+    async with async_session_factory() as session:
+        account = await player_service.get_or_create_account(session, message.from_user.id)
+        if account and account.role == 'ADMINISTRADOR':
+            return True
+
+        # Si no es admin, le enviamos un mensaje de denegación.
+        await message.answer("⛔ No tienes permiso para usar este comando.")
+        return False
+
+
+# --- Comandos de Construcción del Mundo ---
+
+@dp.message_handler(Command("crearsala"))
+async def create_room_cmd(message: types.Message):
+    """
+    Comando de admin para crear una nueva sala.
+    Uso: /crearsala [nombre de la sala]
+    """
+    if not await is_admin(message): return
+
+    room_name = message.get_args()
+    if not room_name:
+        return await message.answer("Uso: /crearsala [nombre de la sala]")
+
+    async with async_session_factory() as session:
+        try:
+            room = await world_service.create_room(session, room_name)
+            await message.answer(f"✅ Sala '{room.name}' creada con éxito. ID: {room.id}")
+        except Exception as e:
+            await message.answer(f"❌ Error al crear la sala: {e}")
+
+
+@dp.message_handler(Command("describirsala"))
+async def describe_room_cmd(message: types.Message):
+    """
+    Comando de admin para describir la sala en la que se encuentra actualmente.
+    Uso: /describirsala [descripción de la sala]
+    """
+    if not await is_admin(message): return
+
+    description = message.get_args()
+    if not description:
+        return await message.answer("Uso: /describirsala [descripción de la sala]")
+
+    async with async_session_factory() as session:
+        account = await player_service.get_or_create_account(session, message.from_user.id)
+        if not account.character:
+            return await message.answer("No tienes un personaje para determinar tu ubicación.")
+
+        room_id = account.character.room_id
+        await world_service.set_room_description(session, room_id, description)
+        await message.answer(f"✅ Descripción de la sala actual (ID: {room_id}) actualizada.")
+
+
+@dp.message_handler(Command("conectarsala"))
+async def link_rooms_cmd(message: types.Message):
+    """
+    Comando de admin para conectar la sala actual con otra.
+    Uso: /conectarsala [dirección] a [ID_sala_destino]
+    """
+    if not await is_admin(message): return
+
+    args = message.get_args().split()
+    if len(args) != 3 or args[1].lower() != 'a':
+        return await message.answer("Uso: /conectarsala [dirección] a [ID_sala_destino]")
+
+    direction, _, to_room_id_str = args
+    try:
+        to_room_id = int(to_room_id_str)
+    except ValueError:
+        return await message.answer("El ID de la sala de destino debe ser un número.")
+
+    async with async_session_factory() as session:
+        account = await player_service.get_or_create_account(session, message.from_user.id)
+        if not account.character:
+            return await message.answer("No tienes un personaje para determinar tu ubicación.")
+
+        from_room_id = account.character.room_id
+        try:
+            await world_service.link_rooms(session, from_room_id, direction, to_room_id)
+            await message.answer(f"✅ Salida '{direction}' creada desde tu sala (ID: {from_room_id}) hacia la sala {to_room_id}.")
+        except Exception as e:
+            await message.answer(f"❌ Error al conectar las salas: {e}")
+
+
+@dp.message_handler(Command("teleport"))
+async def teleport_cmd(message: types.Message):
+    """
+    Comando de admin para teletransportarse a otra sala.
+    Uso: /teleport [ID_sala]
+    """
+    if not await is_admin(message): return
+
+    args = message.get_args()
+    if not args:
+        return await message.answer("Uso: /teleport [ID_sala]")
+
+    try:
+        to_room_id = int(args)
+    except (ValueError, TypeError):
+        return await message.answer("El ID de la sala debe ser un número.")
+
+    async with async_session_factory() as session:
+        account = await player_service.get_or_create_account(session, message.from_user.id)
+        if not account.character:
+            return await message.answer("No tienes un personaje para teletransportar.")
+
+        try:
+            await player_service.teleport_character(session, account.character.id, to_room_id)
+            await message.answer(f"🚀 Teletransportado a la sala {to_room_id}.")
+            # Reutilizamos la lógica de 'user_commands' para mostrar la nueva sala.
+            await show_current_room(message)
+        except Exception as e:
+            await message.answer(f"❌ Error al teletransportar: {e}")
+# === FIN: src/handlers/admin_commands.py ===
+
+
+# === INICIO: src/handlers/user_commands.py ===
+# src/handlers/user_commands.py
+
+from aiogram import types
+from aiogram.dispatcher.filters.builtin import CommandStart
+from aiogram.dispatcher.filters import Command
+
+from src.bot.dispatcher import dp
+from src.db import async_session_factory
+from src.services import player_service
+from src.utils.presenters import format_room
+
+# --- Función Auxiliar de Presentación ---
+
+async def show_current_room(message: types.Message):
+    """
+    Obtiene la sala actual del jugador y le muestra la descripción formateada.
+    Esta función centraliza la lógica de "mirar" el entorno.
+    """
+    async with async_session_factory() as session:
+        # Usamos el servicio para obtener la cuenta y sus relaciones precargadas
+        account = await player_service.get_or_create_account(session, message.from_user.id)
+
+        if not account.character or not account.character.room:
+            # Esta es una salvaguarda. En un juego normal, no debería ocurrir
+            # si el personaje se crea correctamente con una room_id.
+            await message.answer("Parece que estás perdido en el vacío. Te hemos llevado a un lugar seguro.")
+            # En el futuro, podríamos tener una función para mover al jugador a la sala de inicio.
+            return
+
+        room = account.character.room
+        # Usamos nuestro nuevo presenter para formatear la sala
+        formatted_room = await format_room(room)
+
+        # ¡IMPORTANTE! Usamos parse_mode="HTML" para que Telegram entienda las etiquetas <pre> y <b>
+        await message.answer(formatted_room, parse_mode="HTML")
+
+
+# --- Handlers de Comandos de Jugador ---
+
+@dp.message_handler(CommandStart())
+async def bot_start(message: types.Message):
+    """
+    Este manejador se activa con el comando /start.
+    Registra al usuario si no existe, carga su personaje y le muestra la sala actual.
+    """
+    async with async_session_factory() as session:
+        account = await player_service.get_or_create_account(session, message.from_user.id)
+
+        if account.character is None:
+            # Si el jugador no tiene personaje, le guiamos para que lo cree.
+            await message.answer(
+                "¡Bienvenido a Runegram! Veo que eres nuevo por aquí. "
+                "Para empezar, necesitas crear tu personaje. Usa el comando "
+                "/crearpersonaje [nombre] para darle vida a tu aventurero."
+            )
+        else:
+            # Si ya tiene un personaje, simplemente le mostramos dónde está.
+            await show_current_room(message)
+
+
+@dp.message_handler(Command("crearpersonaje"))
+async def create_character_handler(message: types.Message):
+    """
+    Manejador para el comando /crearpersonaje [nombre].
+    """
+    async with async_session_factory() as session:
+        telegram_id = message.from_user.id
+
+        # Extraemos el nombre del personaje de los argumentos del comando
+        character_name = message.get_args()
+        if not character_name or len(character_name) > 50:
+            await message.answer("Por favor, proporciona un nombre válido (máx 50 caracteres). Uso: /crearpersonaje [nombre]")
+            return
+
+        # Llamamos al servicio para crear el personaje
+        # Usamos un bloque try/except para manejar errores, como un nombre que ya existe
+        try:
+            character = await player_service.create_character(
+                session=session,
+                telegram_id=telegram_id,
+                character_name=character_name
+            )
+            await message.answer(
+                f"¡Tu personaje, {character.name}, ha sido creado con éxito!\n"
+                "Ahora estás listo para explorar el mundo de Runegram. ¡Envía /start para comenzar!"
+            )
+        except ValueError as e:
+            # Capturamos las excepciones de negocio (ej: nombre ya en uso)
+            await message.answer(f"No se pudo crear el personaje: {e}")
+        except Exception as e:
+            # Capturamos cualquier otro error inesperado
+            await message.answer(f"Ocurrió un error inesperado al crear tu personaje.")
+            print(f"Error en create_character_handler: {e}") # Para depuración
+
+
+@dp.message_handler(Command("mirar"))
+async def look_handler(message: types.Message):
+    """
+    Manejador para el comando /mirar. Simplemente muestra la sala actual.
+    """
+    await show_current_room(message)
+
+
+# --- Handler de Texto (Movimiento y Futuro Parser) ---
+
+@dp.message_handler()
+async def text_handler(message: types.Message):
+    """
+    Este handler captura cualquier mensaje de texto que no sea un comando.
+    Actualmente, solo gestiona el movimiento. En el futuro, será la
+    entrada a un parser de comandos más complejo.
+    """
+    async with async_session_factory() as session:
+        account = await player_service.get_or_create_account(session, message.from_user.id)
+        if not account.character:
+            return await message.answer("Primero debes crear un personaje con /crearpersonaje.")
+
+        command = message.text.lower().strip()
+        current_room = account.character.room
+
+        # Verificamos si el comando es una de las salidas válidas de la sala
+        if command in current_room.exits:
+            to_room_id = current_room.exits[command]
+            await player_service.teleport_character(session, account.character.id, to_room_id)
+            # Después de movernos, mostramos la nueva sala
+            await show_current_room(message)
+        else:
+            # Si no es un movimiento, en el futuro el parser haría más cosas.
+            await message.answer("No entiendo ese comando.")
+# === FIN: src/handlers/user_commands.py ===
+
+
+# === INICIO: src/models/__init__.py ===
+# src/models/__init__.py
+from .base import Base
+from .account import Account
+from .character import Character
+from .room import Room
+# === FIN: src/models/__init__.py ===
+
+
+# === INICIO: src/models/account.py ===
+# src/models/account.py
+from sqlalchemy import BigInteger, Column, String
+from sqlalchemy.orm import relationship
+
+from .base import Base
+
+class Account(Base):
+    __tablename__ = 'accounts'
+
+    id = Column(BigInteger, primary_key=True)
+    telegram_id = Column(BigInteger, unique=True, nullable=False, index=True)
+    role = Column(String, default='JUGADOR', nullable=False)
+
+    # Relación: Una cuenta tiene un personaje
+    character = relationship("Character", back_populates="account", uselist=False)
+
+    def __repr__(self):
+        return f"<Account(id={self.id}, telegram_id={self.telegram_id})>"
+# === FIN: src/models/account.py ===
+
+
+# === INICIO: src/models/base.py ===
+# src/models/base.py
+from sqlalchemy.orm import declarative_base
+
+Base = declarative_base()
+# === FIN: src/models/base.py ===
+
+
+# === INICIO: src/models/character.py ===
+# src/models/character.py
+from sqlalchemy import BigInteger, Column, String, ForeignKey
+from sqlalchemy.orm import relationship
+from .base import Base
+
+class Character(Base):
+    __tablename__ = 'characters'
+
+    id = Column(BigInteger, primary_key=True)
+    name = Column(String(50), unique=True, nullable=False)
+
+    # --- Relaciones existentes ---
+    account_id = Column(BigInteger, ForeignKey('accounts.id'), nullable=False, unique=True)
+    account = relationship("Account", back_populates="character")
+
+    # --- NUEVA RELACIÓN ---
+    # Un personaje está en una sala.
+    room_id = Column(BigInteger, ForeignKey('rooms.id'), nullable=False)
+    room = relationship("Room")
+# === FIN: src/models/character.py ===
+
+
+# === INICIO: src/models/room.py ===
+# src/models/room.py
+from sqlalchemy import BigInteger, Column, String, Text
+from sqlalchemy.dialects.postgresql import JSONB
+from .base import Base
+
+class Room(Base):
+    __tablename__ = 'rooms'
+
+    id = Column(BigInteger, primary_key=True)
+    name = Column(String(100), nullable=False)
+    description = Column(Text, nullable=False, default="Esta es una sala sin describir.")
+
+    # Usamos JSONB para almacenar las salidas. Es flexible y eficiente.
+    # Ejemplo: {"norte": 2, "cueva": 15}
+    exits = Column(JSONB, nullable=False, default={})
+# === FIN: src/models/room.py ===
+
+
+# === INICIO: src/services/__init__.py ===
+
+# === FIN: src/services/__init__.py ===
+
+
+# === INICIO: src/services/broadcaster.py ===
+
+# === FIN: src/services/broadcaster.py ===
+
+
+# === INICIO: src/services/player_service.py ===
+# src/services/player_service.py
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload
+
+from src.models.account import Account
+from src.models.character import Character
+
+async def get_or_create_account(session: AsyncSession, telegram_id: int) -> Account:
+    """
+    Busca una cuenta por su telegram_id. Si no existe, la crea.
+    Devuelve el objeto de la cuenta con sus relaciones (personaje y sala) ya cargadas.
+    """
+    # Definimos la estrategia de carga ansiosa una sola vez
+    load_strategy = select(Account).options(
+        selectinload(Account.character).selectinload(Character.room)
+    )
+
+    # 1. Buscamos la cuenta con la estrategia de carga
+    query = load_strategy.where(Account.telegram_id == telegram_id)
+    result = await session.execute(query)
+    account = result.scalar_one_or_none()
+
+    # 2. Si la cuenta existe, la devolvemos. Ya viene con todo cargado.
+    if account:
+        return account
+
+    # 3. Si la cuenta no existe, la creamos
+    print(f"Creando nueva cuenta para el telegram_id: {telegram_id}")
+    new_account = Account(telegram_id=telegram_id)
+    session.add(new_account)
+    await session.commit()
+
+    # 4. VOLVEMOS A BUSCARLA usando la misma estrategia de carga.
+    # Esto asegura que el objeto devuelto sea consistente y tenga todo precargado,
+    # en lugar de depender de session.refresh().
+    result = await session.execute(load_strategy.where(Account.id == new_account.id))
+    created_account = result.scalar_one()
+
+    return created_account
+
+
+async def create_character(session: AsyncSession, telegram_id: int, character_name: str) -> Character:
+    """
+    Crea un nuevo personaje y lo asocia a una cuenta existente.
+    Lanza una excepción si la cuenta no existe, ya tiene un personaje,
+    o el nombre del personaje ya está en uso.
+    """
+    # 1. Buscamos la cuenta. Usamos la misma función get_or_create_account
+    # para asegurarnos de que la relación .character se intente cargar.
+    account = await get_or_create_account(session, telegram_id)
+
+    # 2. Verificamos que la cuenta no tenga ya un personaje
+    if account.character is not None:
+        raise ValueError("Ya tienes un personaje asociado a esta cuenta.")
+
+    # 3. Verificamos que el nombre no esté en uso
+    result = await session.execute(select(Character).where(Character.name == character_name))
+    if result.scalar_one_or_none():
+        raise ValueError(f"El nombre '{character_name}' ya está en uso. Por favor, elige otro.")
+
+    # 4. Creamos el nuevo personaje
+    new_character = Character(
+        name=character_name,
+        account_id=account.id,
+        room_id=1
+    )
+    session.add(new_character)
+    await session.commit()
+
+    # --- LA SOLUCIÓN CLAVE ---
+    # 5. Expiramos la instancia de 'account' para forzar una recarga
+    # la próxima vez que se acceda a ella, incluyendo sus relaciones.
+    session.expire(account)
+
+    # También podemos refrescar el personaje recién creado para asegurarnos de que está completo
+    await session.refresh(new_character)
+
+    return new_character
+
+async def teleport_character(session: AsyncSession, character_id: int, to_room_id: int):
+    """Mueve un personaje a una nueva sala."""
+    # Verificamos que la sala de destino exista
+    result = await session.execute(select(Room).where(Room.id == to_room_id))
+    if not result.scalar_one_or_none():
+        raise ValueError(f"La sala con ID {to_room_id} no existe.")
+
+    # Actualizamos la room_id del personaje
+    query = update(Character).where(Character.id == character_id).values(room_id=to_room_id)
+    await session.execute(query)
+    await session.commit()
+# === FIN: src/services/player_service.py ===
+
+
+# === INICIO: src/services/world_service.py ===
+# src/services/world_service.py
+
+from sqlalchemy import select, update
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.models.room import Room
+
+async def get_room(session: AsyncSession, room_id: int) -> Room | None:
+    """Busca y devuelve una sala por su ID."""
+    result = await session.execute(select(Room).where(Room.id == room_id))
+    return result.scalar_one_or_none()
+
+async def create_room(session: AsyncSession, name: str) -> Room:
+    """Crea una nueva sala en la base de datos."""
+    if not name:
+        raise ValueError("El nombre de la sala no puede estar vacío.")
+
+    new_room = Room(name=name)
+    session.add(new_room)
+    await session.commit()
+    await session.refresh(new_room)
+    return new_room
+
+async def set_room_description(session: AsyncSession, room_id: int, description: str):
+    """Actualiza la descripción de una sala existente."""
+    query = update(Room).where(Room.id == room_id).values(description=description)
+    await session.execute(query)
+    await session.commit()
+
+async def link_rooms(session: AsyncSession, from_room_id: int, direction: str, to_room_id: int):
+    """Crea una salida desde una sala hacia otra."""
+    from_room = await get_room(session, from_room_id)
+    to_room = await get_room(session, to_room_id)
+
+    if not from_room or not to_room:
+        raise ValueError("Una o ambas salas no existen.")
+
+    # Copiamos el diccionario de salidas para que SQLAlchemy detecte el cambio
+    new_exits = dict(from_room.exits)
+    new_exits[direction.lower()] = to_room_id
+
+    # Actualizamos la sala con el nuevo diccionario de salidas
+    query = update(Room).where(Room.id == from_room_id).values(exits=new_exits)
+    await session.execute(query)
+    await session.commit()
+# === FIN: src/services/world_service.py ===
+
+
+# === INICIO: src/utils/__init__.py ===
+
+# === FIN: src/utils/__init__.py ===
+
+
+# === INICIO: src/utils/presenters.py ===
+# src/utils/presenters.py
+
+from src.models.room import Room
+# En el futuro, importarás más modelos aquí
+# from src.models.character import Character
+# from src.models.item import Item
+
+async def format_room(room: Room) -> str:
+    """
+    Construye y formatea la descripción completa de una sala para ser mostrada al jugador.
+    Esta función está diseñada para ser fácilmente extensible.
+    """
+    parts = []
+
+    # 1. Título de la Sala (en negrita)
+    parts.append(f"<b>{room.name}</b>")
+
+    # 2. Descripción principal
+    # Usamos strip() para quitar espacios en blanco al inicio/final que puedan venir de la BD
+    parts.append(room.description.strip())
+
+    # --- Secciones futuras (fácil de añadir más aquí) ---
+
+    # Futuro: Añadir la lista de objetos en el suelo
+    # if room.items:
+    #     items_str = ", ".join([item.name for item in room.items])
+    #     parts.append(f"\n<b>Ves aquí:</b> {items_str}")
+
+    # Futuro: Añadir la lista de otros jugadores en la sala
+    # if other_players:
+    #     players_str = ", ".join([player.name for player in other_players])
+    #     parts.append(f"\n<b>También están aquí:</b> {players_str}")
+
+    # 3. Salidas
+    if room.exits:
+        # Obtenemos las salidas y las capitalizamos para que se vean mejor
+        exits_list = [exit_name.capitalize() for exit_name in room.exits.keys()]
+        exits_str = ", ".join(exits_list)
+        parts.append(f"\n<b>Salidas:</b> [ {exits_str} ]")
+    else:
+        parts.append("\n<b>Salidas:</b> [ Ninguna ]")
+
+    # Unimos todas las partes con saltos de línea
+    description_body = "\n".join(parts)
+
+    # Envolvemos el resultado final en etiquetas <pre> para un formato de monoespaciado
+    return f"<pre>{description_body}</pre>"
+# === FIN: src/utils/presenters.py ===
+
+
+
+# === Contenido del Directorio: alembic ===
+
+# === INICIO: alembic/env.py ===
+# alembic/env.py
+
+# --- INICIO DE LA CONFIGURACIÓN DEL PATH ---
+# Añade el directorio raíz del proyecto al sys.path para que Python
+# pueda encontrar nuestros módulos (como 'src').
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+# --- FIN DE LA CONFIGURACIÓN DEL PATH ---
+
+
+import asyncio
+from logging.config import fileConfig
+from alembic import context
+
+# Importaciones de SQLAlchemy
+from sqlalchemy import pool
+from sqlalchemy.ext.asyncio import create_async_engine
+
+# --- Importaciones de nuestro proyecto ---
+# Ahora podemos importar la Base de nuestros modelos para la autogeneración
+# y la configuración (settings) para obtener la URL de la base de datos.
+from src.models import Base
+from src.config import settings
+
+# this is the Alembic Config object, which provides
+# access to the values within the .ini file in use.
+config = context.config
+
+# Interpret the config file for Python logging.
+# This line reads the ini file.
+if config.config_file_name is not None:
+    fileConfig(config.config_file_name)
+
+
+# --- INICIO DE LA CONFIGURACIÓN DINÁMICA DE LA URL DE LA BD ---
+# Aquí sobrescribimos la URL de la base de datos que está en alembic.ini
+# con la URL real y segura que se encuentra en nuestra configuración de la aplicación.
+# Esto centraliza la configuración y evita exponer secretos.
+config.set_main_option('sqlalchemy.url', settings.database_url)
+# --- FIN DE LA CONFIGURACIÓN DINÁMICA DE LA URL DE LA BD ---
+
+
+# add your model's MetaData object here
+# for 'autogenerate' support
+# from myapp import mymodel
+# target_metadata = mymodel.Base.metadata
+target_metadata = Base.metadata
+
+# other values from the config, defined by the needs of env.py,
+# can be acquired:
+# my_important_option = config.get_main_option("my_important_option")
+# ... etc.
+
+
+def run_migrations_offline() -> None:
+    """Run migrations in 'offline' mode.
+
+    This configures the context with just a URL
+    and not an Engine, though an Engine is acceptable
+    here as well.  By skipping the Engine creation
+    we don't even need a DBAPI to be available.
+
+    Calls to context.execute() here emit the given string to the
+    script output.
+
+    """
+    url = config.get_main_option("sqlalchemy.url")
+    context.configure(
+        url=url,
+        target_metadata=target_metadata,
+        literal_binds=True,
+        dialect_opts={"paramstyle": "named"},
+    )
+
+    with context.begin_transaction():
+        context.run_migrations()
+
+
+def do_run_migrations(connection):
+    """
+    Función auxiliar que Alembic ejecutará de forma síncrona
+    una vez que la conexión asíncrona se haya establecido.
+    """
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata
+    )
+
+    with context.begin_transaction():
+        context.run_migrations()
+
+
+async def run_migrations_online() -> None:
+    """Run migrations in 'online' mode.
+
+    In this scenario we need to create an Engine
+    and associate a connection with the context.
+
+    """
+    # Usamos create_async_engine para crear un motor asíncrono
+    # a partir de la URL de nuestra configuración.
+    connectable = create_async_engine(
+        settings.database_url,
+        poolclass=pool.NullPool,
+    )
+
+    # Usamos el motor para conectar de forma asíncrona
+    async with connectable.connect() as connection:
+        # Una vez conectados, configuramos el contexto de Alembic
+        await connection.run_sync(do_run_migrations)
+
+    # Limpiamos el motor al terminar
+    await connectable.dispose()
+
+
+if context.is_offline_mode():
+    run_migrations_offline()
+else:
+    asyncio.run(run_migrations_online())
+# === FIN: alembic/env.py ===
+
+
+# === INICIO: alembic/script.py.mako ===
+# alembic/script.py.mako
+
+"""${message}
+
+Revision ID: ${up_revision}
+Revises: ${down_revision | comma,n}
+Create Date: ${create_date}
+
+"""
+from alembic import op
+import sqlalchemy as sa
+${imports if imports else ""}
+
+# revision identifiers, used by Alembic.
+revision = '${up_revision}'
+down_revision = ${down_revision | repr,n}
+branch_labels = ${branch_labels | repr,n}
+depends_on = ${depends_on | repr,n}
+
+
+def upgrade() -> None:
+    ${upgrades if upgrades else "pass"}
+
+
+def downgrade() -> None:
+    ${downgrades if downgrades else "pass"}
+# === FIN: alembic/script.py.mako ===
+
+
+# === INICIO: alembic/versions/0ef01fb3f572_añadir_tabla_de_salas_y_relacionar_con_.py ===
+# alembic/script.py.mako
+
+"""Añadir tabla de salas y relacionar con personajes
+
+Revision ID: 0ef01fb3f572
+Revises: fa1ad5c778f6
+Create Date: 2025-09-26 14:16:28.789417+00:00
+
+"""
+from alembic import op
+import sqlalchemy as sa
+# Importamos JSONB directamente para ser más explícitos
+from sqlalchemy.dialects import postgresql
+
+# revision identifiers, used by Alembic.
+revision = '0ef01fb3f572'
+down_revision = 'fa1ad5c778f6'
+branch_labels = None
+depends_on = None
+
+
+def upgrade() -> None:
+    # ### commands auto generated by Alembic - please adjust! ###
+    op.create_table('rooms',
+        sa.Column('id', sa.BigInteger(), nullable=False),
+        sa.Column('name', sa.String(length=100), nullable=False),
+        sa.Column('description', sa.Text(), nullable=False),
+        # --- LA LÍNEA FINAL Y CORRECTA ---
+        # Simplemente usamos postgresql.JSONB sin argumentos adicionales.
+        sa.Column('exits', postgresql.JSONB(), nullable=False),
+        sa.PrimaryKeyConstraint('id')
+    )
+
+    # Paso 1: Añadimos una sala de inicio a la tabla 'rooms' para que exista.
+    op.execute("INSERT INTO rooms (id, name, description, exits) VALUES (1, 'Sala de Inicio', 'Te encuentras en una habitación vacía. Es el comienzo de tu aventura.', '{}')")
+
+    # Paso 2: Añadimos la columna 'room_id' permitiendo nulos temporalmente.
+    op.add_column('characters', sa.Column('room_id', sa.BigInteger(), nullable=True))
+
+    # Paso 3: Rellenamos todas las filas existentes con el ID de la sala de inicio (1).
+    op.execute('UPDATE characters SET room_id = 1')
+
+    # Paso 4: AHORA SÍ, modificamos la columna para que sea NOT NULL.
+    op.alter_column('characters', 'room_id', nullable=False)
+
+    # Creamos la Foreign Key constraint al final
+    op.create_foreign_key('fk_characters_room_id_rooms', 'characters', 'rooms', ['room_id'], ['id'])
+    # ### end Alembic commands ###
+
+
+def downgrade() -> None:
+    # ### commands auto generated by Alembic - please adjust! ###
+    # Los pasos de downgrade deben ser el inverso exacto del upgrade
+    op.drop_constraint('fk_characters_room_id_rooms', 'characters', type_='foreignkey')
+    op.drop_column('characters', 'room_id')
+    op.drop_table('rooms')
+    # ### end Alembic commands ###
+# === FIN: alembic/versions/0ef01fb3f572_añadir_tabla_de_salas_y_relacionar_con_.py ===
+
+
+# === INICIO: alembic/versions/fa1ad5c778f6_crear_tablas_de_cuentas_y_personajes.py ===
+"""Crear tablas de cuentas y personajes
+
+Revision ID: fa1ad5c778f6
+Revises:
+Create Date: 2025-09-26 13:49:20.291761+00:00
+
+"""
+from alembic import op
+import sqlalchemy as sa
+
+
+# revision identifiers, used by Alembic.
+revision = 'fa1ad5c778f6'
+down_revision = None
+branch_labels = None
+depends_on = None
+
+
+def upgrade() -> None:
+    # ### commands auto generated by Alembic - please adjust! ###
+    accounts_table = op.create_table('accounts',
+        sa.Column('id', sa.BigInteger(), nullable=False),
+        sa.Column('telegram_id', sa.BigInteger(), nullable=False),
+        sa.Column('role', sa.String(), nullable=False),
+        sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_accounts_telegram_id'), 'accounts', ['telegram_id'], unique=True)
+
+    op.create_table('characters',
+        sa.Column('id', sa.BigInteger(), nullable=False),
+        sa.Column('name', sa.String(length=50), nullable=False),
+        sa.Column('account_id', sa.BigInteger(), nullable=False),
+        sa.ForeignKeyConstraint(['account_id'], ['accounts.id'], ),
+        sa.PrimaryKeyConstraint('id'),
+        sa.UniqueConstraint('account_id'),
+        sa.UniqueConstraint('name')
+    )
+
+    # --- INICIO DE LA SECCIÓN DE SEEDING ---
+    # Aquí insertamos la cuenta del administrador después de crear la tabla.
+    # Usamos op.bulk_insert para añadir datos de forma segura dentro de una migración.
+    op.bulk_insert(accounts_table,
+        [
+            {'telegram_id': 1648877346, 'role': 'ADMINISTRADOR'},
+        ]
+    )
+    # --- FIN DE LA SECCIÓN DE SEEDING ---
+
+    # ### end Alembic commands ###
+
+
+def downgrade() -> None:
+    # ### commands auto generated by Alembic - please adjust! ###
+
+    # --- SECCIÓN DE SEEDING (INVERSA) ---
+    # Si hacemos downgrade, también eliminamos los datos que añadimos.
+    op.execute("DELETE FROM accounts WHERE telegram_id = 1648877346")
+    # --- FIN DE LA SECCIÓN DE SEEDING ---
+
+    op.drop_table('characters')
+    op.drop_index(op.f('ix_accounts_telegram_id'), table_name='accounts')
+    op.drop_table('accounts')
+    # ### end Alembic commands ###
+# === FIN: alembic/versions/fa1ad5c778f6_crear_tablas_de_cuentas_y_personajes.py ===
+
+
+
+# === Contenido del Directorio: scripts ===
+
+# === INICIO: scripts/full_reset.bat ===
+@ECHO OFF
+CLS
+ECHO.
+ECHO ##################################################################
+ECHO #            SCRIPT DE REINICIO COMPLETO PARA RUNEGRAM           #
+ECHO ##################################################################
+ECHO.
+ECHO ESTE SCRIPT REALIZARA LAS SIGUIENTES ACCIONES:
+ECHO   1. Detendra y eliminara todos los contenedores de Docker.
+ECHO   2. BORRARA PERMANENTEMENTE el volumen de la base de datos (postgres_data).
+ECHO   3. Reconstruira la imagen del bot desde cero.
+ECHO   4. Levantara todos los servicios en segundo plano.
+ECHO   5. Ejecutara todas las migraciones de la base de datos.
+ECHO.
+
+PAUSE
+
+ECHO.
+ECHO --- PASO 1 de 4: Deteniendo contenedores y eliminando volumen... ---
+docker-compose down -v
+IF %ERRORLEVEL% NEQ 0 (
+    ECHO Error deteniendo los contenedores. Abortando.
+    EXIT /B 1
+)
+
+ECHO.
+ECHO --- PASO 2 de 4: Reconstruyendo y levantando servicios... ---
+docker-compose up --build -d
+IF %ERRORLEVEL% NEQ 0 (
+    ECHO Error levantando los contenedores. Abortando.
+    EXIT /B 1
+)
+
+ECHO.
+ECHO --- PASO 3 de 4: Esperando a que la base de datos se inicie (5 segundos)... ---
+timeout /t 5 /nobreak > NUL
+
+ECHO.
+ECHO --- PASO 4 de 4: Ejecutando migraciones de la base de datos... ---
+docker-compose run --rm bot alembic upgrade head
+IF %ERRORLEVEL% NEQ 0 (
+    ECHO Error ejecutando las migraciones. Revisa los logs.
+    EXIT /B 1
+)
+
+ECHO.
+ECHO ##################################################################
+ECHO #                ¡PROCESO COMPLETADO CON EXITO!                  #
+ECHO ##################################################################
+ECHO.
+# === FIN: scripts/full_reset.bat ===
+
+
+# === INICIO: scripts/run_migrations.sh ===
+
+# === FIN: scripts/run_migrations.sh ===
+
+

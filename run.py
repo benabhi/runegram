@@ -18,8 +18,8 @@ from src.bot.dispatcher import dp
 # Esto fuerza a Python a ejecutar los archivos __init__.py de los handlers
 # y registrar todos los decoradores @dp.message_handler en el orden correcto
 # ANTES de que executor.start_polling se ejecute.
-from src.handlers import admin_commands
-from src.handlers import user_commands
+from src.handlers import admin
+from src.handlers import player
 
 
 async def on_startup(dispatcher):

@@ -34,6 +34,11 @@ def upgrade() -> None:
     # Paso 1: Añadimos una sala de inicio a la tabla 'rooms' para que exista.
     op.execute("INSERT INTO rooms (id, name, description, exits) VALUES (1, 'Sala de Inicio', 'Te encuentras en una habitación vacía. Es el comienzo de tu aventura.', '{}')")
 
+    # Sincronizamos la secuencia de IDs de la tabla 'rooms'.
+    # setval coge el valor MÁXIMO de la columna 'id' y lo establece como
+    # el punto de partida actual para la secuencia.
+    op.execute("SELECT setval('rooms_id_seq', (SELECT MAX(id) FROM rooms))")
+
     # Paso 2: Añadimos la columna 'room_id' permitiendo nulos temporalmente.
     op.add_column('characters', sa.Column('room_id', sa.BigInteger(), nullable=True))
 

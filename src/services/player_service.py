@@ -11,11 +11,14 @@ from src.models.room import Room
 async def get_or_create_account(session: AsyncSession, telegram_id: int) -> Account:
     """
     Busca una cuenta por su telegram_id. Si no existe, la crea.
-    Devuelve el objeto de la cuenta con sus relaciones (personaje y sala) ya cargadas.
+    Devuelve el objeto de la cuenta con sus relaciones (personaje, sala, items) ya cargadas.
     """
-    # Definimos la estrategia de carga ansiosa una sola vez
     load_strategy = select(Account).options(
-        selectinload(Account.character).selectinload(Character.room)
+        selectinload(Account.character)
+        .selectinload(Character.room)
+        .selectinload(Room.items), # Carga los items de la sala
+        selectinload(Account.character)
+        .selectinload(Character.items) # <-- AÑADE ESTA LÍNEA para cargar el inventario
     )
 
     # 1. Buscamos la cuenta con la estrategia de carga
@@ -34,8 +37,6 @@ async def get_or_create_account(session: AsyncSession, telegram_id: int) -> Acco
     await session.commit()
 
     # 4. VOLVEMOS A BUSCARLA usando la misma estrategia de carga.
-    # Esto asegura que el objeto devuelto sea consistente y tenga todo precargado,
-    # en lugar de depender de session.refresh().
     result = await session.execute(load_strategy.where(Account.id == new_account.id))
     created_account = result.scalar_one()
 

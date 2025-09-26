@@ -12,7 +12,8 @@ class Account(Base):
     role = Column(String, default='JUGADOR', nullable=False)
 
     # Relación: Una cuenta tiene un personaje
-    character = relationship("Character", back_populates="account", uselist=False)
+    # Usamos el string completo 'src.models.character.Character'
+    character = relationship("src.models.character.Character", back_populates="account", uselist=False)
 
     def __repr__(self):
         return f"<Account(id={self.id}, telegram_id={self.telegram_id})>"

@@ -1,26 +1,39 @@
 # docker-compose.yml
 
-# La línea 'version' ya no es necesaria, puedes omitirla.
-
 services:
   bot:
     # Construye la imagen a partir del Dockerfile en el directorio actual
     build: .
-    # El comando para iniciar la aplicación. Apunta a tu nuevo script.
+
+    # --- INICIO DE LA MODIFICACIÓN ---
+    # 1. ENTRYPOINT: Especifica el script que se ejecutará al iniciar el contenedor.
+    #    Nuestro script /app/entrypoint.sh se encargará de esperar a la BD
+    #    y ejecutar las migraciones.
+    entrypoint: /app/entrypoint.sh
+
+    # 2. COMMAND: Este comando ya no se ejecuta directamente. En su lugar,
+    #    se pasa como argumento a nuestro entrypoint.sh. El script lo
+    #    ejecutará al final con 'exec "$@"'.
     command: python run.py
+    # --- FIN DE LA MODIFICACIÓN ---
+
     # Carga las variables de entorno desde el archivo .env
     env_file:
       - .env
+
     # Se asegura de que postgres y redis se inicien antes que el bot
     depends_on:
       - postgres
       - redis
+
     # Mapea tu código local al contenedor para ver los cambios al instante
     volumes:
       - ./src:/app/src
       - ./run.py:/app/run.py
       - ./alembic:/app/alembic
       - ./alembic.ini:/app/alembic.ini
+      # También mapeamos el entrypoint para poder modificarlo sin reconstruir
+      - ./entrypoint.sh:/app/entrypoint.sh
 
   postgres:
     image: postgres:15-alpine
@@ -31,13 +44,11 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data/
     ports:
-      # Expone el puerto de postgres a tu máquina local (opcional)
       - "5432:5432"
 
   redis:
     image: redis:7-alpine
     ports:
-      # Expone el puerto de redis a tu máquina local (opcional)
       - "6379:6379"
 
 volumes:

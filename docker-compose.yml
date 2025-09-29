@@ -17,6 +17,9 @@ services:
     command: python run.py
     # --- FIN DE LA MODIFICACIÓN ---
 
+    environment:
+      - PYTHONPATH=/app
+
     # Carga las variables de entorno desde el archivo .env
     env_file:
       - .env
@@ -29,6 +32,8 @@ services:
     # Mapea tu código local al contenedor para ver los cambios al instante
     volumes:
       - ./src:/app/src
+      - ./commands:/app/commands
+      - ./game_data:/app/game_data
       - ./run.py:/app/run.py
       - ./alembic:/app/alembic
       - ./alembic.ini:/app/alembic.ini

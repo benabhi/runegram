@@ -2,7 +2,7 @@
 from aiogram import types
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.commands.command import Command
+from commands.command import Command
 from src.models.character import Character
 from src.utils.presenters import show_current_room
 

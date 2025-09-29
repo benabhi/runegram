@@ -3,11 +3,11 @@ from aiogram import types
 from src.bot.dispatcher import dp
 from src.db import async_session_factory
 from src.services import player_service, permission_service
-from src.commands.player.general import GENERAL_COMMANDS
-from src.commands.player.character import CHARACTER_COMMANDS
-from src.commands.player.interaction import INTERACTION_COMMANDS
-from src.commands.admin.building import BUILDING_COMMANDS
-from src.commands.admin.movement import ADMIN_MOVEMENT_COMMANDS
+from commands.player.general import GENERAL_COMMANDS
+from commands.player.character import CHARACTER_COMMANDS
+from commands.player.interaction import INTERACTION_COMMANDS
+from commands.admin.building import BUILDING_COMMANDS
+from commands.admin.movement import ADMIN_MOVEMENT_COMMANDS
 from src.utils.presenters import show_current_room
 from sqlalchemy.ext.asyncio import AsyncSession
 

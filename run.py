@@ -1,17 +1,11 @@
 # run.py
 import logging
-import sys
-from pathlib import Path
-
-ROOT_DIR = Path(__file__).resolve().parent
-sys.path.append(str(ROOT_DIR))
+# Ya no necesitamos sys ni Path para esto
 
 from aiogram import executor
 from src.bot.dispatcher import dp
 
-# --- IMPORTACIÓN ÚNICA Y FINAL ---
-# Esta única línea cargará transitivamente handlers -> player -> dispatcher,
-# registrando nuestro único handler en 'dp'.
+# Esta importación ahora funcionará gracias al PYTHONPATH de Docker
 import src.handlers
 
 async def on_startup(dispatcher):
@@ -25,4 +19,5 @@ def main():
     executor.start_polling(dp, on_startup=on_startup, on_shutdown=on_shutdown)
 
 if __name__ == "__main__":
+    import sys # Lo necesitamos para el logging
     main()

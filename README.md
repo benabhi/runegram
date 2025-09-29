@@ -1,12 +1,12 @@
 # Runegram MUD
 
-![Python](https://img.shields.io/badge/python-3.11-blue.svg)![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)![PostgreSQL](https://img.shields.io/badge/postgresql-%23316192.svg?style=for-the-badge&logo=postgresql&logoColor=white)![Redis](https://img.shields.io/badge/redis-%23DD0_031.svg?style=for-the-badge&logo=redis&logoColor=white)
+![Python](https://img.shields.io/badge/python-3.11-blue.svg)![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)![PostgreSQL](https://img.shields.io/badge/postgresql-%23316192.svg?style=for-the-badge&logo=postgresql&logoColor=white)![Redis](https://img.shields.io/badge/redis-%23DD0031.svg?style=for-the-badge&logo=redis&logoColor=white)
 
 Runegram es un proyecto para crear un juego de rol textual multijugador (MUD - Multi-User Dungeon) que se juega a través de la interacción con un bot de Telegram. Este repositorio contiene una base funcional para una aplicación escalable, con registro de jugadores, un mundo explorable y herramientas de administración.
 
 ## Arquitectura y Stack Tecnológico
 
-La arquitectura está diseñada para ser robusta, modular y escalable, utilizando tecnologías modernas:
+La arquitectura está diseñada para ser robusta, modular y escalable, con una clara separación entre el **motor del juego** y el **contenido del juego**.
 
 *   **Lenguaje**: Python 3.11 con `asyncio`.
 *   **Framework de Bot**: Aiogram.
@@ -23,31 +23,32 @@ La arquitectura está diseñada para ser robusta, modular y escalable, utilizand
 *   **Mundo de Juego Dinámico:**
     *   Sistema de salas (`Rooms`) conectadas por salidas (`Exits`) bidireccionales.
     *   Las salidas son entidades propias en la base de datos, preparadas para tener propiedades individuales como `locks`.
-    *   Movimiento de jugadores entre salas mediante comandos de texto (ej: `norte`).
-    *   Presentación de salas con formato de MUD clásico, mostrando nombre, descripción, objetos y salidas.
-*   **Sistema de Objetos (Items):**
-    *   Los objetos pueden existir en el mundo (en el suelo de una sala) o en el inventario de un personaje.
-    *   Bucle de interacción completo: `/mirar` muestra los objetos, `/coger` los mueve al inventario, `/inventario` los muestra, y `/dejar` los devuelve a la sala.
+    *   Movimiento de jugadores entre salas mediante comandos de texto sin prefijo (ej: `norte`).
+*   **Sistema de Prototipos de Objetos (Items):**
+    *   Los objetos se definen como "prototipos" en el código (`game_data/`), permitiendo una fácil creación y modificación del contenido del juego sin alterar la lógica del motor.
+    *   Las "instancias" de estos objetos pueden existir en el mundo o en el inventario de un personaje.
+    *   Bucle de interacción completo: `/mirar`, `/coger`, `/inventario`, y `/dejar`.
 *   **Herramientas de Administración:**
     *   Sistema de roles (`JUGADOR`, `ADMINISTRADOR`) para control de permisos.
     *   Comandos protegidos para crear y modificar el mundo en tiempo real: `/crearsala`, `/describirsala`, `/conectarsala`, `/teleport`, `/crearitem`.
 *   **Arquitectura de Comandos Unificada y Escalable:**
-    *   **Todos los comandos (jugador y admin) usan el prefijo `/`**, proporcionando una interfaz de usuario consistente.
-    *   El sistema se basa en **clases `Command`** agrupadas en **`Command Sets`** (ej: `general`, `interaction`, `building`).
-    *   Un **dispatcher central** procesa todos los comandos, verifica permisos y delega la ejecución a la clase correspondiente, haciendo que añadir nuevos comandos sea trivial.
+    *   El sistema se basa en **clases `Command`** que encapsulan la lógica de cada acción.
+    *   Estos comandos se agrupan en **`Command Sets`** (ej: `general`, `interaction`, `building`).
+    *   Un **dispatcher central** procesa todos los comandos con prefijo `/`, verifica permisos a través de un sistema de `locks`, y delega la ejecución a la clase correspondiente.
 
 ## Estructura del Proyecto (Arquitectura Refactorizada)
 
-La estructura actual está altamente organizada y desacoplada.
+La estructura actual separa claramente el **código del motor (`src`)** del **contenido del juego (`game_data`, `commands`)**.
 
 ```
 runegram/
 ├── alembic/              # Migraciones de la base de datos
-├── commands/             # Clases de Comandos (la lógica de cada acción)
+├── commands/             # DEFINICIÓN de los comandos (clases Command)
 │   ├── admin/
 │   └── player/
+├── game_data/            # DEFINICIÓN de prototipos (items, NPCs, etc.)
 ├── scripts/              # Scripts de utilidad (ej: full_reset.bat)
-├── src/                  # Código fuente principal de la aplicación
+├── src/                  # CÓDIGO FUENTE del motor de la aplicación
 │   ├── bot/              # Configuración del bot y dispatcher central de Aiogram
 │   ├── config.py         # Carga de variables de entorno
 │   ├── db.py             # Configuración del motor de SQLAlchemy
@@ -69,13 +70,13 @@ runegram/
 
 Se necesita Docker y Docker Compose.
 
-1.  **Configurar el Entorno:** Crea un archivo `.env` en la raíz del proyecto a partir del ejemplo de abajo y añade tu token de bot de Telegram.
+1.  **Configurar el Entorno:** Crea un archivo `.env` en la raíz del proyecto a partir del siguiente ejemplo y añade tu token de bot de Telegram.
 2.  **Ejecutar el Script de Reinicio:** Para asegurar un entorno limpio, usa el script automatizado.
     ```bash
     # En Windows (CMD o PowerShell)
     scripts\full_reset.bat
     ```
-    Este script reconstruirá la imagen, levantará los servicios y aplicará todas las migraciones de la base de datos.
+    Este script reconstruirá la imagen, levantará los servicios y aplicará todas las migr-aciones de la base de datos.
 3.  **Jugar:** Abre Telegram y envía `/start` a tu bot.
 
 ---
@@ -106,7 +107,7 @@ Esta sección documenta las próximas mejoras para evolucionar de un esqueleto f
         1.  **Modelos de Datos:** Crear los modelos `Skill` y `CharacterSkill` para almacenar las habilidades y el progreso de cada personaje. Añadir atributos de combate (Salud, Maná, Energía) al modelo `Character`.
         2.  **Mecánica d100:** Implementar la lógica central de "aprender haciendo": una acción tiene éxito si `d100 <= nivel_de_habilidad`, y al tener éxito, se gana experiencia.
         3.  **Comandos de Combate:** Crear el `CommandSet` de combate con comandos básicos como `/atacar [objetivo]`.
-        4.  **Crear NPCs (Monstruos):** Diseñar un modelo `NPC` con atributos de combate y un comportamiento básico (IA simple).
+        4.  **Crear NPCs (Monstruos):** Diseñar un modelo `NPC` con atributos de combate y un comportamiento básico (IA simple), siguiendo el sistema de prototipos.
 
 ### ✨ **Sugerencias Adicionales para el Futuro**
 

@@ -1,36 +1,36 @@
 # src/utils/presenters.py
-
 from aiogram import types
+from collections import Counter
 
 from src.models.room import Room
+from src.models.item import Item
 from src.db import async_session_factory
 from src.services import player_service
+from game_data.item_prototypes import ITEM_PROTOTYPES
 
+
+def get_item_name(item: Item) -> str:
+    """Obtiene el nombre de un item, usando override o el prototipo."""
+    if item.name_override:
+        return item.name_override
+    return ITEM_PROTOTYPES.get(item.key, {}).get("name", "un objeto misterioso")
 
 async def format_room(room: Room) -> str:
     """
-    Construye y formatea la descripción completa de una sala para ser mostrada al jugador.
-    Esta función está diseñada para ser fácilmente extensible.
+    Construye y formatea la descripción completa de una sala.
     """
     parts = []
-
-    # 1. Título de la Sala (en negrita)
     parts.append(f"<b>{room.name}</b>")
-
-    # 2. Descripción principal
-    # Usamos strip() para quitar espacios en blanco al inicio/final que puedan venir de la BD
     parts.append(room.description.strip())
 
-    # 3. Items en la sala
     if room.items:
-        items_list = [item.name for item in room.items]
-        from collections import Counter
-        item_counts = Counter(items_list)
+        # Usamos nuestra nueva función para obtener los nombres correctos
+        item_names = [get_item_name(item) for item in room.items]
+        item_counts = Counter(item_names)
         formatted_items = [f"{name} ({count})" if count > 1 else name for name, count in item_counts.items()]
         items_str = ", ".join(formatted_items)
         parts.append(f"\n<b>Ves aquí:</b> {items_str}.")
 
-    # 3. Salidas
     if room.exits_from:
         exits_list = sorted([exit_obj.name.capitalize() for exit_obj in room.exits_from])
         exits_str = ", ".join(exits_list)
@@ -38,10 +38,7 @@ async def format_room(room: Room) -> str:
     else:
         parts.append("\n<b>Salidas:</b> [ Ninguna ]")
 
-    # Unimos todas las partes con saltos de línea
     description_body = "\n".join(parts)
-
-    # Envolvemos el resultado final en etiquetas <pre> para un formato de monoespaciado
     return f"<pre>{description_body}</pre>"
 
 

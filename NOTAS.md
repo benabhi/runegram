@@ -17,6 +17,14 @@ docker-compose exec postgres psql -U runegram -d runegram_db
 \dt
 ```
 
+## Docker
+
+### Prune
+
+```shell
+docker system prune -a --volumes
+```
+
 ## TODO
 
 * Las salas no muestran los objetos caidos

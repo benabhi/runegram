@@ -1,3 +1,4 @@
+project_snapshot.txt
 # Archivos de Entorno
 # Contiene secretos y configuraciones locales. ¡Nunca subir a Git!
 .env

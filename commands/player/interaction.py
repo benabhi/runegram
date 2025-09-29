@@ -3,11 +3,11 @@
 from aiogram import types
 from sqlalchemy.ext.asyncio import AsyncSession
 
+# La ruta a 'command' es correcta porque ambos están en el mismo nivel relativo a la raíz
 from commands.command import Command
+# La ruta a 'character' debe partir de la raíz del proyecto, que incluye 'src'
 from src.models.character import Character
 from src.services import item_service
-# Importamos la nueva función de ayuda para obtener el nombre real de un ítem
-from src.utils.presenters import get_item_name
 
 
 class CmdGet(Command):
@@ -27,20 +27,19 @@ class CmdGet(Command):
         item_name_to_get = " ".join(args).lower()
         item_to_get = None
 
-        # Buscamos el objeto en la sala, comparando con el nombre del prototipo
+        # Buscamos el objeto en la sala, usando el nuevo método del modelo
         for item in character.room.items:
-            if item_name_to_get in get_item_name(item).lower():
+            if item_name_to_get in item.get_name().lower():
                 item_to_get = item
                 break
 
         if not item_to_get:
             return await message.answer("No ves eso por aquí.")
 
-        # Movemos el objeto usando el servicio
         await item_service.move_item_to_character(session, item_to_get.id, character.id)
 
-        # Mostramos el nombre correcto del objeto cogido
-        await message.answer(f"Has cogido: {get_item_name(item_to_get)}")
+        # Usamos el nuevo método para mostrar el nombre
+        await message.answer(f"Has cogido: {item_to_get.get_name()}")
 
 
 class CmdDrop(Command):
@@ -60,20 +59,19 @@ class CmdDrop(Command):
         item_name_to_drop = " ".join(args).lower()
         item_to_drop = None
 
-        # Buscamos el objeto en el inventario del personaje
+        # Buscamos el objeto en el inventario, usando el nuevo método
         for item in character.items:
-            if item_name_to_drop in get_item_name(item).lower():
+            if item_name_to_drop in item.get_name().lower():
                 item_to_drop = item
                 break
 
         if not item_to_drop:
             return await message.answer("No llevas eso.")
 
-        # Movemos el objeto usando el servicio
         await item_service.move_item_to_room(session, item_to_drop.id, character.room_id)
 
-        # Mostramos el nombre correcto del objeto dejado
-        await message.answer(f"Has dejado: {get_item_name(item_to_drop)}")
+        # Usamos el nuevo método para mostrar el nombre
+        await message.answer(f"Has dejado: {item_to_drop.get_name()}")
 
 
 # --- Exportación del Command Set ---

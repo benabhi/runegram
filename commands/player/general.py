@@ -5,13 +5,58 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from commands.command import Command
 from src.models.character import Character
 from src.utils.presenters import show_current_room
+from src.services import script_service
 
 class CmdLook(Command):
     names = ["mirar", "m", "l"]
     lock = ""
 
-    async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
-        await show_current_room(message)
+    async def execute(
+        self,
+        character: Character,
+        session: AsyncSession,
+        message: types.Message,
+        args: list[str]
+    ):
+        # Si no hay argumentos, simplemente miramos la sala.
+        if not args:
+            await show_current_room(message)
+            # Disparamos el evento on_look de la sala (futuro)
+            return
+
+        target_name = " ".join(args).lower()
+        found_target = None
+
+        # 1. Buscar en los objetos de la sala
+        for item in character.room.items:
+            if target_name in item.get_keywords() or target_name in item.get_name().lower():
+                found_target = item
+                break
+
+        # 2. Si no se encontró, buscar en el inventario del personaje
+        if not found_target:
+            for item in character.items:
+                if target_name in item.get_keywords() or target_name in item.get_name().lower():
+                    found_target = item
+                    break
+
+        # Futuro: 3. Buscar otros personajes en la sala
+        # Futuro: 4. Buscar NPCs en la sala
+
+        if not found_target:
+            return await message.answer("No ves eso por aquí.")
+
+        # Mostramos la descripción del objeto encontrado.
+        await message.answer(f"<pre>{found_target.get_description()}</pre>", parse_mode="HTML")
+
+        # DISPARAMOS EL EVENTO ON_LOOK
+        if "on_look" in found_target.prototype.get("scripts", {}):
+            await script_service.execute_script(
+                script_string=found_target.prototype["scripts"]["on_look"],
+                session=session,
+                character=character,
+                target=found_target
+            )
 
 class CmdSay(Command):
     names = ["decir", "'"]

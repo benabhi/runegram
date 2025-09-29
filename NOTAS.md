@@ -1,3 +1,9 @@
+## Telegram
+
+### Mi ID de usuario (benabbhi)
+
+1648877346
+
 ## Postgres
 
 ### Conectarse
@@ -10,3 +16,9 @@ docker-compose exec postgres psql -U runegram -d runegram_db
 ```
 \dt
 ```
+
+## TODO
+
+* Las salas no muestran los objetos caidos
+* Como se determina que comando le corresponde a quie?
+* No se actualizan ambos extremos de las salidas

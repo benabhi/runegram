@@ -1,3 +1,2 @@
-from . import system
-from . import character
-from . import movement
+# src/handlers/player/__init__.py
+from . import dispatcher

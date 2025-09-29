@@ -1,46 +1,48 @@
 # src/services/player_service.py
+
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 from sqlalchemy.orm import selectinload
 
 from src.models.account import Account
 from src.models.character import Character
 from src.models.room import Room
+from src.models.item import Item
+from src.models.exit import Exit
+
 
 async def get_or_create_account(session: AsyncSession, telegram_id: int) -> Account:
     """
     Busca una cuenta por su telegram_id. Si no existe, la crea.
-    Devuelve el objeto de la cuenta con sus relaciones (personaje, sala, items) ya cargadas.
+    Devuelve el objeto de la cuenta con sus relaciones ya cargadas.
     """
-    load_strategy = select(Account).options(
-        selectinload(Account.character)
-        .selectinload(Character.room)
-        .selectinload(Room.items), # Carga los items de la sala
-        selectinload(Account.character)
-        .selectinload(Character.items) # <-- AÑADE ESTA LÍNEA para cargar el inventario
-    )
+    # --- LÓGICA SIMPLIFICADA Y CORREGIDA ---
 
-    # 1. Buscamos la cuenta con la estrategia de carga
+    # 1. Intentamos encontrar la cuenta
+    # Definimos la estrategia de carga aquí para aplicarla si encontramos la cuenta.
+    load_strategy = select(Account).options(
+        selectinload(Account.character).selectinload(Character.room).selectinload(Room.items),
+        selectinload(Account.character).selectinload(Character.room).selectinload(Room.exits_from),
+        selectinload(Account.character).selectinload(Character.items)
+    )
     query = load_strategy.where(Account.telegram_id == telegram_id)
     result = await session.execute(query)
     account = result.scalar_one_or_none()
 
-    # 2. Si la cuenta existe, la devolvemos. Ya viene con todo cargado.
+    # 2. Si la cuenta existe, la devolvemos. Viene con todo precargado.
     if account:
         return account
 
-    # 3. Si la cuenta no existe, la creamos
+    # 3. Si no existe, la creamos y la devolvemos.
+    # El objeto devuelto estará "fresco" y sus relaciones (como .character)
+    # serán None por defecto, lo cual es el estado correcto para una nueva cuenta.
     print(f"Creando nueva cuenta para el telegram_id: {telegram_id}")
     new_account = Account(telegram_id=telegram_id)
     session.add(new_account)
     await session.commit()
+    await session.refresh(new_account) # Usamos refresh para obtener el ID y roles por defecto
 
-    # 4. VOLVEMOS A BUSCARLA usando la misma estrategia de carga.
-    result = await session.execute(load_strategy.where(Account.id == new_account.id))
-    created_account = result.scalar_one()
-
-    return created_account
+    return new_account
 
 
 async def create_character(session: AsyncSession, telegram_id: int, character_name: str) -> Character:
@@ -49,8 +51,7 @@ async def create_character(session: AsyncSession, telegram_id: int, character_na
     Lanza una excepción si la cuenta no existe, ya tiene un personaje,
     o el nombre del personaje ya está en uso.
     """
-    # 1. Buscamos la cuenta. Usamos la misma función get_or_create_account
-    # para asegurarnos de que la relación .character se intente cargar.
+    # 1. Buscamos la cuenta.
     account = await get_or_create_account(session, telegram_id)
 
     # 2. Verificamos que la cuenta no tenga ya un personaje
@@ -71,15 +72,13 @@ async def create_character(session: AsyncSession, telegram_id: int, character_na
     session.add(new_character)
     await session.commit()
 
-    # --- LA SOLUCIÓN CLAVE ---
-    # 5. Expiramos la instancia de 'account' para forzar una recarga
-    # la próxima vez que se acceda a ella, incluyendo sus relaciones.
+    # 5. Expiramos la instancia de 'account' para forzar una recarga completa
+    # la próxima vez que se necesite, asegurando que la relación .character se actualice.
     session.expire(account)
 
-    # También podemos refrescar el personaje recién creado para asegurarnos de que está completo
     await session.refresh(new_character)
-
     return new_character
+
 
 async def teleport_character(session: AsyncSession, character_id: int, to_room_id: int):
     """Mueve un personaje a una nueva sala."""

@@ -21,22 +21,18 @@ async def format_room(room: Room) -> str:
     # Usamos strip() para quitar espacios en blanco al inicio/final que puedan venir de la BD
     parts.append(room.description.strip())
 
-    # --- Secciones futuras (fácil de añadir más aquí) ---
-
-    # Futuro: Añadir la lista de objetos en el suelo
-    # if room.items:
-    #     items_str = ", ".join([item.name for item in room.items])
-    #     parts.append(f"\n<b>Ves aquí:</b> {items_str}")
-
-    # Futuro: Añadir la lista de otros jugadores en la sala
-    # if other_players:
-    #     players_str = ", ".join([player.name for player in other_players])
-    #     parts.append(f"\n<b>También están aquí:</b> {players_str}")
+    # 3. Items en la sala
+    if room.items:
+        items_list = [item.name for item in room.items]
+        from collections import Counter
+        item_counts = Counter(items_list)
+        formatted_items = [f"{name} ({count})" if count > 1 else name for name, count in item_counts.items()]
+        items_str = ", ".join(formatted_items)
+        parts.append(f"\n<b>Ves aquí:</b> {items_str}.")
 
     # 3. Salidas
-    if room.exits:
-        # Obtenemos las salidas y las capitalizamos para que se vean mejor
-        exits_list = [exit_name.capitalize() for exit_name in room.exits.keys()]
+    if room.exits_from:
+        exits_list = sorted([exit_obj.name.capitalize() for exit_obj in room.exits_from])
         exits_str = ", ".join(exits_list)
         parts.append(f"\n<b>Salidas:</b> [ {exits_str} ]")
     else:

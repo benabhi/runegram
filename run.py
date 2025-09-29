@@ -1,26 +1,18 @@
 # run.py
-
 import logging
 import sys
 from pathlib import Path
 
-# --- Añade la raíz del proyecto al path ---
 ROOT_DIR = Path(__file__).resolve().parent
 sys.path.append(str(ROOT_DIR))
 
-# --- Importaciones de Aiogram ---
 from aiogram import executor
 from src.bot.dispatcher import dp
 
-
-# --- LA LÍNEA MÁS IMPORTANTE ---
-# Importamos nuestros paquetes de handlers explícitamente aquí.
-# Esto fuerza a Python a ejecutar los archivos __init__.py de los handlers
-# y registrar todos los decoradores @dp.message_handler en el orden correcto
-# ANTES de que executor.start_polling se ejecute.
-from src.handlers import admin
-from src.handlers import player
-
+# --- IMPORTACIÓN ÚNICA Y FINAL ---
+# Esta única línea cargará transitivamente handlers -> player -> dispatcher,
+# registrando nuestro único handler en 'dp'.
+import src.handlers
 
 async def on_startup(dispatcher):
     logging.info("Bot iniciando...")

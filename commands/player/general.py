@@ -72,14 +72,23 @@ class CmdInventory(Command):
     names = ["inventario", "inv", "i"]
     lock = ""
 
-    async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
+    async def execute(
+        self,
+        character: Character,
+        session: AsyncSession,
+        message: types.Message,
+        args: list[str]
+    ):
         inventory = character.items
         if not inventory:
             response = "No llevas nada."
         else:
-            items_list = [f" - {item.name}" for item in inventory]
+            # --- LÍNEA CORREGIDA ---
+            # Usamos el método item.get_name() que lee del prototipo
+            items_list = [f" - {item.get_name()}" for item in inventory]
             items_str = "\n".join(items_list)
             response = f"<b>Llevas lo siguiente:</b>\n{items_str}"
+
         await message.answer(f"<pre>{response}</pre>", parse_mode="HTML")
 
 class CmdHelp(Command):

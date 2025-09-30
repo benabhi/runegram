@@ -4,24 +4,28 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.item import Item
-# No necesitamos Character y Room aquí directamente
-# from src.models.character import Character
-# from src.models.room import Room
 from game_data.item_prototypes import ITEM_PROTOTYPES
+# Importamos el ticker_service para registrar nuevos objetos
+from src.services import ticker_service
 
 
 async def spawn_item_in_room(session: AsyncSession, room_id: int, item_key: str) -> Item:
     """
-    Crea una instancia de un prototipo de objeto y la coloca en una sala.
+    Crea una instancia de un prototipo de objeto, la coloca en una sala
+    y registra sus tickers.
     """
     if item_key not in ITEM_PROTOTYPES:
         raise ValueError(f"No existe un prototipo de objeto con la clave '{item_key}'")
 
-    # Creamos una nueva instancia de Item, solo guardando la key y su ubicación.
     new_item = Item(room_id=room_id, key=item_key)
     session.add(new_item)
     await session.commit()
     await session.refresh(new_item)
+
+    # Después de crear el objeto, le decimos al scheduler que lo "observe"
+    # por si tiene tareas programadas (tickers).
+    await ticker_service.schedule_tickers_for_entity(new_item)
+
     return new_item
 
 

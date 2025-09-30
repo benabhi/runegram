@@ -9,85 +9,107 @@ from src.models.character import Character
 from src.models.room import Room
 from src.models.item import Item
 from src.models.exit import Exit
+from src.services import channel_service # Importamos el channel_service
+
+
+async def get_character_with_relations_by_id(session: AsyncSession, character_id: int) -> Character | None:
+    """
+    Busca un personaje por su ID y carga explícitamente todas sus relaciones
+    críticas para evitar errores de carga perezosa.
+    """
+    query = (
+        select(Character)
+        .where(Character.id == character_id)
+        .options(
+            selectinload(Character.room).selectinload(Room.items),
+            selectinload(Character.room).selectinload(Room.exits_from),
+            selectinload(Character.items),
+            selectinload(Character.account),
+            selectinload(Character.settings) # Aseguramos cargar las settings también
+        )
+    )
+    result = await session.execute(query)
+    return result.scalar_one_or_none()
 
 
 async def get_or_create_account(session: AsyncSession, telegram_id: int) -> Account:
     """
     Busca una cuenta por su telegram_id. Si no existe, la crea.
-    Devuelve el objeto de la cuenta con sus relaciones ya cargadas.
+    Devuelve el objeto de la cuenta con su personaje y todas las relaciones cargadas.
     """
-    # --- LÓGICA SIMPLIFICADA Y CORREGIDA ---
-
-    # 1. Intentamos encontrar la cuenta
-    # Definimos la estrategia de carga aquí para aplicarla si encontramos la cuenta.
-    load_strategy = select(Account).options(
-        selectinload(Account.character).selectinload(Character.room).selectinload(Room.items),
-        selectinload(Account.character).selectinload(Character.room).selectinload(Room.exits_from),
-        selectinload(Account.character).selectinload(Character.items)
-    )
-    query = load_strategy.where(Account.telegram_id == telegram_id)
-    result = await session.execute(query)
+    # Primero, buscamos la cuenta y su relación con el personaje.
+    account_query = select(Account).where(Account.telegram_id == telegram_id).options(selectinload(Account.character))
+    result = await session.execute(account_query)
     account = result.scalar_one_or_none()
 
-    # 2. Si la cuenta existe, la devolvemos. Viene con todo precargado.
-    if account:
+    # Si la cuenta no existe, la creamos y la devolvemos. No tendrá personaje.
+    if not account:
+        print(f"Creando nueva cuenta para el telegram_id: {telegram_id}")
+        new_account = Account(telegram_id=telegram_id)
+        session.add(new_account)
+        await session.commit()
+        await session.refresh(new_account)
+        return new_account
+
+    # Si la cuenta existe pero no tiene personaje, la devolvemos tal cual.
+    if not account.character:
         return account
 
-    # 3. Si no existe, la creamos y la devolvemos.
-    # El objeto devuelto estará "fresco" y sus relaciones (como .character)
-    # serán None por defecto, lo cual es el estado correcto para una nueva cuenta.
-    print(f"Creando nueva cuenta para el telegram_id: {telegram_id}")
-    new_account = Account(telegram_id=telegram_id)
-    session.add(new_account)
-    await session.commit()
-    await session.refresh(new_account) # Usamos refresh para obtener el ID y roles por defecto
-
-    return new_account
+    # Si la cuenta y el personaje existen, recargamos el personaje con todas sus relaciones.
+    full_character = await get_character_with_relations_by_id(session, account.character.id)
+    account.character = full_character
+    return account
 
 
 async def create_character(session: AsyncSession, telegram_id: int, character_name: str) -> Character:
     """
-    Crea un nuevo personaje y lo asocia a una cuenta existente.
-    Lanza una excepción si la cuenta no existe, ya tiene un personaje,
-    o el nombre del personaje ya está en uso.
+    Crea un nuevo personaje, lo asocia a una cuenta, y envía un mensaje de bienvenida.
     """
-    # 1. Buscamos la cuenta.
     account = await get_or_create_account(session, telegram_id)
 
-    # 2. Verificamos que la cuenta no tenga ya un personaje
     if account.character is not None:
         raise ValueError("Ya tienes un personaje asociado a esta cuenta.")
 
-    # 3. Verificamos que el nombre no esté en uso
     result = await session.execute(select(Character).where(Character.name == character_name))
     if result.scalar_one_or_none():
         raise ValueError(f"El nombre '{character_name}' ya está en uso. Por favor, elige otro.")
 
-    # 4. Creamos el nuevo personaje
     new_character = Character(
         name=character_name,
         account_id=account.id,
-        room_id=1
+        room_id=1 # Asigna a la sala de inicio "limbo"
     )
     session.add(new_character)
     await session.commit()
+    # Refrescamos el personaje para obtener su ID y cargar relaciones vacías como .settings
+    await session.refresh(new_character, attribute_names=["settings"])
 
-    # 5. Expiramos la instancia de 'account' para forzar una recarga completa
-    # la próxima vez que se necesite, asegurando que la relación .character se actualice.
+    # --- MENSAJE DE BIENVENIDA ---
+    # Aseguramos que las settings se creen para que el canal "novato" esté activo por defecto.
+    await channel_service.get_or_create_settings(session, new_character)
+    welcome_message = (
+        f"¡Bienvenido al mundo, {new_character.name}! "
+        "Usa los comandos de movimiento como <b>/norte</b> o <b>/sur</b> para explorar. "
+        "Si necesitas ayuda, puedes preguntar en este canal usando <b>/novato [tu pregunta]</b>. "
+        "Para una lista de comandos más detallada, escribe <b>/ayuda</b>."
+    )
+    # Enviamos el mensaje de bienvenida al canal novato.
+    # El propio nuevo jugador lo recibirá, además de cualquiera que esté escuchando.
+    await channel_service.broadcast_to_channel(session, "novato", welcome_message)
+    # --- FIN MENSAJE DE BIENVENIDA ---
+
+    # Expiramos la cuenta para forzar una recarga completa la próxima vez,
+    # asegurando que la relación .character se actualice correctamente.
     session.expire(account)
-
-    await session.refresh(new_character)
     return new_character
 
 
 async def teleport_character(session: AsyncSession, character_id: int, to_room_id: int):
     """Mueve un personaje a una nueva sala."""
-    # Verificamos que la sala de destino exista
     result = await session.execute(select(Room).where(Room.id == to_room_id))
     if not result.scalar_one_or_none():
         raise ValueError(f"La sala con ID {to_room_id} no existe.")
 
-    # Actualizamos la room_id del personaje
     query = update(Character).where(Character.id == character_id).values(room_id=to_room_id)
     await session.execute(query)
     await session.commit()

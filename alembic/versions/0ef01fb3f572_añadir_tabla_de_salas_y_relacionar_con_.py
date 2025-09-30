@@ -25,30 +25,24 @@ def upgrade() -> None:
         sa.Column('id', sa.BigInteger(), nullable=False),
         sa.Column('name', sa.String(length=100), nullable=False),
         sa.Column('description', sa.Text(), nullable=False),
-        # --- LA LÍNEA FINAL Y CORRECTA ---
-        # Simplemente usamos postgresql.JSONB sin argumentos adicionales.
+        # Nota: La columna 'exits' de tipo JSONB será eliminada por una migración posterior,
+        # así que la dejamos aquí por ahora para mantener la consistencia histórica.
         sa.Column('exits', postgresql.JSONB(), nullable=False),
         sa.PrimaryKeyConstraint('id')
     )
 
-    # Paso 1: Añadimos una sala de inicio a la tabla 'rooms' para que exista.
-    op.execute("INSERT INTO rooms (id, name, description, exits) VALUES (1, 'Sala de Inicio', 'Te encuentras en una habitación vacía. Es el comienzo de tu aventura.', '{}')")
-
-    # Sincronizamos la secuencia de IDs de la tabla 'rooms'.
-    # setval coge el valor MÁXIMO de la columna 'id' y lo establece como
-    # el punto de partida actual para la secuencia.
-    op.execute("SELECT setval('rooms_id_seq', (SELECT MAX(id) FROM rooms))")
-
-    # Paso 2: Añadimos la columna 'room_id' permitiendo nulos temporalmente.
+    # Añadimos la columna 'room_id' permitiendo nulos temporalmente.
     op.add_column('characters', sa.Column('room_id', sa.BigInteger(), nullable=True))
 
-    # Paso 3: Rellenamos todas las filas existentes con el ID de la sala de inicio (1).
-    op.execute('UPDATE characters SET room_id = 1')
+    # Rellenamos las filas existentes con un ID de sala por defecto (1).
+    # Esto es necesario para que la siguiente línea (nullable=False) no falle en bases de datos existentes.
+    # El `create_character` service y el `world_loader` aseguran que la sala con ID 1 (limbo) exista.
+    op.execute('UPDATE characters SET room_id = 1 WHERE room_id IS NULL')
 
-    # Paso 4: AHORA SÍ, modificamos la columna para que sea NOT NULL.
+    # Ahora sí, modificamos la columna para que sea NOT NULL.
     op.alter_column('characters', 'room_id', nullable=False)
 
-    # Creamos la Foreign Key constraint al final
+    # Creamos la Foreign Key constraint al final.
     op.create_foreign_key('fk_characters_room_id_rooms', 'characters', 'rooms', ['room_id'], ['id'])
     # ### end Alembic commands ###
 

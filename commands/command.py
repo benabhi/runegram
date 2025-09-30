@@ -5,8 +5,20 @@ from src.models.character import Character
 
 class Command:
     """Clase base para todos los comandos del juego."""
-    names: list[str] = []  # Alias del comando, ej: ["mirar", "m"]
-    lock: str = ""         # El string de lock para este comando
+    # El lock puede seguir siendo un atributo de clase
+    lock: str = ""
+
+    def __init__(self, names: list[str] = None):
+        """
+        Inicializador para permitir la creación de instancias de comandos
+        con alias dinámicos, como los comandos de movimiento.
+        """
+        # Si se pasan 'names' al crear la instancia, los usamos.
+        # Si no, usamos los definidos en la clase (comportamiento antiguo).
+        if names:
+            self.names = names
+        elif not hasattr(self, 'names'):
+            self.names = []
 
     async def execute(
         self,

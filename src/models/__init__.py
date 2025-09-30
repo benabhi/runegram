@@ -6,3 +6,4 @@ from .character import Character
 from .room import Room
 from .item import Item
 from .exit import Exit
+from .character_setting import CharacterSetting

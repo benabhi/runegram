@@ -21,4 +21,12 @@ class Character(Base):
     # Usamos el string 'src.models.item.Item'
     items = relationship("src.models.item.Item", back_populates="character")
 
+    # Relación uno a uno con las configuraciones del personaje.
+    settings = relationship(
+        "src.models.character_setting.CharacterSetting",
+        back_populates="character",
+        uselist=False,
+        cascade="all, delete-orphan"
+    )
+
     command_sets = Column(JSONB, nullable=False, server_default='["general"]', default=["general"])

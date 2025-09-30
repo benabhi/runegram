@@ -9,6 +9,7 @@ class Room(Base):
     __tablename__ = 'rooms'
 
     id = Column(BigInteger, primary_key=True)
+    key = Column(String(50), unique=True, nullable=True, index=True)
     name = Column(String(100), nullable=False)
     description = Column(Text, nullable=False, default="Esta es una sala sin describir.")
     locks = Column(String, nullable=False, default="")

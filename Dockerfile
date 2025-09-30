@@ -2,8 +2,8 @@
 # Usamos alpine, que es muy ligero, por lo que tenemos que añadir paquetes
 FROM python:3.11-alpine
 
-# Instalamos netcat (viene en el paquete 'netcat-openbsd') y git
-RUN apk add --no-cache netcat-openbsd git
+# Instalamos las dependencias de sistema para psycopg2, además de netcat y git
+RUN apk add --no-cache postgresql-libs netcat-openbsd git
 
 WORKDIR /app
 

@@ -1,3 +1,4 @@
+# src/config.py
 
 from pydantic import BaseSettings, SecretStr
 
@@ -18,8 +19,18 @@ class Settings(BaseSettings):
 
     @property
     def database_url(self) -> str:
+        # URL ASÍNCRONA (para el resto de la app)
         return (
             f"postgresql+asyncpg://"
+            f"{self.postgres_user}:{self.postgres_password}@"
+            f"{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
+        )
+
+    @property
+    def sync_database_url(self) -> str:
+        # URL SÍNCRONA (exclusivamente para APScheduler)
+        return (
+            f"postgresql+psycopg2://"
             f"{self.postgres_user}:{self.postgres_password}@"
             f"{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )

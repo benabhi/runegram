@@ -1,4 +1,5 @@
-# src/commands/player/character.py
+# commands/player/character.py
+import logging
 from aiogram import types
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -8,6 +9,7 @@ from src.services import player_service
 
 class CmdCreateCharacter(Command):
     names = ["crearpersonaje"]
+    description = "Crea tu personaje para empezar a jugar."
     lock = ""
 
     async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
@@ -28,7 +30,10 @@ class CmdCreateCharacter(Command):
             await message.answer(f"No se pudo crear el personaje: {e}")
         except Exception as e:
             await message.answer("Ocurrió un error inesperado al crear tu personaje.")
-            print(f"Error en CmdCreateCharacter: {e}")
+
+            # --- MEJORA DE LOGGING CLAVE ---
+            # Reemplazamos el print() por logging.exception() para obtener el traceback completo.
+            logging.exception(f"Error finalizando la creación del personaje para {message.from_user.id}")
 
 # --- Exportación del Command Set ---
 CHARACTER_COMMANDS = [CmdCreateCharacter()]

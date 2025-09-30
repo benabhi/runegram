@@ -9,6 +9,7 @@ from game_data.item_prototypes import ITEM_PROTOTYPES
 class CmdGenerarObjeto(Command):
     names = ["generarobjeto", "genobj"]
     lock = "rol(ADMINISTRADOR)"
+    description = "Genera un objeto en la sala a partir de su clave de prototipo."
 
     async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
         if not args:

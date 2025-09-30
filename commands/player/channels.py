@@ -8,6 +8,7 @@ from game_data.channel_prototypes import CHANNEL_PROTOTYPES
 
 class CmdChannel(Command):
     names = ["canal"]
+    description = "Activa o desactiva un canal. Uso: /canal [activar|desactivar] [nombre]."
 
     async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
         if not args or len(args) < 2 or args[0].lower() not in ["activar", "desactivar"]:
@@ -25,6 +26,7 @@ class CmdChannel(Command):
 
 class CmdChannels(Command):
     names = ["canales"]
+    description = "Muestra los canales disponibles y su estado (activado/desactivado)."
 
     async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
         settings = await channel_service.get_or_create_settings(session, character)
@@ -41,6 +43,7 @@ class CmdChannels(Command):
 class CmdNovato(Command):
     names = ["novato"]
     lock = ""
+    description = "Envía un mensaje por el canal de ayuda para novatos."
 
     async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
         if not args:

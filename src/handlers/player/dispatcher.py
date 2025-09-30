@@ -3,7 +3,7 @@ import logging
 from aiogram import types
 from src.bot.dispatcher import dp
 from src.db import async_session_factory
-from src.services import player_service, permission_service, online_service
+from src.services import player_service, permission_service, online_service, command_service
 from commands.player.general import GENERAL_COMMANDS
 from commands.player.character import CHARACTER_COMMANDS
 from commands.player.interaction import INTERACTION_COMMANDS
@@ -15,7 +15,7 @@ from commands.admin.info import INFO_COMMANDS
 from src.utils.presenters import show_current_room
 from sqlalchemy.ext.asyncio import AsyncSession
 
-# --- El Router de Command Sets (Actualizado) ---
+# Este diccionario sigue siendo la "fuente de la verdad" de todas las instancias de comandos.
 COMMAND_SETS = {
     "general": GENERAL_COMMANDS,
     "character_creation": CHARACTER_COMMANDS,
@@ -30,18 +30,19 @@ COMMAND_SETS = {
 @dp.message_handler(content_types=types.ContentTypes.TEXT)
 async def main_command_dispatcher(message: types.Message):
     """
-    Dispatcher principal que ahora también actualiza la actividad del jugador.
+    Dispatcher principal que utiliza el command_service para determinar
+    los comandos activos de un personaje de forma dinámica y actualiza su estado de actividad.
     """
     async with async_session_factory() as session:
         account = await player_service.get_or_create_account(session, message.from_user.id)
         character = account.character
         input_text = message.text.strip()
 
-        # Si el personaje existe, actualizamos su última actividad en cada mensaje.
         if character:
-            await online_service.update_last_seen(character.id)
+            # En cada mensaje, actualizamos la última actividad del personaje.
+            # Esto también se encarga de notificar si vuelve de estar AFK.
+            await online_service.update_last_seen(session, character)
 
-        # --- Manejo especial para /start ---
         if input_text.lower().startswith('/start'):
             if character is None:
                 await message.answer(
@@ -50,17 +51,18 @@ async def main_command_dispatcher(message: types.Message):
                     "/crearpersonaje [nombre] para darle vida a tu aventurero."
                 )
             else:
+                # Al iniciar sesión, actualizamos sus comandos en Telegram.
+                await command_service.update_telegram_commands(character)
                 await show_current_room(message)
             return
 
-        # --- Protección para usuarios sin personaje ---
+        # Protección para usuarios sin personaje
         if not character:
             allowed_cmds = ["/crearpersonaje"]
             cmd_name_only = input_text.split()[0].lower()
             if cmd_name_only not in allowed_cmds:
                 return await message.answer("Primero debes crear un personaje con /crearpersonaje.")
 
-        # --- Lógica del Parser de Comandos ---
         if not input_text.startswith('/'):
              return await message.answer("Comando desconocido. Los comandos deben empezar con / (ej: /mirar, /norte).")
 
@@ -68,13 +70,8 @@ async def main_command_dispatcher(message: types.Message):
         args = message.get_args().split() if message.get_args() else []
 
         found_cmd = None
-        # Añadimos "channels" a los sets de comandos por defecto para todos los jugadores.
-        active_sets_names = ["general", "interaction", "movement", "channels"]
-        if not character:
-            active_sets_names.append("character_creation")
-
-        if account.role == "ADMINISTRADOR":
-            active_sets_names.extend(["spawning", "admin_movement", "admin_info"])
+        # Obtenemos la lista de sets activos desde el servicio en cada turno.
+        active_sets_names = await command_service.get_active_command_sets_for_character(character)
 
         for set_name in active_sets_names:
             if set_name in COMMAND_SETS:

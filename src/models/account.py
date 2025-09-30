@@ -11,8 +11,11 @@ class Account(Base):
     telegram_id = Column(BigInteger, unique=True, nullable=False, index=True)
     role = Column(String, default='JUGADOR', nullable=False)
 
+    # --- NUEVA COLUMNA AÑADIDA ---
+    # Para estados persistentes como 'ACTIVE', 'BLOCKED', etc.
+    status = Column(String(20), default='ACTIVE', nullable=False, server_default='ACTIVE')
+
     # Relación: Una cuenta tiene un personaje
-    # Usamos el string completo 'src.models.character.Character'
     character = relationship("src.models.character.Character", back_populates="account", uselist=False)
 
     def __repr__(self):

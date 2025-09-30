@@ -11,6 +11,7 @@ from src.services import script_service, online_service
 class CmdLook(Command):
     names = ["mirar", "m", "l"]
     lock = ""
+    description = "Observa tu entorno o un objeto/personaje específico."
 
     async def execute(
         self,
@@ -53,6 +54,7 @@ class CmdLook(Command):
 class CmdSay(Command):
     names = ["decir", "'"]
     lock = ""
+    description = "Habla con las personas que están en tu misma sala."
 
     async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
         if not args:
@@ -63,6 +65,7 @@ class CmdSay(Command):
 class CmdInventory(Command):
     names = ["inventario", "inv", "i"]
     lock = ""
+    description = "Muestra los objetos que llevas en tu inventario."
 
     async def execute(
         self,
@@ -84,6 +87,7 @@ class CmdInventory(Command):
 class CmdHelp(Command):
     names = ["ayuda", "help"]
     lock = ""
+    description = "Muestra una lista con los comandos básicos del juego."
 
     async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
         help_text = (
@@ -102,6 +106,7 @@ class CmdHelp(Command):
 class CmdWho(Command):
     names = ["quien", "who"]
     lock = ""
+    description = "Muestra una lista de los jugadores conectados."
 
     async def execute(
         self,

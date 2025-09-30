@@ -1,18 +1,17 @@
-# src/commands/player/interaction.py
+# commands/player/interaction.py
 
 from aiogram import types
 from sqlalchemy.ext.asyncio import AsyncSession
 
-# La ruta a 'command' es correcta porque ambos están en el mismo nivel relativo a la raíz
 from commands.command import Command
-# La ruta a 'character' debe partir de la raíz del proyecto, que incluye 'src'
 from src.models.character import Character
-from src.services import item_service
+from src.services import item_service, command_service, player_service
 
 
 class CmdGet(Command):
     names = ["coger", "g"]
     lock = ""
+    description = "Recoge un objeto del suelo."
 
     async def execute(
         self,
@@ -27,7 +26,6 @@ class CmdGet(Command):
         item_name_to_get = " ".join(args).lower()
         item_to_get = None
 
-        # Buscamos el objeto en la sala, usando el nuevo método del modelo
         for item in character.room.items:
             if item_name_to_get in item.get_name().lower():
                 item_to_get = item
@@ -38,13 +36,18 @@ class CmdGet(Command):
 
         await item_service.move_item_to_character(session, item_to_get.id, character.id)
 
-        # Usamos el nuevo método para mostrar el nombre
+        # Si el objeto que cogimos otorga un command set, actualizamos la lista en Telegram.
+        if item_to_get.prototype.get("grants_command_sets"):
+            refreshed_character = await player_service.get_character_with_relations_by_id(session, character.id)
+            await command_service.update_telegram_commands(refreshed_character)
+
         await message.answer(f"Has cogido: {item_to_get.get_name()}")
 
 
 class CmdDrop(Command):
     names = ["dejar", "d"]
     lock = ""
+    description = "Deja un objeto de tu inventario en el suelo."
 
     async def execute(
         self,
@@ -59,7 +62,6 @@ class CmdDrop(Command):
         item_name_to_drop = " ".join(args).lower()
         item_to_drop = None
 
-        # Buscamos el objeto en el inventario, usando el nuevo método
         for item in character.items:
             if item_name_to_drop in item.get_name().lower():
                 item_to_drop = item
@@ -70,7 +72,11 @@ class CmdDrop(Command):
 
         await item_service.move_item_to_room(session, item_to_drop.id, character.room_id)
 
-        # Usamos el nuevo método para mostrar el nombre
+        # Si el objeto que dejamos otorgaba un command set, actualizamos la lista en Telegram.
+        if item_to_drop.prototype.get("grants_command_sets"):
+            refreshed_character = await player_service.get_character_with_relations_by_id(session, character.id)
+            await command_service.update_telegram_commands(refreshed_character)
+
         await message.answer(f"Has dejado: {item_to_drop.get_name()}")
 
 

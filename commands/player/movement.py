@@ -4,13 +4,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from commands.command import Command
 from src.models.character import Character
-from src.services import player_service
+from src.services import player_service, command_service # Importamos command_service
 from src.utils.presenters import show_current_room
 
 class CmdMove(Command):
     """
     Comando genérico para manejar todo el movimiento.
-    La dirección se determina por el primer nombre en la lista de alias.
     """
     async def execute(
         self,
@@ -19,10 +18,7 @@ class CmdMove(Command):
         message: types.Message,
         args: list[str]
     ):
-        # El nombre principal del comando (ej: "norte") es la dirección.
         direction = self.names[0]
-
-        # Buscamos si existe una salida con ese nombre en la sala actual.
         target_exit = next(
             (exit_obj for exit_obj in character.room.exits_from if exit_obj.name == direction),
             None
@@ -31,24 +27,25 @@ class CmdMove(Command):
         if not target_exit:
             return await message.answer("No puedes ir en esa dirección.")
 
-        # Aquí iría la lógica de locks de salida en el futuro.
-        # Por ahora, simplemente movemos al personaje.
-
         await player_service.teleport_character(session, character.id, target_exit.to_room_id)
-        # Mostramos la nueva sala al jugador.
+
+        # Después de movernos, actualizamos la lista de comandos de Telegram
+        # ya que la nueva sala podría otorgar nuevos comandos.
+        refreshed_character = await player_service.get_character_with_relations_by_id(session, character.id)
+        await command_service.update_telegram_commands(refreshed_character)
+
         await show_current_room(message)
 
-# --- Creación del Command Set ---
-# Creamos una instancia de CmdMove para cada dirección y sus alias.
+# --- Creación del Command Set con descripciones ---
 MOVEMENT_COMMANDS = [
-    CmdMove(names=["norte", "n"]),
-    CmdMove(names=["sur", "s"]),
-    CmdMove(names=["este", "e"]),
-    CmdMove(names=["oeste", "o"]),
-    CmdMove(names=["arriba", "ar"]),
-    CmdMove(names=["abajo", "ab"]),
-    CmdMove(names=["noreste", "ne"]),
-    CmdMove(names=["noroeste", "no"]),
-    CmdMove(names=["sureste", "se"]),
-    CmdMove(names=["suroeste", "so"]),
+    CmdMove(names=["norte", "n"], description="Moverse hacia el norte."),
+    CmdMove(names=["sur", "s"], description="Moverse hacia el sur."),
+    CmdMove(names=["este", "e"], description="Moverse hacia el este."),
+    CmdMove(names=["oeste", "o"], description="Moverse hacia el oeste."),
+    CmdMove(names=["arriba", "ar"], description="Moverse hacia arriba."),
+    CmdMove(names=["abajo", "ab"], description="Moverse hacia abajo."),
+    CmdMove(names=["noreste", "ne"], description="Moverse hacia el noreste."),
+    CmdMove(names=["noroeste", "no"], description="Moverse hacia el noroeste."),
+    CmdMove(names=["sureste", "se"], description="Moverse hacia el sureste."),
+    CmdMove(names=["suroeste", "so"], description="Moverse hacia el suroeste."),
 ]

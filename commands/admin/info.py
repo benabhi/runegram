@@ -9,6 +9,7 @@ from src.models import Character, Room
 class CmdListarSalas(Command):
     names = ["listarsalas", "lsalas"]
     lock = "rol(ADMINISTRADOR)"
+    description = "Muestra ID, Clave y Nombre de todas las salas del mundo."
 
     async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
         """Muestra una lista de todas las salas del juego con su ID, Key y Nombre."""

@@ -13,23 +13,42 @@ La arquitectura del proyecto se divide en dos conceptos clave para máxima escal
 
 ## Sistemas Clave Implementados
 
-### 1. Sistema de Comandos Unificado
-Todos los comandos (de jugador y de administrador) están implementados como clases que heredan de una `Command` base.
-*   **Command Sets:** Los comandos se agrupan en `Command Sets` (ej: `general`, `interaction`, `building`), que son listas de instancias de comandos.
-*   **Dispatcher Central:** Un único handler en `src/handlers/player/dispatcher.py` intercepta todos los mensajes, determina qué `Command Sets` están activos para el jugador, busca el comando correspondiente y lo ejecuta. Esto hace que añadir nuevos comandos sea tan simple como crear una nueva clase y añadirla a una lista.
+### 1. Carga del Mundo Dirigida por Datos
+El mundo estático del juego ya no se construye con comandos de administrador, sino que se define enteramente en archivos de datos.
 
-### 2. Sistema de Prototipos
-Para separar los datos del código, las entidades del juego como los objetos se definen usando un sistema de prototipos.
-*   **Definición (`game_data/`):** Se crea una "plantilla" para cada tipo de objeto en un diccionario de Python (ej: `ITEM_PROTOTYPES`). Esta plantilla contiene todos los datos base: nombre, descripción, `keywords` para búsqueda, y scripts de eventos.
-*   **Instancia (Base de Datos):** La base de datos no almacena todos estos datos. La tabla `items` solo guarda una "instancia" ligera que apunta a la `key` del prototipo (ej: `espada_corta`) y cualquier dato que sea único para esa copia específica (como `name_override`).
-*   **Ventaja:** Para crear 100 tipos de espadas, solo necesitas añadir 100 entradas al diccionario de prototipos, sin modificar la base de datos ni la lógica del motor.
+*   **Definición (`game_data/room_prototypes.py`):** Todas las salas, sus descripciones y las conexiones entre ellas se definen en un diccionario de Python. Esto actúa como el "mapa maestro" del mundo.
+*   **Sincronización (`world_loader_service.py`):** Al iniciar el bot, un servicio dedicado lee estos prototipos, comprueba el estado de la base de datos y crea o actualiza las salas y salidas para que coincidan con la "fuente de la verdad". Esto garantiza un mundo consistente en cada reinicio.
 
-### 3. Sistema de Eventos (Scripts)
-El motor está preparado para que el contenido del juego pueda ejecutar lógica del motor a través de un sistema de scripts.
-*   **Disparadores (Triggers):** Los prototipos pueden definir scripts para eventos específicos (ej: `"on_look": "script_nombre(...)"`).
-*   **Script Service:** Un servicio central (`script_service.py`) mantiene un registro de todas las funciones de script disponibles.
-*   **Ejecución:** Cuando un evento ocurre en el juego (ej: un jugador mira un objeto), el motor busca si el prototipo del objeto tiene un script para ese evento. Si lo tiene, llama al `Script Service` para que ejecute la función de lógica correspondiente.
-*   **Implementado:** `on_look` para ítems.
+### 2. Sistema de Comandos Dinámicos y Contextuales
+La lista de comandos disponibles para un jugador no es estática; cambia en tiempo real según su contexto.
+
+*   **Múltiples Fuentes:** Un `command_service` centralizado construye la lista de `CommandSets` activos para un jugador a partir de:
+    1.  **Base:** Comandos innatos del personaje, guardados en la base de datos.
+    2.  **Equipo:** Objetos en el inventario que otorgan `CommandSets` (ej: unas ganzúas que otorgan el set `thievery`).
+    3.  **Entorno:** La sala actual, que puede otorgar `CommandSets` (ej: una forja que otorga el set `smithing`).
+    4.  **Rol:** Los administradores reciben sets de comandos especiales.
+*   **Actualización en Telegram:** El motor actualiza la lista de comandos (`/`) en el cliente de Telegram del jugador en tiempo real, cada vez que su contexto cambia (al moverse de sala, coger un objeto, etc.), proporcionando una experiencia de usuario fluida e intuitiva.
+
+### 3. Sistema Dual de Scripts: Eventos y Tickers
+El motor permite que el contenido del juego ejecute lógica a través de dos sistemas complementarios.
+
+*   **Scripts Reactivos (Eventos):** Son disparados por acciones del jugador.
+    *   **Trigger:** `"on_look": "script_nombre(...)"` en el prototipo de un objeto.
+    *   **Ejecución:** Cuando un jugador mira el objeto, el `script_service` ejecuta la función correspondiente.
+*   **Scripts Proactivos (Tickers):** Se ejecutan de forma programada, independientemente de la acción del jugador, haciendo que el mundo se sienta vivo.
+    *   **Definición:** `"tickers": [{"schedule": "*/5 * * * *", "script": "...", "category": "ambient"}]`
+    *   **Ejecución:** Un `ticker_service` (usando `APScheduler`) se encarga de ejecutar estos scripts según su horario (cron o intervalo).
+    *   **Inteligencia:** Los tickers de categoría `"ambient"` solo se ejecutan para jugadores considerados "activos", evitando notificar a usuarios que no están jugando.
+
+### 4. Sistema de Canales y Presencia
+Para facilitar la comunicación y la inmersión social, el juego implementa un sistema de canales y seguimiento de actividad.
+
+*   **Seguimiento de Actividad (`online_service.py`):** Utilizando **Redis** para máxima velocidad, el motor registra un timestamp cada vez que un jugador envía un comando. Si la última actividad fue hace menos de 5 minutos, se le considera "online".
+*   **Canales (`channel_service.py`):**
+    *   Se definen en `game_data/channel_prototypes.py`.
+    *   Los jugadores pueden suscribirse o desuscribirse (`/canal activar/desactivar`).
+    *   Permiten comunicación global (ej: `/novato [mensaje]`) entre todos los jugadores suscritos.
+    *   El comando `/quien` utiliza el `online_service` para mostrar una lista de los jugadores activos.
 
 ## Estructura del Proyecto
 
@@ -39,33 +58,41 @@ runegram/
 ├── commands/             # DEFINICIÓN de los comandos (clases Command)
 │   ├── admin/
 │   └── player/
-├── game_data/            # DEFINICIÓN de prototipos (items, NPCs, etc.)
+├── game_data/            # DEFINICIÓN del contenido del juego
+│   ├── channel_prototypes.py # Define los canales de chat
+│   ├── item_prototypes.py    # Define los prototipos de objetos
+│   └── room_prototypes.py    # Define el mapa del mundo (salas y salidas)
 ├── scripts/              # Scripts de utilidad (ej: full_reset.bat)
 ├── src/                  # CÓDIGO FUENTE del motor de la aplicación
-│   ├── bot/              # Configuración del bot y dispatcher central de Aiogram
-│   ├── config.py         # Carga de variables de entorno
-│   ├── db.py             # Configuración del motor de SQLAlchemy
-│   ├── handlers/         # Punto de entrada de Telegram a la app
+│   ├── bot/
+│   ├── handlers/
 │   │   └── player/
-│   │       └── dispatcher.py # El dispatcher/router de comandos principal
+│   │       └── dispatcher.py # El router de comandos principal
 │   ├── models/           # Modelos de datos de SQLAlchemy
 │   ├── services/         # Lógica de negocio y acceso a datos
-│   └── utils/            # Funciones de ayuda (ej: presenters)
+│   │   ├── broadcaster_service.py
+│   │   ├── channel_service.py
+│   │   ├── command_service.py
+│   │   ├── online_service.py
+│   │   ├── script_service.py
+│   │   ├── ticker_service.py
+│   │   └── world_loader_service.py
+│   └── utils/
 ├── .env                  # Archivo de variables de entorno (ignorado)
 ├── docker-compose.yml    # Orquestación de los contenedores
 ├── Dockerfile            # Definición de la imagen Docker de la app
-├── entrypoint.sh         # Script de arranque que ejecuta migraciones
-└── run.py                # Punto de entrada para iniciar la aplicación
+├── entrypoint.sh         # Script de arranque
+└── run.py                # Punto de entrada
 ```
 
 ## Puesta en Marcha
 
 Se necesita Docker y Docker Compose.
 
-1.  **Configurar el Entorno:** Crea un archivo `.env` en la raíz del proyecto.
+1.  **Configurar el Entorno:** Crea un archivo `.env` en la raíz del proyecto a partir del `.env.example`.
 2.  **Ejecutar el Script de Reinicio:** Para asegurar un entorno limpio, usa el script automatizado.
     ```bash
-    # En Windows (CMD o PowerShell)
+    # En Windows
     scripts\full_reset.bat
     ```
     Este script reconstruirá la imagen, levantará los servicios y aplicará todas las migraciones.
@@ -75,35 +102,35 @@ Se necesita Docker y Docker Compose.
 
 ## Visión a Futuro y Tareas Pendientes (TODO)
 
-Esta sección documenta las próximas mejoras para evolucionar de un esqueleto funcional a un juego completo.
+Esta sección documenta las próximas mejoras para evolucionar de un motor robusto a un juego completo y pulido.
 
 ### 🚀 **Próximas Grandes Funcionalidades**
 
-*   #### Terminar el Sistema de Locks y Permisos
-    *   **Visión:** Crear un sistema de permisos granular para controlar el acceso a salidas, objetos y comandos.
-    *   **Tareas:**
-        1.  **Expandir el Parser de Locks:** Mejorar `permission_service` para que entienda una sintaxis más rica: `tiene_objeto(llave_oxidada)`, `habilidad(forzar_cerraduras)>25`, `clase(guerrero)`. Implementar operadores lógicos `y` / `o`.
-        2.  **Crear Comandos de Admin:** Añadir `/lock [salida] con [string_de_lock]` y `/unlock [salida]` para que los constructores puedan asegurar partes del mundo.
-        3.  **Integrar en el Juego:** Aplicar la verificación de `locks` en el dispatcher de movimiento.
-
-*   #### Sistema de Interacción Detallada (`mirar`)
-    *   **Visión:** Permitir al jugador examinar en detalle cualquier entidad del juego (objetos, otros jugadores, NPCs, elementos de la sala).
-    *   **Tareas:**
-        1.  **Refactorizar `CmdLook`:** El comando `/mirar [objetivo]` ya busca objetos. Se debe expandir para que pueda identificar a otros jugadores y NPCs en la sala.
-        2.  **Palabras Clave en la Sala:** Implementar un sistema para que la descripción de una sala pueda tener `keywords` que, al ser "miradas", revelen información adicional sin ser objetos físicos.
-
-*   #### Definir y Construir el Sistema de Combate y Habilidades
+*   #### **Sistema de Combate y Habilidades**
     *   **Visión:** Crear un sistema de combate y progresión de habilidades basado en una mecánica de d100 (tirada de 100 caras).
     *   **Tareas:**
         1.  **Modelos de Datos:** Crear los modelos `Skill` y `CharacterSkill`. Añadir atributos de combate (Salud, Maná, etc.) al modelo `Character`.
-        2.  **Mecánica d100:** Implementar la lógica central de "aprender haciendo": una acción tiene éxito si `d100 <= nivel_de_habilidad`, y al tener éxito, se gana experiencia.
-        3.  **Comandos de Combate:** Crear el `CommandSet` de combate con comandos básicos como `/atacar [objetivo]`.
-        4.  **Crear Prototipos de NPCs:** Añadir un archivo `npc_prototypes.py` en `game_data` y un modelo `NPC` para poder "spawnear" monstruos en el mundo.
+        2.  **Mecánica d100:** Implementar la lógica de "aprender haciendo": una acción tiene éxito si `d100 <= nivel_de_habilidad`, y al tener éxito, se gana experiencia.
+        3.  **PNJs y Spawners:** Crear `npc_prototypes.py`, un modelo `NPC` y un `npc_service` para poder "spawnear" monstruos en el mundo y gestionar su IA (agresiva, pasiva) y sus "respawns".
+        4.  **Comandos de Combate:** Crear el `CommandSet` de combate (`/atacar`, `/huir`, etc.).
 
-### ✨ **Sugerencias Adicionales para el Futuro**
+*   #### **Completar el Sistema de Locks y Permisos**
+    *   **Visión:** Crear un sistema de permisos granular para controlar el acceso a salidas, objetos y comandos, yendo más allá del simple `rol()`.
+    *   **Tareas:**
+        1.  **Expandir el Parser:** Mejorar `permission_service` para que entienda una sintaxis rica: `tiene_objeto(llave_oxidada)`, `habilidad(forzar_cerraduras)>25`, `clase(guerrero)`. Implementar operadores lógicos `y` / `o`.
+        2.  **Integración:** Aplicar la verificación de `locks` en el `CmdMove` para las salidas y en el `dispatcher` para los comandos.
 
-*   **Gestión de `CommandSets` Dinámica:** Implementar la lógica para que el `dispatcher` lea los `command_sets` del personaje desde la base de datos, y añadir/quitar sets basados en el equipo o la sala.
-*   **Broadcasting de Mensajes:** Mejorar el comando `/decir` y las acciones de combate para que los mensajes sean vistos por todos los jugadores en la misma sala, creando una verdadera interacción social.
-*   **Sistema de Clases y Razas:** Usar el sistema de **FSM (Máquina de Estados Finitos)** para guiar al jugador a través de una creación de personaje por pasos, permitiéndole elegir clase y raza.
-*   **Persistencia de NPCs y "Respawns":** Crear un sistema para que los monstruos y NPCs reaparezcan después de un tiempo de ser derrotados.
-*   **Sistema de Contenedores:** Expandir los ítems para que puedan ser contenedores (ej: una mochila, un cofre) con su propio inventario y `locks`.
+### ✨ **Mejoras del Motor y Calidad de Vida**
+
+*   **Bandeja de Entrada para Notificaciones:** Para los tickers de categoría `important` o `quest`, guardar los mensajes para los jugadores inactivos y presentárselos cuando vuelvan a conectarse ("Mientras no estabas...").
+*   **Sistema de Contenedores:** Expandir los ítems para que puedan ser contenedores (mochilas, cofres) con su propio inventario, capacidad y `locks`.
+*   **Sistema de Clases y Razas:** Usar una **Máquina de Estados Finitos (FSM)** para guiar al jugador a través de una creación de personaje por pasos, permitiéndole elegir clase y raza, lo que a su vez establecerá sus `CommandSets` base en la BD.
+*   **Mejorar Comando `/decir`:** Hacer que el comando `/decir` y las acciones de combate envíen mensajes a todos los jugadores *online* en la misma sala, creando una verdadera interacción social.
+
+### 🌍 **Contenido y Expansión del Mundo**
+
+*Gracias a la arquitectura Data-Driven, expandir el mundo es ahora una tarea de diseño, no de programación.*
+*   **Crear Nuevos Prototipos:** Diseñar más objetos, monstruos y PNJ en los archivos de `game_data`.
+*   **Diseñar Zonas:** Expandir el `room_prototypes.py` para crear nuevas áreas, ciudades y mazmorras.
+*   **Escribir Quests:** Implementar PNJ que puedan dar misiones, utilizando el sistema de `FSM` para rastrear el progreso del jugador en una quest.
+*   **Crear Habilidades y Clases:** Definir las habilidades disponibles en el juego y los `CommandSets` que cada clase aprenderá a medida que progrese.

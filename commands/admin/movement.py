@@ -10,6 +10,7 @@ from src.utils.presenters import show_current_room
 class CmdTeleport(Command):
     names = ["teleport", "tp"]
     lock = "rol(ADMINISTRADOR)"
+    description = "Teletranspórtate a cualquier sala usando su ID."
 
     async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
         if not args:

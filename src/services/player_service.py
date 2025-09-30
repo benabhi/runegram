@@ -9,7 +9,7 @@ from src.models.character import Character
 from src.models.room import Room
 from src.models.item import Item
 from src.models.exit import Exit
-from src.services import channel_service # Importamos el channel_service
+from src.services import channel_service, command_service
 
 
 async def get_character_with_relations_by_id(session: AsyncSession, character_id: int) -> Character | None:
@@ -25,7 +25,7 @@ async def get_character_with_relations_by_id(session: AsyncSession, character_id
             selectinload(Character.room).selectinload(Room.exits_from),
             selectinload(Character.items),
             selectinload(Character.account),
-            selectinload(Character.settings) # Aseguramos cargar las settings también
+            selectinload(Character.settings)
         )
     )
     result = await session.execute(query)
@@ -80,28 +80,33 @@ async def create_character(session: AsyncSession, telegram_id: int, character_na
         room_id=1 # Asigna a la sala de inicio "limbo"
     )
     session.add(new_character)
-    await session.commit()
-    # Refrescamos el personaje para obtener su ID y cargar relaciones vacías como .settings
-    await session.refresh(new_character, attribute_names=["settings"])
+    await session.commit() # Al hacer commit, new_character obtiene su ID.
+
+    # --- CAMBIO CLAVE: Recargamos el personaje por completo ---
+    # Usamos la función que ya creamos para obtener una versión "fresca" y completa
+    # del personaje, con todas sus relaciones cargadas (incluida .account).
+    full_character = await get_character_with_relations_by_id(session, new_character.id)
+
+    # Ahora usamos este objeto 'full_character' para el resto de operaciones.
+    if not full_character:
+        # Esto es una salvaguarda, nunca debería ocurrir.
+        raise RuntimeError("No se pudo recargar el personaje recién creado.")
 
     # --- MENSAJE DE BIENVENIDA ---
-    # Aseguramos que las settings se creen para que el canal "novato" esté activo por defecto.
-    await channel_service.get_or_create_settings(session, new_character)
+    await channel_service.get_or_create_settings(session, full_character)
     welcome_message = (
-        f"¡Bienvenido al mundo, {new_character.name}! "
+        f"¡Bienvenido al mundo, {full_character.name}! "
         "Usa los comandos de movimiento como <b>/norte</b> o <b>/sur</b> para explorar. "
         "Si necesitas ayuda, puedes preguntar en este canal usando <b>/novato [tu pregunta]</b>. "
         "Para una lista de comandos más detallada, escribe <b>/ayuda</b>."
     )
-    # Enviamos el mensaje de bienvenida al canal novato.
-    # El propio nuevo jugador lo recibirá, además de cualquiera que esté escuchando.
     await channel_service.broadcast_to_channel(session, "novato", welcome_message)
-    # --- FIN MENSAJE DE BIENVENIDA ---
 
-    # Expiramos la cuenta para forzar una recarga completa la próxima vez,
-    # asegurando que la relación .character se actualice correctamente.
-    session.expire(account)
-    return new_character
+    # --- ACTUALIZAR COMANDOS DE TELEGRAM ---
+    # Después de crear el personaje, establecemos su lista inicial de comandos.
+    await command_service.update_telegram_commands(full_character)
+
+    return full_character
 
 
 async def teleport_character(session: AsyncSession, character_id: int, to_room_id: int):

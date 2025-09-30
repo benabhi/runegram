@@ -1,24 +1,27 @@
-# src/commands/command.py
+# commands/command.py
 from aiogram import types
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.models.character import Character
 
 class Command:
     """Clase base para todos los comandos del juego."""
-    # El lock puede seguir siendo un atributo de clase
     lock: str = ""
+    description: str = "Un comando sin descripción."
 
-    def __init__(self, names: list[str] = None):
+    def __init__(self, names: list[str] = None, description: str = None):
         """
         Inicializador para permitir la creación de instancias de comandos
-        con alias dinámicos, como los comandos de movimiento.
+        con alias y descripciones dinámicas.
         """
-        # Si se pasan 'names' al crear la instancia, los usamos.
-        # Si no, usamos los definidos en la clase (comportamiento antiguo).
         if names:
             self.names = names
         elif not hasattr(self, 'names'):
             self.names = []
+
+        if description:
+            self.description = description
+        elif not hasattr(self, 'description'):
+            self.description = "Un comando sin descripción."
 
     async def execute(
         self,

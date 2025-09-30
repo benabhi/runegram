@@ -1,8 +1,8 @@
 project_snapshot.txt
 # Archivos de Entorno
 # Contiene secretos y configuraciones locales. ¡Nunca subir a Git!
-.env
-.env.*
+#.env
+#.env.*
 
 # Dependencias y Entornos Virtuales
 # Estos se pueden reinstalar usando requirements.txt

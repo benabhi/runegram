@@ -15,13 +15,10 @@ class Character(Base):
     account = relationship("src.models.account.Account", back_populates="character")
 
     room_id = Column(BigInteger, ForeignKey('rooms.id'), nullable=False)
-    # Usamos el string 'src.models.room.Room'
     room = relationship("src.models.room.Room")
 
-    # Usamos el string 'src.models.item.Item'
     items = relationship("src.models.item.Item", back_populates="character")
 
-    # Relación uno a uno con las configuraciones del personaje.
     settings = relationship(
         "src.models.character_setting.CharacterSetting",
         back_populates="character",
@@ -29,4 +26,12 @@ class Character(Base):
         cascade="all, delete-orphan"
     )
 
-    command_sets = Column(JSONB, nullable=False, server_default='["general"]', default=["general"])
+    # --- LÍNEA MODIFICADA ---
+    # Actualizamos el valor por defecto para que todos los personajes nuevos
+    # tengan acceso a todos los sets de comandos básicos desde el principio.
+    command_sets = Column(
+        JSONB,
+        nullable=False,
+        server_default='["general", "interaction", "movement", "channels"]',
+        default=["general", "interaction", "movement", "channels"]
+    )

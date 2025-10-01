@@ -1,35 +1,52 @@
 # docker-compose.yml
+#
+# Este archivo es la pieza central para orquestar los diferentes servicios
+# (contenedores) que componen la aplicación Runegram. Docker Compose lee
+# este archivo para construir, iniciar, conectar y gestionar todos los
+# contenedores de forma conjunta.
+#
+# Servicios definidos:
+# 1. bot:       El contenedor principal de la aplicación Python que ejecuta el bot de Telegram.
+# 2. postgres:  El servicio de base de datos PostgreSQL.
+# 3. redis:     El servicio de caché en memoria, utilizado para la gestión de estados
+#               de Aiogram y el seguimiento de actividad de los jugadores.
 
 services:
+  # --- Servicio de la Aplicación Principal del Bot ---
   bot:
-    # Construye la imagen a partir del Dockerfile en el directorio actual
+    # `build: .` le dice a Docker Compose que construya una imagen para este servicio
+    # utilizando el Dockerfile que se encuentra en el directorio actual ('.').
     build: .
 
-    # --- INICIO DE LA MODIFICACIÓN ---
-    # 1. ENTRYPOINT: Especifica el script que se ejecutará al iniciar el contenedor.
-    #    Nuestro script /app/entrypoint.sh se encargará de esperar a la BD
-    #    y ejecutar las migraciones.
+    # `entrypoint`: Sobrescribe el ENTRYPOINT por defecto de la imagen. Aquí especificamos
+    # nuestro script `entrypoint.sh`, que se encargará de las tareas de preparación
+    # (esperar a la BD, ejecutar migraciones) antes de lanzar la aplicación principal.
     entrypoint: /app/entrypoint.sh
 
-    # 2. COMMAND: Este comando ya no se ejecuta directamente. En su lugar,
-    #    se pasa como argumento a nuestro entrypoint.sh. El script lo
-    #    ejecutará al final con 'exec "$@"'.
+    # `command`: Especifica el comando que se pasa como argumento al `entrypoint`.
+    # Nuestro `entrypoint.sh` ejecuta este comando al final con `exec "$@"`.
     command: python run.py
-    # --- FIN DE LA MODIFICACIÓN ---
 
+    # `environment`: Define variables de entorno dentro del contenedor.
+    # `PYTHONPATH=/app` asegura que Python pueda encontrar nuestros módulos en `src/`.
     environment:
       - PYTHONPATH=/app
 
-    # Carga las variables de entorno desde el archivo .env
+    # `env_file`: Carga las variables de entorno desde el archivo `.env` en la raíz
+    # del proyecto. Esto mantiene las credenciales y configuraciones fuera del código.
     env_file:
       - .env
 
-    # Se asegura de que postgres y redis se inicien antes que el bot
+    # `depends_on`: Asegura que los servicios `postgres` y `redis` se inicien
+    # *antes* de que se inicie el servicio `bot`. No garantiza que estén "listos",
+    # por eso nuestro `entrypoint.sh` se encarga de esperar activamente.
     depends_on:
       - postgres
       - redis
 
-    # Mapea tu código local al contenedor para ver los cambios al instante
+    # `volumes`: Mapea directorios de nuestra máquina local al interior del contenedor.
+    # Esto es crucial para el desarrollo, ya que cualquier cambio en nuestro código
+    # se refleja instantáneamente dentro del contenedor sin necesidad de reconstruir la imagen.
     volumes:
       - ./src:/app/src
       - ./commands:/app/commands
@@ -37,24 +54,41 @@ services:
       - ./run.py:/app/run.py
       - ./alembic:/app/alembic
       - ./alembic.ini:/app/alembic.ini
-      # También mapeamos el entrypoint para poder modificarlo sin reconstruir
       - ./entrypoint.sh:/app/entrypoint.sh
 
+  # --- Servicio de la Base de Datos ---
   postgres:
+    # `image`: Utiliza una imagen preconstruida oficial de PostgreSQL desde Docker Hub.
+    # La etiqueta `:15-alpine` especifica la versión 15 sobre Alpine Linux, que es ligera.
     image: postgres:15-alpine
+
+    # `environment`: Configura las credenciales y el nombre de la base de datos
+    # inicial. Los valores `${...}` se leen del archivo `.env` en nuestra máquina.
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
+
+    # `volumes`: Mapea un "volumen nombrado" de Docker (`postgres_data`) al directorio
+    # donde PostgreSQL guarda sus datos. Esto hace que los datos de la base de datos
+    # sean persistentes, sobreviviendo a reinicios o eliminaciones del contenedor.
     volumes:
       - postgres_data:/var/lib/postgresql/data/
+
+    # `ports`: Mapea el puerto 5432 del contenedor al puerto 5432 de nuestra máquina local.
+    # Esto nos permite conectarnos a la base de datos desde herramientas locales si es necesario.
     ports:
       - "5432:5432"
 
+  # --- Servicio de Caché en Memoria ---
   redis:
+    # Utiliza la imagen oficial de Redis, versión 7 sobre Alpine.
     image: redis:7-alpine
+
+    # Mapea el puerto por defecto de Redis para permitir conexiones locales.
     ports:
       - "6379:6379"
 
+# Define los volúmenes nombrados que hemos utilizado. Docker se encarga de gestionarlos.
 volumes:
   postgres_data:

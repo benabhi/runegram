@@ -19,6 +19,7 @@ Actúa como el "cerebro" del juego, orquestando el siguiente flujo para cada men
 
 import logging
 from aiogram import types
+from aiogram.types import InputFile # <-- Importación añadida
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.bot.dispatcher import dp
@@ -85,6 +86,24 @@ async def main_command_dispatcher(message: types.Message):
             # 3. Manejo especial para el comando /start.
             if input_text.lower().startswith('/start'):
                 if character is None:
+
+                    photo_path = "/app/assets/images/runegram_cover.png"
+
+                    try:
+                        # Se intenta enviar la foto desde la ruta dentro del contenedor.
+                        await message.bot.send_photo(
+                            chat_id=message.chat.id,
+                            photo=InputFile(photo_path)
+                        )
+                    except FileNotFoundError:
+                        # Si la imagen no se encuentra, se registra una advertencia
+                        # pero el bot continúa funcionando, enviando solo el texto.
+                        logging.warning(f"No se encontró la imagen de portada en la ruta: {photo_path}")
+                    except Exception:
+                        # Captura otros posibles errores de la API de Telegram.
+                        logging.exception("Error al enviar la foto de portada.")
+
+                    # El mensaje de texto se envía después de la imagen.
                     await message.answer(
                         "¡Bienvenido a Runegram! Veo que eres nuevo por aquí.\n"
                         "Para empezar, necesitas crear tu personaje. Usa el comando:\n"

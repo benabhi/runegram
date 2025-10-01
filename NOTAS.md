@@ -2,11 +2,25 @@
 
 * Como veo que tienen los contenedores?
     - (se puede con el comando /i, pero preferiria talvez con /mirar?)
-* Se pueden meter contenedores en contenedores?
-* Cuanto peso puede llevar un contenedor?
-* Mirar algo que no existe debe decir que no ve eso en lugr de dar error
-* En la sala si hay un contendor tirado debe decir cuantos items tiene dentro ej. (5 items)
+    - Dejar la funcionalidad de invetario en items pero agregar tambien a mirar cuando se ve un contenedor
+* El comando mirar debe mostrar si hay otro personaje en la sala (me encanta el output que ya tiene el comando mirar no cambiar el estilo agregar que si hay personajes se muestren en la sala)
+* Quiero agregar a los comandos que sean necesarios mensajes sociales, por ejemplo si un jugador toma un item este deberia decir a la sala "usuario a cogido xxx del piso" o algo similar, lo mismo al soltar algo, cuando se genera un objeto como admin, verificar los comandos que estan implementados.
+* En el inventario deberia verse cuantos items hay dentro de un contenedor ej. mochila (5 items)
+* Cuanto peso puede llevar un contenedor? (podria existir un lock para determinar esto?)
+    - Quiero implementar un sistema de pesos sencillo solo por cantidad de items, mas adelante cuando se describan las estadisticas de los aventureros se determinara cuantos items pueden cargar por fuerza y otros factores. Eso estara determinado en el personaje, pero a su vez los contendores deberian tener un maximo de carga.
+* Mirar algo que no existe debe decir que "no ve eso" en lugr de dar error.
+* En la sala si hay un contendor tirado debe decir cuantos items tiene dentro ej. mochila (5 items)
+* Falta un comando examinarsala para admin, al igual que los otros debe pedir id o key (ver que los otros examinar pidan tambien esos argumentos)
+* Quiero un comando susurrar, para usuarios dentro de una misma sala, no dice a la sala sino al jugador en si mismo
 
+Recordar que el nombre de los comandos en el codigo ej. CmdWhisper deben estar en ingles aunque en el juego sea /susurrar
+
+Implementar por pasos. Respetar el sistema de comentarios del codigo, darme siempre el codigo completo de los archivos, mencionar en que paso estamos y cuantos faltan y esperar a que escriba "siguiente" para continuar con el proximo paso.
+
+## Para ver luego
+* Se pueden meter contenedores en contenedores?
+* Sistema de habilidades
+* Sistema de magia (low magic) runas (lo que le da nombre al juego)
 
 ## Prompts
 

@@ -15,7 +15,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from commands.command import Command
 from src.models.character import Character
-from src.services import item_service, command_service, player_service
+from src.services import item_service, command_service, player_service, permission_service
+
 
 class CmdGet(Command):
     """
@@ -26,7 +27,13 @@ class CmdGet(Command):
     lock = ""
     description = "Recoge un objeto del suelo."
 
-    async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
+    async def execute(
+        self,
+        character: Character,
+        session: AsyncSession,
+        message: types.Message,
+        args: list[str]
+    ):
         try:
             if not args:
                 await message.answer("¿Qué quieres coger?")
@@ -35,7 +42,6 @@ class CmdGet(Command):
             item_name_to_get = " ".join(args).lower()
             item_to_get = None
 
-            # Buscamos el objeto en la lista de items de la sala actual.
             for item in character.room.items:
                 if item_name_to_get in item.get_name().lower():
                     item_to_get = item
@@ -45,11 +51,19 @@ class CmdGet(Command):
                 await message.answer("No ves eso por aquí.")
                 return
 
+            # Comprobamos si el prototipo del objeto tiene una definición de lock.
+            lock_string = item_to_get.prototype.get("locks", "")
+            can_pass, error_message = await permission_service.can_execute(character, lock_string)
+            if not can_pass:
+                # Si el objeto está bloqueado, mostramos un mensaje y detenemos la acción.
+                # Futuro: El mensaje de error podría venir del prototipo del objeto.
+                await message.answer(error_message or "No puedes coger eso.")
+                return
+
             # Llamamos al servicio para actualizar la ubicación del objeto en la BD.
             await item_service.move_item_to_character(session, item_to_get.id, character.id)
 
-            # Si el objeto que cogimos otorga un CommandSet, debemos actualizar la
-            # lista de comandos del jugador en Telegram.
+            # Si el objeto que cogimos otorga un CommandSet, actualizamos la lista en Telegram.
             if item_to_get.prototype.get("grants_command_sets"):
                 refreshed_character = await player_service.get_character_with_relations_by_id(session, character.id)
                 await command_service.update_telegram_commands(refreshed_character)
@@ -69,7 +83,13 @@ class CmdDrop(Command):
     lock = ""
     description = "Deja un objeto de tu inventario en el suelo."
 
-    async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
+    async def execute(
+        self,
+        character: Character,
+        session: AsyncSession,
+        message: types.Message,
+        args: list[str]
+    ):
         try:
             if not args:
                 await message.answer("¿Qué quieres dejar?")
@@ -78,7 +98,6 @@ class CmdDrop(Command):
             item_name_to_drop = " ".join(args).lower()
             item_to_drop = None
 
-            # Buscamos el objeto en el inventario del personaje.
             for item in character.items:
                 if item_name_to_drop in item.get_name().lower():
                     item_to_drop = item
@@ -88,11 +107,12 @@ class CmdDrop(Command):
                 await message.answer("No llevas eso.")
                 return
 
-            # Llamamos al servicio para actualizar la ubicación del objeto en la BD.
+            # Futuro: Aquí se podría añadir un chequeo de lock para "dejar" objetos.
+            # Por ejemplo, un objeto maldito que no se puede soltar.
+
             await item_service.move_item_to_room(session, item_to_drop.id, character.room_id)
 
-            # Si el objeto que dejamos otorgaba un CommandSet, debemos actualizar la
-            # lista de comandos del jugador en Telegram.
+            # Si el objeto que dejamos otorgaba un CommandSet, actualizamos la lista en Telegram.
             if item_to_drop.prototype.get("grants_command_sets"):
                 refreshed_character = await player_service.get_character_with_relations_by_id(session, character.id)
                 await command_service.update_telegram_commands(refreshed_character)

@@ -17,13 +17,46 @@ import logging
 import asyncio
 import sys
 from aiogram import executor
+from sqlalchemy import select
 
 from src.bot.dispatcher import dp
 from src.services import world_loader_service, ticker_service, online_service
 from src.db import async_session_factory
+from src.config import settings
+from src.models import Account
 
 # Esta importación es crucial para que los manejadores de mensajes se registren.
 import src.handlers
+
+async def _ensure_superadmin_exists(session):
+    """
+    Verifica que la cuenta del Superadmin (definida en .env) exista y tenga
+    el rol correcto. La crea o actualiza si es necesario.
+
+    Esta función de "autocorrección" se ejecuta en cada arranque para garantizar
+    que el Superadmin siempre esté configurado correctamente, eliminando la
+    necesidad de sembrar datos frágiles en las migraciones.
+    """
+    superadmin_id = settings.superadmin_telegram_id
+    if not superadmin_id:
+        logging.warning("No se ha definido un SUPERADMIN_TELEGRAM_ID en el archivo .env.")
+        return
+
+    result = await session.execute(select(Account).where(Account.telegram_id == superadmin_id))
+    superadmin_account = result.scalar_one_or_none()
+
+    if not superadmin_account:
+        logging.info(f"Creando cuenta de Superadmin para el telegram_id: {superadmin_id}")
+        superadmin_account = Account(telegram_id=superadmin_id, role="SUPERADMIN")
+        session.add(superadmin_account)
+        await session.commit()
+    elif superadmin_account.role != "SUPERADMIN":
+        logging.info(f"Actualizando cuenta {superadmin_id} al rol de Superadmin.")
+        superadmin_account.role = "SUPERADMIN"
+        await session.commit()
+    else:
+        logging.info("Cuenta de Superadmin verificada.")
+
 
 async def on_startup(dispatcher):
     """
@@ -39,14 +72,16 @@ async def on_startup(dispatcher):
 
         # 2. Crea una sesión de base de datos para las tareas de inicialización.
         async with async_session_factory() as session:
+            # Asegura que la cuenta del Superadmin exista y tenga el rol correcto.
+            await _ensure_superadmin_exists(session)
+
             # Sincroniza el mundo estático (salas, salidas) desde los archivos de prototipos.
             await world_loader_service.sync_world_from_prototypes(session)
 
             # Carga y programa los tickers de los objetos que ya existen en la base de datos.
             await ticker_service.load_and_schedule_all_tickers(session)
 
-        # 3. Añade el ticker global que se ejecuta periódicamente para comprobar
-        #    el estado de inactividad (AFK) de los jugadores.
+        # 3. Añade el ticker global para el chequeo de inactividad.
         ticker_service.scheduler.add_job(
             online_service.check_for_newly_afk_players,
             'interval',
@@ -62,7 +97,6 @@ async def on_startup(dispatcher):
         # Si algo falla catastróficamente durante el arranque, lo registramos
         # y detenemos la aplicación para evitar un estado inconsistente.
         logging.exception("❌ Error fatal durante la secuencia de arranque. El bot se detendrá.")
-        # Obtenemos el bucle de eventos actual y lo detenemos.
         loop = asyncio.get_running_loop()
         loop.stop()
 
@@ -83,8 +117,6 @@ def main():
     """
     Configura el logging principal y arranca el bot.
     """
-    # Configuración de logging para que todos los mensajes (INFO, WARNING, ERROR, etc.)
-    # se muestren en la consola del contenedor Docker con un formato claro.
     logging.basicConfig(
         level=logging.INFO,
         stream=sys.stdout,
@@ -92,7 +124,6 @@ def main():
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
-    # Inicia el bucle de Aiogram que escucha los mensajes de Telegram.
     executor.start_polling(dp, on_startup=on_startup, on_shutdown=on_shutdown)
 
 

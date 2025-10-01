@@ -24,7 +24,7 @@ class CmdListarSalas(Command):
     incluyendo su ID, su clave de prototipo y su nombre.
     """
     names = ["listarsalas", "lsalas"]
-    lock = "rol(ADMINISTRADOR)"
+    lock = "rol(ADMIN)"
     description = "Muestra ID, Clave y Nombre de todas las salas del mundo."
 
     async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
@@ -43,8 +43,6 @@ class CmdListarSalas(Command):
             response_lines = ["<b>Lista de Salas del Mundo:</b>"]
             for room in all_rooms:
                 # El formato con `<` alinea el texto a la izquierda, rellenando con espacios.
-                # `room.id:<4}` -> ID, alineado a la izquierda, 4 caracteres de ancho.
-                # `room.key:<20}` -> Key, alineado a la izquierda, 20 caracteres de ancho.
                 response_lines.append(f"ID: {room.id:<4} | Key: {room.key:<20} | Nombre: {room.name}")
 
             body = "\n".join(response_lines)
@@ -60,7 +58,7 @@ class CmdListarSalas(Command):
             await message.answer("❌ Ocurrió un error al intentar listar las salas.")
             logging.exception("Fallo al ejecutar /listarsalas")
 
-# Exportamos la lista de comandos de este módulo.
+# Exportamos la lista de comandos de este módulo para que el dispatcher pueda importarla.
 INFO_COMMANDS = [
     CmdListarSalas(),
 ]

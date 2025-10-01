@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     # Telegram
     bot_token: SecretStr
 
+    # El ID de Telegram del usuario que tendrá el rol de Superadmin.
+    # Este rol tiene todos los permisos y se asigna al arrancar la aplicación.
+    superadmin_telegram_id: int
+
     # Database (PostgreSQL)
     postgres_user: str
     postgres_password: str

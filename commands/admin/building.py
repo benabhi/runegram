@@ -22,11 +22,11 @@ from game_data.item_prototypes import ITEM_PROTOTYPES
 
 class CmdGenerarObjeto(Command):
     """
-    Comando para un administrador para crear una instancia de un objeto
-    a partir de un prototipo y colocarla en la sala actual.
+    Comando para que un administrador cree una instancia de un objeto
+    a partir de un prototipo y la coloque en la sala actual.
     """
     names = ["generarobjeto", "genobj"]
-    lock = "rol(ADMINISTRADOR)"
+    lock = "rol(ADMIN)"  # Solo usuarios con rol ADMIN o superior pueden usarlo.
     description = "Genera un objeto en la sala a partir de su clave de prototipo."
 
     async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
@@ -55,7 +55,6 @@ class CmdGenerarObjeto(Command):
             logging.exception(f"Fallo al ejecutar /generarobjeto con la clave '{item_key}'")
 
 # Exportamos la lista de comandos de este módulo.
-# En el futuro, aquí se podrían añadir comandos como /generarnpc.
 SPAWN_COMMANDS = [
     CmdGenerarObjeto(),
 ]

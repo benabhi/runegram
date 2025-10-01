@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from commands.command import Command
 from src.models.character import Character
-from src.services import player_service
+from src.services import player_service, command_service # Importamos command_service para actualizar comandos
 from src.utils.presenters import show_current_room
 
 class CmdTeleport(Command):
@@ -24,7 +24,7 @@ class CmdTeleport(Command):
     especificando su ID numérico.
     """
     names = ["teleport", "tp"]
-    lock = "rol(ADMINISTRADOR)"
+    lock = "rol(ADMIN)"  # Solo usuarios con rol ADMIN o superior pueden usarlo.
     description = "Teletranspórtate a cualquier sala usando su ID."
 
     async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
@@ -45,8 +45,15 @@ class CmdTeleport(Command):
             # 2. Llamar al servicio que contiene la lógica de negocio.
             await player_service.teleport_character(session, character.id, to_room_id)
 
-            # 3. Notificar al administrador del éxito y mostrar la nueva ubicación.
+            # 3. Notificar al administrador del éxito.
             await message.answer(f"🚀 Teletransportado a la sala {to_room_id}.")
+
+            # 4. Actualizar los comandos de Telegram, ya que la nueva sala puede otorgar sets.
+            refreshed_character = await player_service.get_character_with_relations_by_id(session, character.id)
+            if refreshed_character:
+                 await command_service.update_telegram_commands(refreshed_character)
+
+            # 5. Mostrar la nueva ubicación.
             await show_current_room(message)
 
         except Exception as e:

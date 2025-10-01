@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from commands.command import Command
 from src.models.character import Character
-from src.services import player_service, command_service
+from src.services import player_service, command_service, permission_service
 from src.utils.presenters import show_current_room
 
 class CmdMove(Command):
@@ -35,10 +35,9 @@ class CmdMove(Command):
     ):
         try:
             # 1. Determinar la dirección basándose en el comando invocado.
-            #    Por ejemplo, si se usa `/n`, self.names[0] será "norte".
             direction = self.names[0]
 
-            # 2. Buscar si existe una salida válida en esa dirección desde la sala actual.
+            # 2. Buscar si existe una salida válida en esa dirección.
             target_exit = next(
                 (exit_obj for exit_obj in character.room.exits_from if exit_obj.name == direction),
                 None
@@ -48,18 +47,24 @@ class CmdMove(Command):
                 await message.answer("No puedes ir en esa dirección.")
                 return
 
-            # Futuro: Aquí se integrará la lógica de `permission_service` para
-            # comprobar si la salida (`target_exit`) tiene un `lock`.
+            # 3. Comprobar permisos (Locks).
+            #    Llamamos al permission_service para evaluar el lock_string de la salida.
+            can_pass, error_message = await permission_service.can_execute(character, target_exit.locks)
+            if not can_pass:
+                # Si `can_execute` devuelve un mensaje personalizado, lo usamos.
+                # Si no, usamos un mensaje genérico.
+                await message.answer(error_message or "Esa salida está bloqueada.")
+                return
 
-            # 3. Mover al personaje a la nueva sala.
+            # 4. Mover al personaje a la nueva sala.
             await player_service.teleport_character(session, character.id, target_exit.to_room_id)
 
-            # 4. Actualizar la lista de comandos del jugador en Telegram.
-            #    Esto es crucial porque la nueva sala podría otorgar o quitar CommandSets.
+            # 5. Actualizar la lista de comandos del jugador en Telegram.
             refreshed_character = await player_service.get_character_with_relations_by_id(session, character.id)
-            await command_service.update_telegram_commands(refreshed_character)
+            if refreshed_character:
+                await command_service.update_telegram_commands(refreshed_character)
 
-            # 5. Mostrar al jugador la descripción de su nueva ubicación.
+            # 6. Mostrar al jugador la descripción de su nueva ubicación.
             await show_current_room(message)
 
         except Exception:

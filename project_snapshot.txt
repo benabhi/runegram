@@ -2,8 +2,8 @@
 project_snapshot.txt
 # Archivos de Entorno
 # Contiene secretos y configuraciones locales. ¡Nunca subir a Git!
-#.env
-#.env.*
+.env
+.env.*
 
 # Dependencias y Entornos Virtuales
 # Estos se pueden reinstalar usando requirements.txt
@@ -84,26 +84,65 @@ docker-compose.override.yml
 
 
 # === INICIO: Dockerfile ===
-# Dockerfile
-# Usamos alpine, que es muy ligero, por lo que tenemos que añadir paquetes
+# Dockerfile para la Aplicación Runegram MUD
+#
+# Este archivo define los pasos para construir la imagen Docker que contendrá
+# y ejecutará la aplicación del bot. Docker utiliza esta "receta" para crear un
+# entorno autocontenido y reproducible.
+#
+# El proceso de construcción sigue estos pasos:
+# 1. FROM: Se parte de una imagen base oficial de Python sobre Alpine Linux.
+# 2. RUN (apk): Se instalan las dependencias a nivel de sistema operativo que
+#    necesita nuestra aplicación (ej: librerías de PostgreSQL, herramientas de red).
+# 3. WORKDIR: Se establece el directorio de trabajo dentro del contenedor.
+# 4. COPY / RUN (pip): Se copia primero el archivo de dependencias de Python y se
+#    instalan. Este paso se hace por separado para aprovechar la caché de Docker.
+#    Si el `requirements.txt` no cambia, Docker no volverá a ejecutar este paso,
+#    acelerando construcciones futuras.
+# 5. COPY (código fuente): Se copia el resto del código de la aplicación.
+# 6. CMD: Se define el comando por defecto que se ejecutará al iniciar el contenedor,
+#    el cual es interceptado y gestionado por nuestro `entrypoint.sh`.
+
+# 1. Imagen Base
+# Usamos la imagen oficial de Python 3.11 basada en Alpine Linux.
+# Alpine es una distribución muy ligera, lo que resulta en una imagen final más pequeña.
 FROM python:3.11-alpine
 
-# Instalamos las dependencias de sistema para psycopg2, además de netcat y git
+# 2. Dependencias del Sistema
+# Usamos el gestor de paquetes de Alpine (`apk`) para instalar software necesario.
+# --no-cache: No guarda el índice de paquetes, manteniendo la imagen ligera.
+# - postgresql-libs: Librerías C requeridas por el driver `psycopg2-binary`.
+# - netcat-openbsd: Herramienta de red utilizada en `entrypoint.sh` para esperar a PostgreSQL.
+# - git: Puede ser útil para instalar dependencias de Python directamente desde repositorios.
 RUN apk add --no-cache postgresql-libs netcat-openbsd git
 
+# 3. Directorio de Trabajo
+# Establece el directorio de trabajo por defecto dentro del contenedor.
+# Todos los comandos `RUN`, `CMD`, `ENTRYPOINT`, `COPY` y `ADD` posteriores
+# se ejecutarán en este directorio.
 WORKDIR /app
 
+# 4. Dependencias de Python
+# Copiamos solo el archivo de requerimientos primero. Esto es una optimización
+# de la caché de Docker. Si nuestro código cambia pero `requirements.txt` no,
+# Docker reutilizará la capa de imagen ya existente donde se instalaron las
+# dependencias, haciendo que la reconstrucción sea mucho más rápida.
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiamos nuestro script de entrada y nos aseguramos de que es ejecutable
+# 5. Código Fuente de la Aplicación
+# Copiamos nuestro script de entrada y nos aseguramos de que es ejecutable.
 COPY entrypoint.sh .
 RUN chmod +x entrypoint.sh
 
+# Copiamos el resto del código fuente del proyecto al directorio de trabajo (`/app`).
 COPY . .
 
-# El entrypoint se define en docker-compose.yml,
-# el CMD es el comando que se le pasa.
+# 6. Comando de Ejecución
+# Define el comando por defecto que se ejecutará al iniciar un contenedor
+# a partir de esta imagen.
+# IMPORTANTE: Este comando se pasa como argumento a nuestro `entrypoint.sh`
+# (definido en `docker-compose.yml`), que lo ejecuta al final con `exec "$@"`.
 CMD ["python", "run.py"]
 # === FIN: Dockerfile ===
 
@@ -373,37 +412,54 @@ datefmt = %%H:%%M:%%S
 
 # === INICIO: docker-compose.yml ===
 # docker-compose.yml
+#
+# Este archivo es la pieza central para orquestar los diferentes servicios
+# (contenedores) que componen la aplicación Runegram. Docker Compose lee
+# este archivo para construir, iniciar, conectar y gestionar todos los
+# contenedores de forma conjunta.
+#
+# Servicios definidos:
+# 1. bot:       El contenedor principal de la aplicación Python que ejecuta el bot de Telegram.
+# 2. postgres:  El servicio de base de datos PostgreSQL.
+# 3. redis:     El servicio de caché en memoria, utilizado para la gestión de estados
+#               de Aiogram y el seguimiento de actividad de los jugadores.
 
 services:
+  # --- Servicio de la Aplicación Principal del Bot ---
   bot:
-    # Construye la imagen a partir del Dockerfile en el directorio actual
+    # `build: .` le dice a Docker Compose que construya una imagen para este servicio
+    # utilizando el Dockerfile que se encuentra en el directorio actual ('.').
     build: .
 
-    # --- INICIO DE LA MODIFICACIÓN ---
-    # 1. ENTRYPOINT: Especifica el script que se ejecutará al iniciar el contenedor.
-    #    Nuestro script /app/entrypoint.sh se encargará de esperar a la BD
-    #    y ejecutar las migraciones.
+    # `entrypoint`: Sobrescribe el ENTRYPOINT por defecto de la imagen. Aquí especificamos
+    # nuestro script `entrypoint.sh`, que se encargará de las tareas de preparación
+    # (esperar a la BD, ejecutar migraciones) antes de lanzar la aplicación principal.
     entrypoint: /app/entrypoint.sh
 
-    # 2. COMMAND: Este comando ya no se ejecuta directamente. En su lugar,
-    #    se pasa como argumento a nuestro entrypoint.sh. El script lo
-    #    ejecutará al final con 'exec "$@"'.
+    # `command`: Especifica el comando que se pasa como argumento al `entrypoint`.
+    # Nuestro `entrypoint.sh` ejecuta este comando al final con `exec "$@"`.
     command: python run.py
-    # --- FIN DE LA MODIFICACIÓN ---
 
+    # `environment`: Define variables de entorno dentro del contenedor.
+    # `PYTHONPATH=/app` asegura que Python pueda encontrar nuestros módulos en `src/`.
     environment:
       - PYTHONPATH=/app
 
-    # Carga las variables de entorno desde el archivo .env
+    # `env_file`: Carga las variables de entorno desde el archivo `.env` en la raíz
+    # del proyecto. Esto mantiene las credenciales y configuraciones fuera del código.
     env_file:
       - .env
 
-    # Se asegura de que postgres y redis se inicien antes que el bot
+    # `depends_on`: Asegura que los servicios `postgres` y `redis` se inicien
+    # *antes* de que se inicie el servicio `bot`. No garantiza que estén "listos",
+    # por eso nuestro `entrypoint.sh` se encarga de esperar activamente.
     depends_on:
       - postgres
       - redis
 
-    # Mapea tu código local al contenedor para ver los cambios al instante
+    # `volumes`: Mapea directorios de nuestra máquina local al interior del contenedor.
+    # Esto es crucial para el desarrollo, ya que cualquier cambio en nuestro código
+    # se refleja instantáneamente dentro del contenedor sin necesidad de reconstruir la imagen.
     volumes:
       - ./src:/app/src
       - ./commands:/app/commands
@@ -411,25 +467,42 @@ services:
       - ./run.py:/app/run.py
       - ./alembic:/app/alembic
       - ./alembic.ini:/app/alembic.ini
-      # También mapeamos el entrypoint para poder modificarlo sin reconstruir
       - ./entrypoint.sh:/app/entrypoint.sh
 
+  # --- Servicio de la Base de Datos ---
   postgres:
+    # `image`: Utiliza una imagen preconstruida oficial de PostgreSQL desde Docker Hub.
+    # La etiqueta `:15-alpine` especifica la versión 15 sobre Alpine Linux, que es ligera.
     image: postgres:15-alpine
+
+    # `environment`: Configura las credenciales y el nombre de la base de datos
+    # inicial. Los valores `${...}` se leen del archivo `.env` en nuestra máquina.
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
+
+    # `volumes`: Mapea un "volumen nombrado" de Docker (`postgres_data`) al directorio
+    # donde PostgreSQL guarda sus datos. Esto hace que los datos de la base de datos
+    # sean persistentes, sobreviviendo a reinicios o eliminaciones del contenedor.
     volumes:
       - postgres_data:/var/lib/postgresql/data/
+
+    # `ports`: Mapea el puerto 5432 del contenedor al puerto 5432 de nuestra máquina local.
+    # Esto nos permite conectarnos a la base de datos desde herramientas locales si es necesario.
     ports:
       - "5432:5432"
 
+  # --- Servicio de Caché en Memoria ---
   redis:
+    # Utiliza la imagen oficial de Redis, versión 7 sobre Alpine.
     image: redis:7-alpine
+
+    # Mapea el puerto por defecto de Redis para permitir conexiones locales.
     ports:
       - "6379:6379"
 
+# Define los volúmenes nombrados que hemos utilizado. Docker se encarga de gestionarlos.
 volumes:
   postgres_data:
 # === FIN: docker-compose.yml ===
@@ -437,24 +510,55 @@ volumes:
 
 # === INICIO: entrypoint.sh ===
 #!/bin/sh
-
-# Salimos inmediatamente si un comando falla
+#
+# Entrypoint para el Contenedor de la Aplicación Runegram
+#
+# Este script se ejecuta cada vez que el contenedor de la aplicación ('bot') se inicia.
+# Su principal responsabilidad es preparar el entorno antes de lanzar la aplicación
+# de Python principal.
+#
+# Tareas:
+# 1. Esperar a que el servicio de PostgreSQL esté completamente disponible y acepte conexiones.
+#    Esto evita que la aplicación falle al arrancar si el contenedor de la base de datos
+#    tarda más en iniciarse.
+# 2. Ejecutar las migraciones de la base de datos con Alembic para asegurar que el
+#    esquema de la base de datos esté actualizado con la última versión del código.
+# 3. Ejecutar el comando principal del contenedor (CMD), que en nuestro caso es
+#    `python run.py`, para iniciar el bot.
+#
+# `set -e`: Este comando es crucial. Asegura que el script se detenga inmediatamente
+# si cualquier comando falla (devuelve un código de salida distinto de cero).
+#
 set -e
 
-echo "--- Esperando a que PostgreSQL esté disponible... ---"
-# El host 'postgres' es el nombre del servicio en docker-compose.yml
-# Bucle hasta que el puerto 5432 de postgres esté abierto
+# --- PASO 1: Esperar a PostgreSQL ---
+echo "--- [Entrypoint] Esperando a que PostgreSQL esté disponible... ---"
+# El host 'postgres' es el nombre del servicio definido en docker-compose.yml.
+# El comando `nc -z` (netcat) intenta establecer una conexión sin enviar datos.
+# El bucle `while` se repetirá hasta que el puerto 5432 de 'postgres' esté abierto.
 while ! nc -z postgres 5432; do
   sleep 0.1
 done
-echo "--- PostgreSQL está listo. ---"
+echo "--- [Entrypoint] ✅ PostgreSQL está listo. ---"
 
-echo "--- Ejecutando migraciones de la base de datos... ---"
+
+# --- PASO 2: Ejecutar Migraciones de la Base de Datos ---
+echo "--- [Entrypoint] Ejecutando migraciones de la base de datos con Alembic... ---"
+# `alembic upgrade head` aplica todas las migraciones pendientes desde la última
+# versión registrada en la base de datos hasta la última versión en los archivos.
 alembic upgrade head
+echo "--- [Entrypoint] ✅ Migraciones completadas. ---"
 
-echo "--- ¡Migraciones completadas! Iniciando el bot... ---"
-# 'exec "$@"' ejecuta el comando que se le pasa al script.
-# En nuestro caso, será 'python run.py'
+
+# --- PASO 3: Ejecutar el Comando Principal ---
+echo "--- [Entrypoint] Iniciando la aplicación principal del bot... ---"
+# `exec "$@"` es una construcción de shell especial.
+# 'exec' reemplaza el proceso actual del script con el nuevo comando, lo que es
+# más eficiente y permite que las señales del sistema (como un 'docker stop')
+# lleguen directamente a la aplicación de Python.
+# `"$@"` expande todos los argumentos que se pasaron al script. En nuestro caso,
+# `docker-compose.yml` pasa `python run.py`, por lo que este comando se convierte en
+# `exec python run.py`.
 exec "$@"
 # === FIN: entrypoint.sh ===
 
@@ -475,6 +579,20 @@ psycopg2-binary==2.9.9
 
 # === INICIO: run.py ===
 # run.py
+"""
+Punto de Entrada Principal de la Aplicación Runegram MUD.
+
+Este script es el responsable de orquestar el arranque del bot. Sus tareas principales son:
+1. Configurar el sistema de logging global para toda la aplicación.
+2. Definir y registrar las funciones `on_startup` y `on_shutdown` que se ejecutarán
+   al iniciar y detener el bot, respectivamente.
+3. Iniciar el "polling" de Aiogram, que es el bucle principal que escucha los
+   mensajes de Telegram.
+
+Para ejecutar la aplicación, se llama a este script desde el `entrypoint.sh`
+dentro del contenedor Docker.
+"""
+
 import logging
 import asyncio
 import sys
@@ -484,41 +602,79 @@ from src.bot.dispatcher import dp
 from src.services import world_loader_service, ticker_service, online_service
 from src.db import async_session_factory
 
+# Esta importación es crucial para que los manejadores de mensajes se registren.
 import src.handlers
 
 async def on_startup(dispatcher):
-    logging.info("Bot iniciando...")
+    """
+    Se ejecuta una sola vez cuando el bot se inicia con éxito.
+    Inicializa todos los sistemas principales del juego.
+    """
+    logging.info("Iniciando secuencia de arranque del bot...")
 
-    ticker_service.initialize_scheduler()
+    try:
+        # 1. Inicia el scheduler. Es importante que se inicie antes de que cualquier
+        #    otro servicio intente añadir tareas.
+        ticker_service.initialize_scheduler()
 
-    async with async_session_factory() as session:
-        await world_loader_service.sync_world_from_prototypes(session)
-        await ticker_service.load_and_schedule_all_tickers(session)
+        # 2. Crea una sesión de base de datos para las tareas de inicialización.
+        async with async_session_factory() as session:
+            # Sincroniza el mundo estático (salas, salidas) desde los archivos de prototipos.
+            await world_loader_service.sync_world_from_prototypes(session)
 
-    # --- LÍNEA MODIFICADA ---
-    # Añadimos la tarea global SIN pasarle ningún argumento.
-    # La tarea se encargará de gestionar su propia sesión de base de datos.
-    ticker_service.scheduler.add_job(
-        online_service.check_for_newly_afk_players,
-        'interval',
-        seconds=60
-    )
-    logging.info("Ticker global para chequeo de AFK añadido.")
+            # Carga y programa los tickers de los objetos que ya existen en la base de datos.
+            await ticker_service.load_and_schedule_all_tickers(session)
 
-    logging.info("Ejecución de startup finalizada. El bot está en línea.")
+        # 3. Añade el ticker global que se ejecuta periódicamente para comprobar
+        #    el estado de inactividad (AFK) de los jugadores.
+        ticker_service.scheduler.add_job(
+            online_service.check_for_newly_afk_players,
+            'interval',
+            seconds=60,
+            id="global_afk_check",
+            replace_existing=True
+        )
+        logging.info("Ticker global para chequeo de AFK añadido.")
+
+        logging.info("✅ Secuencia de arranque finalizada. El bot está en línea.")
+
+    except Exception:
+        # Si algo falla catastróficamente durante el arranque, lo registramos
+        # y detenemos la aplicación para evitar un estado inconsistente.
+        logging.exception("❌ Error fatal durante la secuencia de arranque. El bot se detendrá.")
+        # Obtenemos el bucle de eventos actual y lo detenemos.
+        loop = asyncio.get_running_loop()
+        loop.stop()
+
 
 async def on_shutdown(dispatcher):
-    logging.warning("Bot deteniéndose...")
-    ticker_service.scheduler.shutdown()
+    """
+    Se ejecuta una sola vez cuando el bot se detiene.
+    Se asegura de que los servicios se apaguen de forma limpia.
+    """
+    logging.warning("Iniciando secuencia de apagado del bot...")
+    if ticker_service.scheduler.running:
+        ticker_service.scheduler.shutdown()
+        logging.info("Scheduler detenido limpiamente.")
+    logging.warning("Bot detenido.")
+
 
 def main():
+    """
+    Configura el logging principal y arranca el bot.
+    """
+    # Configuración de logging para que todos los mensajes (INFO, WARNING, ERROR, etc.)
+    # se muestren en la consola del contenedor Docker con un formato claro.
     logging.basicConfig(
         level=logging.INFO,
         stream=sys.stdout,
         format="%(asctime)s [%(levelname)s] - %(name)s: %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+
+    # Inicia el bucle de Aiogram que escucha los mensajes de Telegram.
     executor.start_polling(dp, on_startup=on_startup, on_shutdown=on_shutdown)
+
 
 if __name__ == "__main__":
     main()
@@ -1165,19 +1321,49 @@ def downgrade() -> None:
 
 # === INICIO: commands/command.py ===
 # commands/command.py
+"""
+Módulo que define la Clase Base para todos los Comandos.
+
+Este archivo contiene la clase `Command`, que actúa como una plantilla o "contrato"
+para todos los comandos del juego. Cada comando, ya sea de jugador o de administrador,
+debe heredar de esta clase.
+
+Esto asegura que todos los comandos tengan una estructura consistente y puedan ser
+manejados de manera uniforme por el dispatcher principal.
+"""
+
 from aiogram import types
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.models.character import Character
 
 class Command:
-    """Clase base para todos los comandos del juego."""
+    """
+    Clase base abstracta para todos los comandos del juego.
+
+    Atributos:
+        names (list[str]): Una lista de alias que pueden invocar este comando.
+                           El primer nombre de la lista se considera el principal.
+        lock (str): Un string de permisos que el `permission_service` evaluará
+                    para determinar si el personaje puede ejecutar el comando.
+        description (str): Una breve descripción del propósito del comando, utilizada
+                           para actualizar la lista de comandos en el cliente de Telegram.
+    """
     lock: str = ""
     description: str = "Un comando sin descripción."
 
     def __init__(self, names: list[str] = None, description: str = None):
         """
-        Inicializador para permitir la creación de instancias de comandos
+        Inicializador que permite la creación de instancias de comandos
         con alias y descripciones dinámicas.
+
+        Esto es especialmente útil para crear múltiples comandos a partir de una
+        sola clase, como los comandos de movimiento (`/norte`, `/sur`, etc.).
+
+        Args:
+            names (list[str], optional): La lista de alias para esta instancia del comando.
+                                         Si no se proporciona, se usa el atributo de clase.
+            description (str, optional): La descripción para esta instancia del comando.
+                                         Si no se proporciona, se usa el atributo de clase.
         """
         if names:
             self.names = names
@@ -1187,6 +1373,7 @@ class Command:
         if description:
             self.description = description
         elif not hasattr(self, 'description'):
+            # Asegura que siempre haya una descripción por defecto.
             self.description = "Un comando sin descripción."
 
     async def execute(
@@ -1196,7 +1383,24 @@ class Command:
         message: types.Message,
         args: list[str]
     ):
-        """El método que se ejecuta cuando se llama al comando."""
+        """
+        El método principal que se ejecuta cuando se llama al comando.
+
+        Este método debe ser sobrescrito por cada clase de comando hija.
+
+        Args:
+            character (Character): El objeto del personaje que ejecuta el comando,
+                                   precargado con todas sus relaciones.
+            session (AsyncSession): La sesión de base de datos activa para esta
+                                    interacción.
+            message (types.Message): El objeto de mensaje de Aiogram que contiene
+                                     el texto original, el ID del chat, etc.
+            args (list[str]): Una lista de los argumentos proporcionados por el
+                              usuario después del nombre del comando.
+        """
+        # Este método está pensado para ser sobrescrito. Si una subclase no lo
+        # implementa, lanzar un NotImplementedError es una buena práctica para
+        # detectar errores durante el desarrollo.
         raise NotImplementedError
 # === FIN: commands/command.py ===
 
@@ -1210,41 +1414,84 @@ from . import info
 
 
 # === INICIO: commands/admin/building.py ===
-# src/commands/admin/building.py
+# commands/admin/building.py
+"""
+Módulo de Comandos Administrativos para la Generación de Entidades.
+
+Este archivo contiene los comandos que permiten a los administradores "generar"
+o "invocar" (`spawn`) entidades en el mundo a partir de sus prototipos
+definidos en `game_data`.
+
+Estos comandos no se usan para construir el mundo estático (eso lo hace el
+`world_loader_service`), sino para añadir contenido dinámico durante el juego,
+como objetos para un evento o PNJ para una misión.
+"""
+
+import logging
 from aiogram import types
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from commands.command import Command
 from src.models.character import Character
 from src.services import item_service
 from game_data.item_prototypes import ITEM_PROTOTYPES
 
 class CmdGenerarObjeto(Command):
+    """
+    Comando para un administrador para crear una instancia de un objeto
+    a partir de un prototipo y colocarla en la sala actual.
+    """
     names = ["generarobjeto", "genobj"]
     lock = "rol(ADMINISTRADOR)"
     description = "Genera un objeto en la sala a partir de su clave de prototipo."
 
     async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
+        # Validación de entrada
         if not args:
-            return await message.answer("Uso: /generarobjeto [key_del_prototipo]")
+            await message.answer("Uso: /generarobjeto [key_del_prototipo]")
+            return
 
         item_key = args[0].lower()
-        try:
-            item = await item_service.spawn_item_in_room(session, character.room_id, item_key)
-            item_name = ITEM_PROTOTYPES.get(item.key, {}).get("name", "un objeto desconocido")
-            await message.answer(f"✅ Objeto '{item_name}' generado en la sala actual.")
-        except ValueError as e:
-            await message.answer(f"❌ Error: {e}")
 
-# Exportamos el nuevo set de comandos de "spawning"
+        try:
+            # Llama al servicio para crear la instancia del objeto en la base de datos.
+            item = await item_service.spawn_item_in_room(session, character.room_id, item_key)
+
+            # Obtenemos el nombre "bonito" del prototipo para el mensaje de confirmación.
+            item_name = ITEM_PROTOTYPES.get(item.key, {}).get("name", "un objeto desconocido")
+
+            await message.answer(f"✅ Objeto '{item_name}' generado en la sala actual.")
+
+        except ValueError as e:
+            # Este error se lanza desde `item_service` si la `item_key` no existe.
+            await message.answer(f"❌ Error: {e}")
+        except Exception:
+            # Captura cualquier otro error inesperado durante el proceso de creación.
+            await message.answer("❌ Ocurrió un error inesperado al generar el objeto.")
+            logging.exception(f"Fallo al ejecutar /generarobjeto con la clave '{item_key}'")
+
+# Exportamos la lista de comandos de este módulo.
+# En el futuro, aquí se podrían añadir comandos como /generarnpc.
 SPAWN_COMMANDS = [
     CmdGenerarObjeto(),
-    # Aquí podrías añadir /generarnpc en el futuro
 ]
 # === FIN: commands/admin/building.py ===
 
 
 # === INICIO: commands/admin/info.py ===
 # commands/admin/info.py
+"""
+Módulo de Comandos Administrativos de Información.
+
+Este archivo contiene comandos diseñados para que los administradores puedan
+consultar el estado interno del juego. Son herramientas de solo lectura
+que ayudan a supervisar, depurar y obtener una visión general del mundo
+sin modificarlo.
+
+Ejemplos futuros podrían incluir: /donde [jugador], /infoobjeto [id], etc.
+"""
+
+import logging
 from aiogram import types
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -1253,34 +1500,48 @@ from commands.command import Command
 from src.models import Character, Room
 
 class CmdListarSalas(Command):
+    """
+    Comando que muestra una lista de todas las salas existentes en el mundo,
+    incluyendo su ID, su clave de prototipo y su nombre.
+    """
     names = ["listarsalas", "lsalas"]
     lock = "rol(ADMINISTRADOR)"
     description = "Muestra ID, Clave y Nombre de todas las salas del mundo."
 
     async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
-        """Muestra una lista de todas las salas del juego con su ID, Key y Nombre."""
+        """Ejecuta la consulta y formatea la lista de salas."""
+        try:
+            # 1. Realizar la consulta a la base de datos para obtener todas las salas.
+            # Se ordenan por ID para una visualización consistente.
+            result = await session.execute(select(Room).order_by(Room.id))
+            all_rooms = result.scalars().all()
 
-        result = await session.execute(select(Room).order_by(Room.id))
-        all_rooms = result.scalars().all()
+            if not all_rooms:
+                await message.answer("No se encontraron salas en la base de datos.")
+                return
 
-        if not all_rooms:
-            return await message.answer("No se encontraron salas en la base de datos.")
+            # 2. Construir el mensaje de respuesta línea por línea.
+            response_lines = ["<b>Lista de Salas del Mundo:</b>"]
+            for room in all_rooms:
+                # El formato con `<` alinea el texto a la izquierda, rellenando con espacios.
+                # `room.id:<4}` -> ID, alineado a la izquierda, 4 caracteres de ancho.
+                # `room.key:<20}` -> Key, alineado a la izquierda, 20 caracteres de ancho.
+                response_lines.append(f"ID: {room.id:<4} | Key: {room.key:<20} | Nombre: {room.name}")
 
-        # Construimos el cuerpo del mensaje
-        response_lines = ["<b>Lista de Salas del Mundo:</b>"]
-        for room in all_rooms:
-            # Ya no necesitamos <code> en cada línea, <pre> se encargará del formato
-            response_lines.append(f"ID: {room.id:<4} | Key: {room.key:<20} | Nombre: {room.name}")
+            body = "\n".join(response_lines)
 
-        body = "\n".join(response_lines)
+            # 3. Envolver el cuerpo completo en una etiqueta <pre> para asegurar
+            #    un formato de monoespaciado y una alineación perfecta de las columnas.
+            response_text = f"<pre>{body}</pre>"
 
-        # Envolvemos el cuerpo completo en una etiqueta <pre>
-        response_text = f"<pre>{body}</pre>"
+            await message.answer(response_text, parse_mode="HTML")
 
-        # Usamos parse_mode HTML para que Telegram interprete las etiquetas
-        await message.answer(response_text, parse_mode="HTML")
+        except Exception:
+            # Captura cualquier error inesperado durante la consulta a la base de datos.
+            await message.answer("❌ Ocurrió un error al intentar listar las salas.")
+            logging.exception("Fallo al ejecutar /listarsalas")
 
-# Exportamos el nuevo set de comandos de información
+# Exportamos la lista de comandos de este módulo.
 INFO_COMMANDS = [
     CmdListarSalas(),
 ]
@@ -1288,7 +1549,18 @@ INFO_COMMANDS = [
 
 
 # === INICIO: commands/admin/movement.py ===
-# src/commands/admin/movement.py
+# commands/admin/movement.py
+"""
+Módulo de Comandos Administrativos para el Movimiento.
+
+Este archivo contiene comandos que otorgan a los administradores capacidades
+de movimiento especiales, que no están sujetas a las reglas normales del juego
+(como las salidas definidas en una sala).
+
+Son herramientas esenciales para la construcción, supervisión y depuración del mundo.
+"""
+
+import logging
 from aiogram import types
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -1298,28 +1570,46 @@ from src.services import player_service
 from src.utils.presenters import show_current_room
 
 class CmdTeleport(Command):
+    """
+    Comando para teletransportar al administrador a cualquier sala del juego
+    especificando su ID numérico.
+    """
     names = ["teleport", "tp"]
     lock = "rol(ADMINISTRADOR)"
     description = "Teletranspórtate a cualquier sala usando su ID."
 
     async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
+        # 1. Validar la entrada del usuario.
         if not args:
-            return await message.answer("Uso: /teleport [ID_sala]")
+            await message.answer("Uso: /teleport [ID_sala]")
+            return
 
         try:
+            # Intentamos convertir el primer argumento a un número entero.
             to_room_id = int(args[0])
         except (ValueError, IndexError):
-            return await message.answer("El ID de la sala debe ser un número.")
+            # Falla si no hay argumentos o si el argumento no es un número.
+            await message.answer("El ID de la sala debe ser un número válido.")
+            return
 
         try:
+            # 2. Llamar al servicio que contiene la lógica de negocio.
             await player_service.teleport_character(session, character.id, to_room_id)
+
+            # 3. Notificar al administrador del éxito y mostrar la nueva ubicación.
             await message.answer(f"🚀 Teletransportado a la sala {to_room_id}.")
             await show_current_room(message)
-        except Exception as e:
-            await message.answer(f"❌ Error al teletransportar: {e}")
 
-# --- Exportación del Command Set ---
-ADMIN_MOVEMENT_COMMANDS = [CmdTeleport()]
+        except Exception as e:
+            # Capturamos cualquier error que pueda ocurrir durante el teletransporte,
+            # como un ID de sala que no existe (manejado por `player_service`).
+            await message.answer(f"❌ Error al teletransportar: {e}")
+            logging.warning(f"Fallo al ejecutar /teleport a la sala {args[0]}: {e}")
+
+# Exportamos la lista de comandos de este módulo.
+ADMIN_MOVEMENT_COMMANDS = [
+    CmdTeleport(),
+]
 # === FIN: commands/admin/movement.py ===
 
 
@@ -1334,18 +1624,35 @@ from . import channels
 
 # === INICIO: commands/player/channels.py ===
 # commands/player/channels.py
+"""
+Módulo de Comandos para la Interacción con Canales de Chat.
+
+Este archivo contiene los comandos que permiten a los jugadores gestionar
+sus suscripciones a canales y comunicarse a través de ellos.
+
+Incluye:
+- Comandos de gestión (ej: /canales, /canal).
+- Un comando específico por cada canal de tipo 'CHAT' (ej: /novato).
+"""
+
+import logging
 from aiogram import types
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from commands.command import Command
 from src.models import Character
 from src.services import channel_service
 from game_data.channel_prototypes import CHANNEL_PROTOTYPES
 
 class CmdChannel(Command):
+    """
+    Comando para que un jugador active o desactive un canal.
+    """
     names = ["canal"]
     description = "Activa o desactiva un canal. Uso: /canal [activar|desactivar] [nombre]."
 
     async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
+        # 1. Validar la entrada del usuario (acción y nombre del canal).
         if not args or len(args) < 2 or args[0].lower() not in ["activar", "desactivar"]:
             await message.answer("Uso: /canal [activar|desactivar] [nombre_canal]")
             return
@@ -1354,45 +1661,72 @@ class CmdChannel(Command):
         channel_key = args[1].lower()
 
         try:
+            # 2. Llamar al servicio para persistir el cambio en la configuración del personaje.
             await channel_service.set_channel_status(session, character, channel_key, activate=(action == "activar"))
             await message.answer(f"✅ Has {action}do el canal '{channel_key}'.")
         except ValueError as e:
+            # Captura el error si el `channel_key` no existe.
             await message.answer(f"❌ Error: {e}")
+        except Exception:
+            await message.answer("❌ Ocurrió un error al modificar el estado del canal.")
+            logging.exception(f"Fallo al ejecutar /canal para {character.name}")
 
 class CmdChannels(Command):
+    """
+    Comando para listar todos los canales disponibles y el estado de suscripción del jugador.
+    """
     names = ["canales"]
     description = "Muestra los canales disponibles y su estado (activado/desactivado)."
 
     async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
-        settings = await channel_service.get_or_create_settings(session, character)
-        user_channels = settings.active_channels.get("active_channels", [])
+        try:
+            # 1. Obtener la configuración de canales del jugador.
+            settings = await channel_service.get_or_create_settings(session, character)
+            user_channels = settings.active_channels.get("active_channels", [])
 
-        response = ["<b>Estado de tus Canales:</b>"]
-        for key, proto in CHANNEL_PROTOTYPES.items():
-            status = "✅ Activado" if key in user_channels else "❌ Desactivado"
-            response.append(f"- <b>{proto['name']}</b> ({key}): {status}\n  <i>{proto['description']}</i>")
+            # 2. Construir la lista formateada para el mensaje.
+            response = ["<b>Estado de tus Canales:</b>"]
+            for key, proto in CHANNEL_PROTOTYPES.items():
+                status = "✅ Activado" if key in user_channels else "❌ Desactivado"
+                response.append(f"- <b>{proto['name']}</b> ({key}): {status}\n  <i>{proto['description']}</i>")
 
-        await message.answer("\n".join(response), parse_mode="HTML")
+            await message.answer("\n".join(response), parse_mode="HTML")
+        except Exception:
+            await message.answer("❌ Ocurrió un error al listar los canales.")
+            logging.exception(f"Fallo al ejecutar /canales para {character.name}")
 
 
 class CmdNovato(Command):
+    """
+    Comando para enviar un mensaje al canal 'novato'.
+    """
     names = ["novato"]
     lock = ""
     description = "Envía un mensaje por el canal de ayuda para novatos."
 
     async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
-        if not args:
-            return await message.answer("Uso: /novato [mensaje]")
+        try:
+            if not args:
+                await message.answer("Uso: /novato [mensaje]")
+                return
 
-        settings = await channel_service.get_or_create_settings(session, character)
-        if not await channel_service.is_channel_active(settings, "novato"):
-            return await message.answer("Tienes el canal 'novato' desactivado. Actívalo con:\n/canal activar novato")
+            # 1. Verificar si el jugador tiene el canal activado.
+            settings = await channel_service.get_or_create_settings(session, character)
+            if not await channel_service.is_channel_active(settings, "novato"):
+                await message.answer("Tienes el canal 'novato' desactivado. Actívalo con:\n/canal activar novato")
+                return
 
-        channel_message = f"[{character.name}] {' '.join(args)}"
-        await channel_service.broadcast_to_channel(session, "novato", channel_message, exclude_character_id=character.id)
-        # Confirmación para el que envía el mensaje
-        await message.answer(f"📢 <b>Novato:</b> {channel_message}", parse_mode="HTML")
+            # 2. Formatear y transmitir el mensaje a través del servicio.
+            channel_message = f"[{character.name}] {' '.join(args)}"
+            await channel_service.broadcast_to_channel(session, "novato", channel_message, exclude_character_id=character.id)
 
+            # 3. Enviar una confirmación al propio jugador para que vea su mensaje.
+            await message.answer(f"📢 <b>Novato:</b> {channel_message}", parse_mode="HTML")
+        except Exception:
+            await message.answer("❌ Ocurrió un error al enviar tu mensaje al canal.")
+            logging.exception(f"Fallo al ejecutar /novato para {character.name}")
+
+# Exportamos la lista de comandos de este módulo.
 CHANNEL_COMMANDS = [
     CmdChannel(),
     CmdChannels(),
@@ -1403,6 +1737,19 @@ CHANNEL_COMMANDS = [
 
 # === INICIO: commands/player/character.py ===
 # commands/player/character.py
+"""
+Módulo de Comandos para la Gestión del Personaje.
+
+Este archivo contiene los comandos que permiten a los jugadores gestionar
+el ciclo de vida de su personaje en el juego.
+
+El comando principal aquí es `/crearpersonaje`, que es el primer comando que
+un nuevo jugador debe usar para entrar al mundo de Runegram.
+
+Futuros comandos como `/borrarpersonaje` o `/descripcion` también pertenecerían
+a este módulo.
+"""
+
 import logging
 from aiogram import types
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -1412,40 +1759,69 @@ from src.models.character import Character
 from src.services import player_service
 
 class CmdCreateCharacter(Command):
+    """
+    Comando para que un nuevo usuario cree su personaje.
+    """
     names = ["crearpersonaje"]
     description = "Crea tu personaje para empezar a jugar."
     lock = ""
 
     async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
+        """
+        Gestiona la lógica de creación de un nuevo personaje.
+        """
+        # 1. Comprobar si el jugador ya tiene un personaje.
+        # El objeto 'character' solo es None si la cuenta no tiene un personaje asociado.
         if character:
-            return await message.answer("Ya tienes un personaje.")
+            await message.answer("Ya tienes un personaje.")
+            return
 
+        # 2. Validar el nombre proporcionado por el usuario.
         character_name = " ".join(args)
         if not character_name or len(character_name) > 50:
-            return await message.answer("Por favor, proporciona un nombre válido (máx 50 caracteres). Uso: /crearpersonaje [nombre]")
+            await message.answer("Por favor, proporciona un nombre válido (máx 50 caracteres). Uso: /crearpersonaje [nombre]")
+            return
 
         try:
+            # 3. Llamar al servicio que contiene la lógica de negocio para la creación.
             new_char = await player_service.create_character(session, message.from_user.id, character_name)
+
+            # 4. Enviar un mensaje de éxito al jugador.
             await message.answer(
                 f"¡Tu personaje, {new_char.name}, ha sido creado con éxito!\n"
                 "Ahora estás listo para explorar el mundo de Runegram. ¡Envía /start para comenzar!"
             )
         except ValueError as e:
+            # Captura errores de negocio específicos lanzados por `player_service`,
+            # como "El nombre ya está en uso".
             await message.answer(f"No se pudo crear el personaje: {e}")
-        except Exception as e:
+        except Exception:
+            # Captura cualquier otro error inesperado durante el proceso de creación.
+            # Gracias al `logging.exception`, veremos el traceback completo en los logs
+            # del contenedor, lo que es vital para depurar errores sutiles de la base de datos.
             await message.answer("Ocurrió un error inesperado al crear tu personaje.")
-
-            # --- MEJORA DE LOGGING CLAVE ---
-            # Reemplazamos el print() por logging.exception() para obtener el traceback completo.
             logging.exception(f"Error finalizando la creación del personaje para {message.from_user.id}")
 
-# --- Exportación del Command Set ---
-CHARACTER_COMMANDS = [CmdCreateCharacter()]
+# Exportamos la lista de comandos de este módulo.
+CHARACTER_COMMANDS = [
+    CmdCreateCharacter(),
+]
 # === FIN: commands/player/character.py ===
 
 
 # === INICIO: commands/player/general.py ===
 # commands/player/general.py
+"""
+Módulo de Comandos Generales del Jugador.
+
+Este archivo agrupa los comandos más básicos y fundamentales que un jugador
+utiliza para interactuar con el mundo y obtener información esencial sobre su
+entorno y su personaje.
+
+Estos comandos están disponibles para todos los jugadores en todo momento.
+"""
+
+import logging
 from aiogram import types
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -1456,82 +1832,104 @@ from src.utils.presenters import show_current_room
 from src.services import script_service, online_service
 
 class CmdLook(Command):
+    """
+    Comando para observar el entorno actual (la sala) o un objeto o
+    personaje específico dentro de ella.
+    """
     names = ["mirar", "m", "l"]
     lock = ""
     description = "Observa tu entorno o un objeto/personaje específico."
 
-    async def execute(
-        self,
-        character: Character,
-        session: AsyncSession,
-        message: types.Message,
-        args: list[str]
-    ):
-        if not args:
-            await show_current_room(message)
-            return
+    async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
+        try:
+            # Si no se proporcionan argumentos, el jugador mira la sala.
+            if not args:
+                await show_current_room(message)
+                return
 
-        target_name = " ".join(args).lower()
-        found_target = None
+            target_name = " ".join(args).lower()
+            found_target = None
 
-        for item in character.room.items:
-            if target_name in item.get_keywords() or target_name in item.get_name().lower():
-                found_target = item
-                break
+            # 1. Buscar en los objetos de la sala.
+            if character.room.items:
+                for item in character.room.items:
+                    if target_name in item.get_keywords() or target_name in item.get_name().lower():
+                        found_target = item
+                        break
 
-        if not found_target:
-            for item in character.items:
-                if target_name in item.get_keywords() or target_name in item.get_name().lower():
-                    found_target = item
-                    break
+            # 2. Si no se encontró, buscar en el inventario del personaje.
+            if not found_target and character.items:
+                for item in character.items:
+                    if target_name in item.get_keywords() or target_name in item.get_name().lower():
+                        found_target = item
+                        break
 
-        if not found_target:
-            return await message.answer("No ves eso por aquí.")
+            # Futuro: 3. Buscar otros personajes en la sala.
+            # Futuro: 4. Buscar NPCs en la sala.
 
-        await message.answer(f"<pre>{found_target.get_description()}</pre>", parse_mode="HTML")
+            if not found_target:
+                await message.answer("No ves eso por aquí.")
+                return
 
-        if "on_look" in found_target.prototype.get("scripts", {}):
-            await script_service.execute_script(
-                script_string=found_target.prototype["scripts"]["on_look"],
-                session=session,
-                character=character,
-                target=found_target
-            )
+            # Mostramos la descripción del objeto encontrado.
+            await message.answer(f"<pre>{found_target.get_description()}</pre>", parse_mode="HTML")
+
+            # Finalmente, disparamos el evento on_look si el objeto tiene un script asociado.
+            if "on_look" in found_target.prototype.get("scripts", {}):
+                await script_service.execute_script(
+                    script_string=found_target.prototype["scripts"]["on_look"],
+                    session=session,
+                    character=character,
+                    target=found_target
+                )
+        except Exception:
+            await message.answer("❌ Ocurrió un error al intentar mirar.")
+            logging.exception(f"Fallo al ejecutar /mirar para {character.name}")
 
 class CmdSay(Command):
+    """
+    Comando para que el personaje hable a otros en la misma sala.
+    """
     names = ["decir", "'"]
     lock = ""
     description = "Habla con las personas que están en tu misma sala."
 
     async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
         if not args:
-            return await message.answer("¿Qué quieres decir?")
+            await message.answer("¿Qué quieres decir?")
+            return
+
+        # Futuro: Este mensaje debería ser transmitido a otros jugadores en la sala.
         say_text = " ".join(args)
         await message.answer(f"Dices: {say_text}")
 
 class CmdInventory(Command):
+    """
+    Comando para mostrar al jugador los objetos que lleva en su inventario.
+    """
     names = ["inventario", "inv", "i"]
     lock = ""
     description = "Muestra los objetos que llevas en tu inventario."
 
-    async def execute(
-        self,
-        character: Character,
-        session: AsyncSession,
-        message: types.Message,
-        args: list[str]
-    ):
-        inventory = character.items
-        if not inventory:
-            response = "No llevas nada."
-        else:
-            items_list = [f" - {item.get_name()}" for item in inventory]
-            items_str = "\n".join(items_list)
-            response = f"<b>Llevas lo siguiente:</b>\n{items_str}"
+    async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
+        try:
+            inventory = character.items
+            if not inventory:
+                response = "No llevas nada."
+            else:
+                items_list = [f" - {item.get_name()}" for item in inventory]
+                items_str = "\n".join(items_list)
+                response = f"<b>Llevas lo siguiente:</b>\n{items_str}"
 
-        await message.answer(f"<pre>{response}</pre>", parse_mode="HTML")
+            await message.answer(f"<pre>{response}</pre>", parse_mode="HTML")
+        except Exception:
+            await message.answer("❌ Ocurrió un error al mostrar tu inventario.")
+            logging.exception(f"Fallo al ejecutar /inventario para {character.name}")
 
 class CmdHelp(Command):
+    """
+    Comando para mostrar un mensaje de ayuda básico con los comandos principales.
+    """
     names = ["ayuda", "help"]
     lock = ""
     description = "Muestra una lista con los comandos básicos del juego."
@@ -1545,50 +1943,66 @@ class CmdHelp(Command):
             "/decir [mensaje] - Hablas a la gente en tu misma sala.\n"
             "/coger [objeto] - Recoges un objeto del suelo.\n"
             "/dejar [objeto] - Dejas un objeto que llevas.\n"
-            "/quien - Muestra quién está conectado.\n\n"
+            "/quien - Muestra quién está conectado.\n"
+            "/canales - Gestiona tus suscripciones a canales.\n\n"
             "Para moverte, usa /norte, /sur, etc."
         )
         await message.answer(f"<pre>{help_text}</pre>", parse_mode="HTML")
 
 class CmdWho(Command):
+    """
+    Comando social que muestra una lista de todos los personajes que
+    están actualmente conectados al juego.
+    """
     names = ["quien", "who"]
     lock = ""
     description = "Muestra una lista de los jugadores conectados."
 
-    async def execute(
-        self,
-        character: Character,
-        session: AsyncSession,
-        message: types.Message,
-        args: list[str]
-    ):
-        """Muestra una lista de los jugadores actualmente en línea."""
+    async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
+        try:
+            online_characters = await online_service.get_online_characters(session)
 
-        online_characters = await online_service.get_online_characters(session)
+            # Si la lista está vacía o solo contiene al jugador actual, se muestra
+            # un mensaje indicando que está solo.
+            if not online_characters or (len(online_characters) == 1 and online_characters[0].id == character.id):
+                await message.answer("Eres la única alma aventurera en este mundo ahora mismo.")
+                return
 
-        if not online_characters:
-            return await message.answer("Eres la única alma aventurera en este mundo ahora mismo.")
+            response_lines = [f"<b>Hay {len(online_characters)} aventureros en Runegram:</b>"]
+            # Ordenamos la lista alfabéticamente por nombre para una visualización clara.
+            for char in sorted(online_characters, key=lambda c: c.name):
+                response_lines.append(f"- {char.name}")
 
-        # Excluimos al propio jugador de la cuenta si solo hay una persona
-        if len(online_characters) == 1 and online_characters[0].id == character.id:
-            return await message.answer("Eres la única alma aventurera en este mundo ahora mismo.")
+            response_text = "\n".join(response_lines)
+            await message.answer(f"<pre>{response_text}</pre>", parse_mode="HTML")
+        except Exception:
+            await message.answer("❌ Ocurrió un error al obtener la lista de jugadores.")
+            logging.exception(f"Fallo al ejecutar /quien para {character.name}")
 
-        response_lines = [f"<b>Hay {len(online_characters)} aventureros en Runegram:</b>"]
-        for char in sorted(online_characters, key=lambda c: c.name):
-            response_lines.append(f"- {char.name}")
-
-        response_text = "\n".join(response_lines)
-        await message.answer(f"<pre>{response_text}</pre>", parse_mode="HTML")
-
-
-# --- Exportación del Command Set (Actualizado) ---
-GENERAL_COMMANDS = [CmdLook(), CmdSay(), CmdInventory(), CmdHelp(), CmdWho()]
+# Exportamos la lista de comandos de este módulo.
+GENERAL_COMMANDS = [
+    CmdLook(),
+    CmdSay(),
+    CmdInventory(),
+    CmdHelp(),
+    CmdWho(),
+]
 # === FIN: commands/player/general.py ===
 
 
 # === INICIO: commands/player/interaction.py ===
 # commands/player/interaction.py
+"""
+Módulo de Comandos de Interacción con Objetos.
 
+Este archivo contiene los comandos que permiten al jugador manipular directamente
+los objetos (`Items`) en el mundo del juego.
+
+Incluye acciones fundamentales como coger objetos del entorno y dejar
+objetos del inventario.
+"""
+
+import logging
 from aiogram import types
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -1596,80 +2010,93 @@ from commands.command import Command
 from src.models.character import Character
 from src.services import item_service, command_service, player_service
 
-
 class CmdGet(Command):
+    """
+    Comando para que un jugador recoja un objeto del suelo en su sala actual
+    y lo añada a su inventario.
+    """
     names = ["coger", "g"]
     lock = ""
     description = "Recoge un objeto del suelo."
 
-    async def execute(
-        self,
-        character: Character,
-        session: AsyncSession,
-        message: types.Message,
-        args: list[str]
-    ):
-        if not args:
-            return await message.answer("¿Qué quieres coger?")
+    async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
+        try:
+            if not args:
+                await message.answer("¿Qué quieres coger?")
+                return
 
-        item_name_to_get = " ".join(args).lower()
-        item_to_get = None
+            item_name_to_get = " ".join(args).lower()
+            item_to_get = None
 
-        for item in character.room.items:
-            if item_name_to_get in item.get_name().lower():
-                item_to_get = item
-                break
+            # Buscamos el objeto en la lista de items de la sala actual.
+            for item in character.room.items:
+                if item_name_to_get in item.get_name().lower():
+                    item_to_get = item
+                    break
 
-        if not item_to_get:
-            return await message.answer("No ves eso por aquí.")
+            if not item_to_get:
+                await message.answer("No ves eso por aquí.")
+                return
 
-        await item_service.move_item_to_character(session, item_to_get.id, character.id)
+            # Llamamos al servicio para actualizar la ubicación del objeto en la BD.
+            await item_service.move_item_to_character(session, item_to_get.id, character.id)
 
-        # Si el objeto que cogimos otorga un command set, actualizamos la lista en Telegram.
-        if item_to_get.prototype.get("grants_command_sets"):
-            refreshed_character = await player_service.get_character_with_relations_by_id(session, character.id)
-            await command_service.update_telegram_commands(refreshed_character)
+            # Si el objeto que cogimos otorga un CommandSet, debemos actualizar la
+            # lista de comandos del jugador en Telegram.
+            if item_to_get.prototype.get("grants_command_sets"):
+                refreshed_character = await player_service.get_character_with_relations_by_id(session, character.id)
+                await command_service.update_telegram_commands(refreshed_character)
 
-        await message.answer(f"Has cogido: {item_to_get.get_name()}")
+            await message.answer(f"Has cogido: {item_to_get.get_name()}")
+        except Exception:
+            await message.answer("❌ Ocurrió un error al intentar coger el objeto.")
+            logging.exception(f"Fallo al ejecutar /coger para {character.name}")
 
 
 class CmdDrop(Command):
+    """
+    Comando para que un jugador deje un objeto de su inventario en el suelo
+    de su sala actual.
+    """
     names = ["dejar", "d"]
     lock = ""
     description = "Deja un objeto de tu inventario en el suelo."
 
-    async def execute(
-        self,
-        character: Character,
-        session: AsyncSession,
-        message: types.Message,
-        args: list[str]
-    ):
-        if not args:
-            return await message.answer("¿Qué quieres dejar?")
+    async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
+        try:
+            if not args:
+                await message.answer("¿Qué quieres dejar?")
+                return
 
-        item_name_to_drop = " ".join(args).lower()
-        item_to_drop = None
+            item_name_to_drop = " ".join(args).lower()
+            item_to_drop = None
 
-        for item in character.items:
-            if item_name_to_drop in item.get_name().lower():
-                item_to_drop = item
-                break
+            # Buscamos el objeto en el inventario del personaje.
+            for item in character.items:
+                if item_name_to_drop in item.get_name().lower():
+                    item_to_drop = item
+                    break
 
-        if not item_to_drop:
-            return await message.answer("No llevas eso.")
+            if not item_to_drop:
+                await message.answer("No llevas eso.")
+                return
 
-        await item_service.move_item_to_room(session, item_to_drop.id, character.room_id)
+            # Llamamos al servicio para actualizar la ubicación del objeto en la BD.
+            await item_service.move_item_to_room(session, item_to_drop.id, character.room_id)
 
-        # Si el objeto que dejamos otorgaba un command set, actualizamos la lista en Telegram.
-        if item_to_drop.prototype.get("grants_command_sets"):
-            refreshed_character = await player_service.get_character_with_relations_by_id(session, character.id)
-            await command_service.update_telegram_commands(refreshed_character)
+            # Si el objeto que dejamos otorgaba un CommandSet, debemos actualizar la
+            # lista de comandos del jugador en Telegram.
+            if item_to_drop.prototype.get("grants_command_sets"):
+                refreshed_character = await player_service.get_character_with_relations_by_id(session, character.id)
+                await command_service.update_telegram_commands(refreshed_character)
 
-        await message.answer(f"Has dejado: {item_to_drop.get_name()}")
+            await message.answer(f"Has dejado: {item_to_drop.get_name()}")
+        except Exception:
+            await message.answer("❌ Ocurrió un error al intentar dejar el objeto.")
+            logging.exception(f"Fallo al ejecutar /dejar para {character.name}")
 
 
-# --- Exportación del Command Set ---
+# Exportamos la lista de comandos de este módulo.
 INTERACTION_COMMANDS = [
     CmdGet(),
     CmdDrop(),
@@ -1679,17 +2106,32 @@ INTERACTION_COMMANDS = [
 
 # === INICIO: commands/player/movement.py ===
 # commands/player/movement.py
+"""
+Módulo de Comandos de Movimiento del Jugador.
+
+Este archivo centraliza toda la lógica relacionada con el desplazamiento del
+personaje por el mundo del juego.
+
+Utiliza una única clase genérica, `CmdMove`, que se instancia para cada una de
+las direcciones posibles (norte, sur, etc.), cada una con sus propios alias.
+Esto evita la duplicación de código y mantiene la lógica de movimiento en un
+solo lugar.
+"""
+
+import logging
 from aiogram import types
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from commands.command import Command
 from src.models.character import Character
-from src.services import player_service, command_service # Importamos command_service
+from src.services import player_service, command_service
 from src.utils.presenters import show_current_room
 
 class CmdMove(Command):
     """
-    Comando genérico para manejar todo el movimiento.
+    Comando genérico que gestiona el movimiento del jugador en una dirección.
+    La dirección específica se determina por el nombre principal del comando
+    (el primer elemento en la lista `names`).
     """
     async def execute(
         self,
@@ -1698,25 +2140,42 @@ class CmdMove(Command):
         message: types.Message,
         args: list[str]
     ):
-        direction = self.names[0]
-        target_exit = next(
-            (exit_obj for exit_obj in character.room.exits_from if exit_obj.name == direction),
-            None
-        )
+        try:
+            # 1. Determinar la dirección basándose en el comando invocado.
+            #    Por ejemplo, si se usa `/n`, self.names[0] será "norte".
+            direction = self.names[0]
 
-        if not target_exit:
-            return await message.answer("No puedes ir en esa dirección.")
+            # 2. Buscar si existe una salida válida en esa dirección desde la sala actual.
+            target_exit = next(
+                (exit_obj for exit_obj in character.room.exits_from if exit_obj.name == direction),
+                None
+            )
 
-        await player_service.teleport_character(session, character.id, target_exit.to_room_id)
+            if not target_exit:
+                await message.answer("No puedes ir en esa dirección.")
+                return
 
-        # Después de movernos, actualizamos la lista de comandos de Telegram
-        # ya que la nueva sala podría otorgar nuevos comandos.
-        refreshed_character = await player_service.get_character_with_relations_by_id(session, character.id)
-        await command_service.update_telegram_commands(refreshed_character)
+            # Futuro: Aquí se integrará la lógica de `permission_service` para
+            # comprobar si la salida (`target_exit`) tiene un `lock`.
 
-        await show_current_room(message)
+            # 3. Mover al personaje a la nueva sala.
+            await player_service.teleport_character(session, character.id, target_exit.to_room_id)
+
+            # 4. Actualizar la lista de comandos del jugador en Telegram.
+            #    Esto es crucial porque la nueva sala podría otorgar o quitar CommandSets.
+            refreshed_character = await player_service.get_character_with_relations_by_id(session, character.id)
+            await command_service.update_telegram_commands(refreshed_character)
+
+            # 5. Mostrar al jugador la descripción de su nueva ubicación.
+            await show_current_room(message)
+
+        except Exception:
+            await message.answer("❌ Ocurrió un error al intentar moverte.")
+            logging.exception(f"Fallo al ejecutar /mover ({self.names[0]}) para {character.name}")
 
 # --- Creación del Command Set con descripciones ---
+# Se crea una instancia de `CmdMove` para cada dirección, asignando sus alias
+# y una descripción clara para la lista de comandos de Telegram.
 MOVEMENT_COMMANDS = [
     CmdMove(names=["norte", "n"], description="Moverse hacia el norte."),
     CmdMove(names=["sur", "s"], description="Moverse hacia el sur."),
@@ -1738,8 +2197,30 @@ MOVEMENT_COMMANDS = [
 
 # === INICIO: game_data/channel_prototypes.py ===
 # game_data/channel_prototypes.py
+"""
+Definición de Prototipos de Canales de Chat.
+
+Este archivo actúa como la "Fuente de la Verdad" para todos los canales de
+comunicación globales disponibles en el juego. El `channel_service` utiliza
+esta información para gestionar las suscripciones y formatear los mensajes.
+
+Añadir un nuevo canal al juego es tan simple como añadir una nueva entrada
+a este diccionario.
+
+Estructura de un Prototipo de Canal:
+- <clave_unica>: (ej: "novato")
+    - "name": (str) El nombre del canal que ven los jugadores.
+    - "icon": (str) Un icono emoji que precede a los mensajes del canal.
+    - "description": (str) Una breve explicación que se muestra en el comando /canales.
+    - "type": (str) Define el comportamiento del canal:
+        - "CHAT": Los jugadores pueden enviar mensajes a través de un comando (ej: /novato).
+        - "BROADCAST": Solo el sistema puede enviar mensajes (ej: anuncios).
+    - "default_on": (bool) Si es `True`, los nuevos personajes se suscriben
+                    automáticamente a este canal al ser creados.
+"""
 
 CHANNEL_PROTOTYPES = {
+    # Canal para que los nuevos jugadores puedan hacer preguntas.
     "novato": {
         "name": "Novato",
         "icon": "📢",
@@ -1747,61 +2228,142 @@ CHANNEL_PROTOTYPES = {
         "type": "CHAT",
         "default_on": True,
     },
-    # --- NUEVO CANAL AÑADIDO ---
+
+    # Canal para notificaciones automáticas del juego.
     "sistema": {
         "name": "Sistema",
         "icon": "⚙️",
         "description": "Anuncios automáticos del juego, como estados de actividad.",
-        # 'BROADCAST' significa que los jugadores no pueden escribir en él.
         "type": "BROADCAST",
         "default_on": True,
-    }
+    },
+
+    # --- Futuros canales podrían ir aquí ---
+    # "comercio": {
+    #     "name": "Comercio",
+    #     "icon": "💰",
+    #     "description": "Para comprar y vender objetos con otros jugadores.",
+    #     "type": "CHAT",
+    #     "default_on": True,
+    # },
+    # "anuncios": {
+    #     "name": "Anuncios",
+    #     "icon": "📜",
+    #     "description": "Noticias y eventos importantes del mundo.",
+    #     "type": "BROADCAST",
+    #     "default_on": True,
+    # }
 }
 # === FIN: game_data/channel_prototypes.py ===
 
 
 # === INICIO: game_data/item_prototypes.py ===
 # game_data/item_prototypes.py
+"""
+Definición de Prototipos de Objetos (Items).
+
+Este archivo es el catálogo central de todos los objetos que pueden existir
+en el mundo de Runegram. Sigue un sistema de prototipos, lo que significa que
+este archivo define las "plantillas" o "planos" de los objetos, mientras que
+la base de datos solo almacena las "instancias" individuales de esos objetos
+(su ubicación, si tienen un nombre personalizado, etc.).
+
+Esta separación es clave para la filosofía de diseño del motor, permitiendo
+añadir cientos de objetos nuevos sin modificar el código fuente ni la
+estructura de la base de datos.
+
+Estructura de un Prototipo de Objeto:
+- <clave_unica>: (ej: "espada_viviente")
+    - "name": (str) El nombre que ven los jugadores (ej: "una espada viviente").
+    - "keywords": (list[str]) Palabras clave para que los jugadores puedan interactuar
+                    con el objeto (ej: /mirar espada).
+    - "description": (str) El texto que se muestra al mirar el objeto.
+    - "scripts": (dict, opcional) Define scripts reactivos a eventos.
+        - "on_look": (str) El script a ejecutar cuando un jugador mira el objeto.
+    - "tickers": (list[dict], opcional) Define scripts proactivos que se ejecutan
+                 periódicamente.
+        - "schedule": (str) El horario (cron o intervalo).
+        - "script": (str) El script a ejecutar.
+        - "category": (str) La categoría del ticker (ej: "ambient").
+    - "grants_command_sets": (list[str], opcional) Lista de CommandSets que este
+                             objeto otorga al personaje que lo posea.
+"""
 
 ITEM_PROTOTYPES = {
+    # Un objeto mágico que susurra secretos periódicamente.
     "espada_viviente": {
         "name": "una espada viviente",
         "description": "La hoja de acero parece retorcerse y susurrarte secretos.",
+        "keywords": ["espada", "viviente"],
         "scripts": {
+            # Cuando se mira, emite un brillo rojo.
             "on_look": "script_notificar_brillo_magico(color=rojo)"
         },
         "tickers": [
             {
+                # Cada 2 minutos, ejecuta el script de susurrar.
                 "schedule": "*/2 * * * *",
                 "script": "script_espada_susurra_secreto",
-                # Categoriza este ticker como "de ambiente".
-                # El sistema lo ignorará para jugadores inactivos.
+                # Se categoriza como "ambient" para no molestar a jugadores inactivos.
                 "category": "ambient"
             }
         ]
     },
 
+    # Un objeto decorativo con un ticker de intervalo.
     "corazon_sangrante": {
         "name": "un corazón sangrante",
         "description": "Late débilmente y gotea un icor oscuro.",
+        "keywords": ["corazon", "sangrante"],
         "tickers": [
             {
+                # Cada 30 segundos, ejecuta un script (aún por definir).
                 "schedule": "interval:30",
                 "script": "script_objeto_sangra_en_el_suelo",
                 "category": "ambient"
             }
         ]
-    }
+    },
+
+    # --- Futuros objetos podrían ir aquí ---
+    # "ganzuas_maestras": {
+    #     "name": "unas ganzúas maestras",
+    #     "keywords": ["ganzuas", "herramientas"],
+    #     "description": "Unas herramientas de precisión para el ladrón experto.",
+    #     # Este objeto otorga acceso al CommandSet "thievery" mientras se posea.
+    #     "grants_command_sets": ["thievery"]
+    # },
 }
 # === FIN: game_data/item_prototypes.py ===
 
 
 # === INICIO: game_data/room_prototypes.py ===
 # game_data/room_prototypes.py
+"""
+Definición de Prototipos de Salas (Rooms).
 
-# Este diccionario es la "Fuente de la Verdad" para todas las salas del juego.
-# La clave (ej: "limbo") es un identificador único que NUNCA debe cambiar.
+Este archivo es el "mapa maestro" del mundo de Runegram. Define todas las
+salas estáticas, sus descripciones y, lo más importante, cómo se conectan
+entre sí.
+
+El `world_loader_service` lee este archivo al arrancar el bot para construir
+o sincronizar el mundo en la base de datos.
+
+Estructura de un Prototipo de Sala:
+- <clave_unica>: (ej: "plaza_central") Un identificador único para la sala que
+                 nunca debe cambiar. Se usa para las conexiones.
+    - "name": (str) El nombre de la sala que ven los jugadores.
+    - "description": (str) El texto principal que se muestra al entrar o mirar la sala.
+    - "exits": (dict, opcional) Define las salidas desde esta sala.
+        - "<direccion>": (str) La clave única de la sala de destino.
+          (ej: "norte": "camino_del_bosque"). El `world_loader_service` se
+          encarga de crear automáticamente la salida de vuelta (sur).
+    - "grants_command_sets": (list[str], opcional) Lista de CommandSets que esta
+                             sala otorga a cualquier personaje que se encuentre en ella.
+"""
+
 ROOM_PROTOTYPES = {
+    # La sala de inicio, donde aparecen todos los nuevos personajes.
     "limbo": {
         "name": "El Limbo",
         "description": "Te encuentras en una habitación vacía, suspendida en la nada. Es el comienzo de tu aventura y un refugio seguro.",
@@ -1810,6 +2372,8 @@ ROOM_PROTOTYPES = {
             "norte": "plaza_central"
         }
     },
+
+    # Un nexo central desde el que parten varios caminos.
     "plaza_central": {
         "name": "Plaza Central de Runegard",
         "description": "Estás en el corazón de la ciudad. El bullicio de mercaderes y aventureros llena el aire. Varios caminos parten desde aquí.",
@@ -1818,46 +2382,89 @@ ROOM_PROTOTYPES = {
             "este": "calle_mercaderes"
         }
     },
+
+    # Una sala temática.
     "calle_mercaderes": {
         "name": "Calle de los Mercaderes",
         "description": "Decenas de puestos se alinean en esta calle, ofreciendo todo tipo de mercancías exóticas.",
         "exits": {
-            # El cargador creará 'oeste' de vuelta a 'plaza_central'.
+            # El cargador creará automáticamente la salida 'oeste' de vuelta a 'plaza_central'.
         }
-    }
+    },
+
+    # --- Futuras salas podrían ir aquí ---
+    # "forja_del_enano": {
+    #     "name": "La Forja del Enano Errante",
+    #     "description": "El calor del fuego y el rítmico martilleo sobre el yunque llenan esta sala.",
+    #     "exits": {
+    #         "sur": "plaza_central"
+    #     },
+    #     # Cualquier jugador en esta sala obtiene acceso a los comandos de herrería.
+    #     "grants_command_sets": ["smithing"]
+    # }
 }
 # === FIN: game_data/room_prototypes.py ===
 
 
 # === INICIO: scripts/full_reset.bat ===
 @ECHO OFF
+REM ##################################################################
+REM #                                                                #
+REM #           SCRIPT DE REINICIO COMPLETO PARA RUNEGRAM              #
+REM #                                                                #
+REM #  Este script automatiza el proceso de limpiar por completo el  #
+REM #  entorno de desarrollo de Docker y reconstruirlo desde cero.   #
+REM #                                                                #
+REM #  Es la herramienta principal para asegurar un estado limpio    #
+REM #  después de cambios en dependencias, migraciones o si algo     #
+REM #  se ha corrompido.                                             #
+REM #                                                                #
+REM ##################################################################
+
+TITLE Reinicio Completo de Runegram
+
 CLS
 ECHO.
-ECHO ##################################################################
-ECHO #            SCRIPT DE REINICIO COMPLETO PARA RUNEGRAM           #
-ECHO ##################################################################
+ECHO  ##################################################################
+ECHO  #            SCRIPT DE REINICIO COMPLETO PARA RUNEGRAM           #
+ECHO  ##################################################################
 ECHO.
-ECHO ESTE SCRIPT REALIZARA LAS SIGUIENTES ACCIONES:
-ECHO   1. Detendra y eliminara todos los contenedores y el volumen de la BD.
-ECHO   2. Reconstruira la imagen del bot y levantara todos los servicios.
+ECHO  ESTE SCRIPT REALIZARA LAS SIGUIENTES ACCIONES DE FORMA DESTRUCTIVA:
 ECHO.
-ECHO Las migraciones se ejecutaran automaticamente al iniciar el bot.
+ECHO    1. Detendra todos los contenedores de la aplicacion.
+ECHO    2. Eliminara los contenedores detenidos.
+ECHO    3. [!] Eliminara el VOLUMEN de la base de datos, borrando TODOS los datos.
+ECHO    4. Reconstruira la imagen Docker de la aplicacion desde cero.
+ECHO    5. Levantara todos los servicios en segundo plano.
 ECHO.
-
+ECHO  Las migraciones se ejecutaran automaticamente al iniciar el bot.
+ECHO.
+ECHO  Presiona cualquier tecla para continuar o cierra esta ventana para cancelar.
 PAUSE
 
 ECHO.
-ECHO --- PASO 1 de 2: Deteniendo contenedores y eliminando volumen... ---
+ECHO --- PASO 1 de 2: Deteniendo contenedores y eliminando volumen de datos... ---
+ECHO.
+REM `docker-compose down` detiene y elimina los contenedores.
+REM La bandera `-v` (o `--volumes`) es crucial, ya que elimina los volúmenes
+REM nombrados asociados, como `postgres_data`, asegurando un borrado total.
 docker-compose down -v
 
 ECHO.
-ECHO --- PASO 2 de 2: Reconstruyendo y levantando servicios... ---
+ECHO --- PASO 2 de 2: Reconstruyendo la imagen y levantando servicios... ---
+ECHO.
+REM `docker-compose up` levanta los servicios.
+REM La bandera `--build` fuerza la reconstrucción de la imagen 'bot' desde el Dockerfile.
+REM La bandera `-d` (o `--detach`) ejecuta los contenedores en segundo plano.
 docker-compose up --build -d
 
 ECHO.
-ECHO ##################################################################
-ECHO #                ¡PROCESO COMPLETADO CON EXITO!                  #
-ECHO ##################################################################
+ECHO  ##################################################################
+ECHO  #                ¡PROCESO COMPLETADO CON EXITO!                  #
+ECHO  #----------------------------------------------------------------#
+ECHO  #  Los contenedores estan corriendo en segundo plano.            #
+ECHO  #  Puedes ver los logs con: docker-compose logs -f bot            #
+ECHO  ##################################################################
 ECHO.
 # === FIN: scripts/full_reset.bat ===
 
@@ -1984,27 +2591,49 @@ if __name__ == "__main__":
 
 # === INICIO: src/config.py ===
 # src/config.py
+"""
+Módulo de Configuración Centralizado.
+
+Este archivo define la clase `Settings` que utiliza Pydantic para cargar, validar
+y gestionar todas las variables de entorno necesarias para la aplicación.
+
+Pydantic se encarga de:
+1. Leer las variables desde un archivo `.env`.
+2. Validar que las variables existan y tengan el tipo de dato correcto (ej: int, str).
+3. Proveer un objeto `settings` único y fuertemente tipado que puede ser importado
+   y utilizado en cualquier parte del proyecto.
+
+Esto evita la dispersión de `os.getenv()` por el código y asegura que la aplicación
+no arranque si falta una configuración crítica.
+"""
 
 from pydantic import BaseSettings, SecretStr
 
 class Settings(BaseSettings):
+    """
+    Define y carga todas las variables de entorno de la aplicación.
+    """
+    # Telegram
     bot_token: SecretStr
 
-    # Database
+    # Database (PostgreSQL)
     postgres_user: str
     postgres_password: str
     postgres_db: str
     postgres_host: str
     postgres_port: int
 
-    # Redis
+    # Cache y Estados (Redis)
     redis_host: str
     redis_port: int
     redis_db: int
 
     @property
     def database_url(self) -> str:
-        # URL ASÍNCRONA (para el resto de la app)
+        """
+        Genera la URL de conexión a la base de datos para el motor ASÍNCRONO.
+        Utiliza el driver 'asyncpg', que es el principal para la aplicación.
+        """
         return (
             f"postgresql+asyncpg://"
             f"{self.postgres_user}:{self.postgres_password}@"
@@ -2013,7 +2642,11 @@ class Settings(BaseSettings):
 
     @property
     def sync_database_url(self) -> str:
-        # URL SÍNCRONA (exclusivamente para APScheduler)
+        """
+        Genera la URL de conexión a la base de datos para operaciones SÍNCRONAS.
+        Utiliza el driver 'psycopg2'. Su uso principal es para componentes que no
+        son compatibles con asyncio, como el `SQLAlchemyJobStore` de APScheduler.
+        """
         return (
             f"postgresql+psycopg2://"
             f"{self.postgres_user}:{self.postgres_password}@"
@@ -2021,27 +2654,61 @@ class Settings(BaseSettings):
         )
 
     class Config:
+        """
+        Configuración interna de Pydantic para indicarle cómo cargar las variables.
+        """
+        # Nombre del archivo del que se leerán las variables de entorno.
         env_file = '.env'
+        # Codificación del archivo .env.
         env_file_encoding = 'utf-8'
 
+# Creamos una instancia única de la configuración que será importada
+# por el resto de la aplicación.
 settings = Settings()
 # === FIN: src/config.py ===
 
 
 # === INICIO: src/db.py ===
 # src/db.py
+"""
+Módulo de Configuración de la Base de Datos.
+
+Este archivo es el responsable de crear y configurar la conexión a la base de
+datos para toda la aplicación utilizando SQLAlchemy en modo asíncrono.
+
+Componentes Clave:
+1. `async_engine`: Una instancia única del motor de base de datos que gestiona
+   las conexiones a bajo nivel. Se crea una sola vez cuando se inicia la app.
+2. `async_session_factory`: Una "fábrica" que produce objetos de sesión de
+   SQLAlchemy (`AsyncSession`). Cada vez que se necesita interactuar con la
+   base de datos (ej: dentro de un manejador de comandos), se solicita una nueva
+   sesión a esta fábrica.
+"""
+
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from src.config import settings
 
-# Creamos el motor de la base de datos asíncrono
+# Se crea una única instancia del motor asíncrono para toda la aplicación.
+# Este objeto gestiona un pool de conexiones a la base de datos.
 async_engine = create_async_engine(
     settings.database_url,
-    echo=False, # Ponlo en True para ver las queries SQL en la consola
+
+    # `echo=True` mostraría todas las sentencias SQL que se ejecutan en la consola.
+    # Es muy útil para depurar, pero debe estar en `False` en producción.
+    echo=False,
 )
 
-# Creamos una fábrica de sesiones asíncronas
+# Se crea una fábrica de sesiones. Esta fábrica se usará en toda la aplicación
+# para obtener una nueva sesión de corta duración cada vez que se necesite
+# realizar una operación en la base de datos.
 async_session_factory = async_sessionmaker(
-    async_engine,
+    bind=async_engine,
+
+    # `expire_on_commit=False` es crucial en aplicaciones asíncronas.
+    # Evita que SQLAlchemy invalide los objetos (ej: un 'Character') después de un
+    # `session.commit()`. Sin esto, acceder a un atributo de un objeto después
+    # de un commit podría lanzar un error al intentar recargarlo desde una
+    # sesión ya cerrada.
     expire_on_commit=False
 )
 # === FIN: src/db.py ===
@@ -2052,16 +2719,49 @@ async_session_factory = async_sessionmaker(
 
 
 # === INICIO: src/bot/bot.py ===
+# src/bot/bot.py
+"""
+Módulo para la Instanciación del Objeto Bot de Aiogram.
+
+Este archivo tiene una única y simple responsabilidad: crear una instancia
+global del objeto `Bot` de Aiogram.
+
+Centralizar la creación de esta instancia aquí permite que cualquier otro
+módulo en la aplicación (como los servicios) pueda importarla para interactuar
+directamente con la API de Telegram (por ejemplo, para enviar mensajes
+proactivos fuera del flujo normal de un comando).
+"""
+
 from aiogram import Bot
 
 from src.config import settings
 
+# Se crea una instancia única del Bot para toda la aplicación.
+# El token se lee de forma segura desde el objeto de configuración `settings`,
+# que a su vez lo carga desde las variables de entorno.
+# `settings.bot_token.get_secret_value()` es la forma correcta de acceder
+# al valor de un `SecretStr` de Pydantic.
 bot = Bot(token=settings.bot_token.get_secret_value())
 # === FIN: src/bot/bot.py ===
 
 
 # === INICIO: src/bot/dispatcher.py ===
 # src/bot/dispatcher.py
+"""
+Módulo para la Instanciación del Dispatcher de Aiogram.
+
+Este archivo crea y configura la instancia global del `Dispatcher`, que es el
+componente central de Aiogram para el procesamiento de actualizaciones (mensajes,
+callbacks, etc.).
+
+Responsabilidades:
+1.  **Enrutamiento:** El `Dispatcher` (`dp`) es el objeto al que se registran
+    todos los manejadores de mensajes (handlers). Se encarga de decidir qué
+    función debe procesar cada mensaje entrante.
+2.  **Gestión de Estados (FSM):** Configura el almacenamiento de estados finitos
+    (Finite State Machine), que permite crear conversaciones de varios pasos
+    (ej: creación de personaje, menús interactivos).
+"""
 
 from aiogram import Dispatcher
 from aiogram.contrib.fsm_storage.redis import RedisStorage2
@@ -2069,20 +2769,23 @@ from aiogram.contrib.fsm_storage.redis import RedisStorage2
 from src.config import settings
 from src.bot.bot import bot
 
-# Creamos el almacenamiento de estados con la configuración de Redis.
+# 1. Configuración del Almacenamiento de Estados (FSM - Finite State Machine)
+# Se utiliza Redis (`RedisStorage2`) como backend para almacenar el estado de
+# la conversación de cada usuario. Esto es esencial para funcionalidades
+# de varios pasos, como la creación de personajes.
 #
-# Se especifica explícitamente un 'pool_size' más grande para evitar
-# el error 'redis.exceptions.ConnectionError: Too many connections'
-# que ocurre cuando la aplicación recibe varios mensajes a la vez y
-# agota el pequeño pool de conexiones por defecto.
+# `pool_size` se establece explícitamente para evitar el error 'Too many connections'
+# que puede ocurrir si muchos usuarios interactúan con el bot simultáneamente.
 storage = RedisStorage2(
     host=settings.redis_host,
     port=settings.redis_port,
     db=settings.redis_db,
-    pool_size=20,  # Aumentamos el número de conexiones disponibles en el pool. 20 es un buen punto de partida.
+    pool_size=20,
 )
 
-# Creamos la instancia principal del Dispatcher que se usará en todo el proyecto
+# 2. Creación de la Instancia del Dispatcher
+# Se crea una instancia única del `Dispatcher` para toda la aplicación,
+# vinculándola con la instancia del `bot` y el `storage` configurado.
 dp = Dispatcher(bot, storage=storage)
 # === FIN: src/bot/dispatcher.py ===
 
@@ -2100,8 +2803,28 @@ from . import dispatcher
 
 # === INICIO: src/handlers/player/dispatcher.py ===
 # src/handlers/player/dispatcher.py
+"""
+Módulo del Dispatcher Principal de Comandos.
+
+Este archivo contiene el manejador (`handler`) más importante de la aplicación.
+La función `main_command_dispatcher` está registrada para interceptar **todos**
+los mensajes de texto enviados por los jugadores.
+
+Actúa como el "cerebro" del juego, orquestando el siguiente flujo para cada mensaje:
+1. Obtiene el contexto del jugador (Cuenta, Personaje) desde la base de datos.
+2. Actualiza el estado de actividad del jugador (online/AFK).
+3. Maneja casos especiales como el comando `/start`.
+4. Utiliza el `command_service` para determinar dinámicamente qué `CommandSets`
+   están activos para el jugador en ese preciso momento.
+5. Busca el comando invocado dentro de los sets activos.
+6. Verifica los permisos (`permission_service`).
+7. Ejecuta el método `.execute()` del comando encontrado.
+"""
+
 import logging
 from aiogram import types
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from src.bot.dispatcher import dp
 from src.db import async_session_factory
 from src.services import player_service, permission_service, online_service, command_service
@@ -2114,9 +2837,9 @@ from commands.admin.building import SPAWN_COMMANDS
 from commands.admin.movement import ADMIN_MOVEMENT_COMMANDS
 from commands.admin.info import INFO_COMMANDS
 from src.utils.presenters import show_current_room
-from sqlalchemy.ext.asyncio import AsyncSession
 
-# Este diccionario sigue siendo la "fuente de la verdad" de todas las instancias de comandos.
+# El diccionario `COMMAND_SETS` es el catálogo maestro que contiene una instancia
+# de cada comando disponible en el juego, agrupados por funcionalidad.
 COMMAND_SETS = {
     "general": GENERAL_COMMANDS,
     "character_creation": CHARACTER_COMMANDS,
@@ -2131,70 +2854,85 @@ COMMAND_SETS = {
 @dp.message_handler(content_types=types.ContentTypes.TEXT)
 async def main_command_dispatcher(message: types.Message):
     """
-    Dispatcher principal que utiliza el command_service para determinar
-    los comandos activos de un personaje de forma dinámica y actualiza su estado de actividad.
+    Manejador principal que intercepta todos los mensajes de texto y los
+    enruta al comando correspondiente.
     """
     async with async_session_factory() as session:
-        account = await player_service.get_or_create_account(session, message.from_user.id)
-        character = account.character
-        input_text = message.text.strip()
+        try:
+            # 1. Obtener el contexto del jugador.
+            account = await player_service.get_or_create_account(session, message.from_user.id)
+            if not account:
+                # Si no se puede obtener la cuenta, es un error grave.
+                await message.answer("Error crítico al acceder a tu cuenta.")
+                return
+            character = account.character
+            input_text = message.text.strip()
 
-        if character:
-            # En cada mensaje, actualizamos la última actividad del personaje.
-            # Esto también se encarga de notificar si vuelve de estar AFK.
-            await online_service.update_last_seen(session, character)
+            # 2. Actualizar estado de actividad (online/AFK).
+            if character:
+                await online_service.update_last_seen(session, character)
 
-        if input_text.lower().startswith('/start'):
-            if character is None:
-                await message.answer(
-                    "¡Bienvenido a Runegram! Veo que eres nuevo por aquí. "
-                    "Para empezar, necesitas crear tu personaje. Usa el comando "
-                    "/crearpersonaje [nombre] para darle vida a tu aventurero."
-                )
-            else:
-                # Al iniciar sesión, actualizamos sus comandos en Telegram.
-                await command_service.update_telegram_commands(character)
-                await show_current_room(message)
-            return
+            # 3. Manejo especial para el comando /start.
+            if input_text.lower().startswith('/start'):
+                if character is None:
+                    await message.answer(
+                        "¡Bienvenido a Runegram! Veo que eres nuevo por aquí.\n"
+                        "Para empezar, necesitas crear tu personaje. Usa el comando:\n"
+                        "/crearpersonaje [nombre]"
+                    )
+                else:
+                    await command_service.update_telegram_commands(character)
+                    await show_current_room(message)
+                return
 
-        # Protección para usuarios sin personaje
-        if not character:
-            allowed_cmds = ["/crearpersonaje"]
-            cmd_name_only = input_text.split()[0].lower()
-            if cmd_name_only not in allowed_cmds:
-                return await message.answer("Primero debes crear un personaje con /crearpersonaje.")
+            # 4. Validar que el jugador tenga un personaje para comandos que no sean de creación.
+            if not character:
+                if not input_text.lower().startswith('/crearpersonaje'):
+                    await message.answer("Primero debes crear un personaje con /crearpersonaje [nombre].")
+                # Permitimos que solo /crearpersonaje continúe si no hay personaje.
 
-        if not input_text.startswith('/'):
-             return await message.answer("Comando desconocido. Los comandos deben empezar con / (ej: /mirar, /norte).")
+            # 5. Parsear el comando y sus argumentos.
+            if not input_text.startswith('/'):
+                await message.answer("Comando desconocido. Los comandos deben empezar con / (ej: /mirar, /norte).")
+                return
 
-        cmd_name = message.get_command(pure=True).lower()
-        args = message.get_args().split() if message.get_args() else []
+            cmd_name = message.get_command(pure=True).lower()
+            args = message.get_args().split() if message.get_args() else []
 
-        found_cmd = None
-        # Obtenemos la lista de sets activos desde el servicio en cada turno.
-        active_sets_names = await command_service.get_active_command_sets_for_character(character)
+            # 6. Obtener la lista dinámica de CommandSets activos.
+            active_sets_names = await command_service.get_active_command_sets_for_character(character)
 
-        for set_name in active_sets_names:
-            if set_name in COMMAND_SETS:
-                for cmd_instance in COMMAND_SETS[set_name]:
+            # 7. Buscar y ejecutar el comando.
+            found_cmd = None
+            for set_name in active_sets_names:
+                for cmd_instance in COMMAND_SETS.get(set_name, []):
                     if cmd_name in cmd_instance.names:
                         found_cmd = cmd_instance
                         break
-            if found_cmd:
-                break
+                if found_cmd:
+                    break
 
-        if not found_cmd:
-            return await message.answer("No conozco ese comando.")
+            if not found_cmd:
+                await message.answer("No conozco ese comando.")
+                return
 
-        can_run, error_message = await permission_service.can_execute(character, found_cmd.lock)
-        if not can_run:
-            return await message.answer(error_message or "No puedes hacer eso.")
+            # Si el jugador no tiene personaje, solo puede ejecutar comandos sin lock.
+            if not character and found_cmd.lock:
+                await message.answer("Primero debes crear un personaje con /crearpersonaje [nombre].")
+                return
 
-        try:
+            can_run, error_message = await permission_service.can_execute(character, found_cmd.lock)
+            if not can_run:
+                await message.answer(error_message or "No puedes hacer eso.")
+                return
+
             await found_cmd.execute(character, session, message, args)
-        except Exception as e:
-            await message.answer("Ocurrió un error al ejecutar ese comando.")
-            logging.exception(f"Error al ejecutar el comando /{cmd_name} para el personaje {character.name}")
+
+        except Exception:
+            # Captura final para cualquier error no manejado en las capas inferiores.
+            # Esto evita que el bot se caiga y registra el problema para depuración.
+            await message.answer("Ocurrió un error inesperado al procesar tu comando.")
+            logging.exception(f"Error crítico no manejado en el dispatcher principal para el usuario {message.from_user.id}")
 # === FIN: src/handlers/player/dispatcher.py ===
 
 
@@ -2213,103 +2951,245 @@ from .character_setting import CharacterSetting
 
 # === INICIO: src/models/account.py ===
 # src/models/account.py
+"""
+Módulo que define el Modelo de Datos para una Cuenta de Usuario.
+
+Este archivo contiene la clase `Account`, que se mapea a la tabla `accounts`
+en la base de datos. Una cuenta representa a un usuario real a nivel de aplicación,
+identificado de forma única por su `telegram_id`.
+
+La cuenta es la entidad "propietaria" de un personaje (`Character`) y almacena
+metadatos sobre el usuario, como su rol (JUGADOR, ADMINISTRADOR) y su estado
+(ACTIVO, BLOQUEADO).
+"""
+
 from sqlalchemy import BigInteger, Column, String
 from sqlalchemy.orm import relationship
 
 from .base import Base
 
 class Account(Base):
+    """
+
+    Representa una cuenta de usuario en la base de datos.
+    """
     __tablename__ = 'accounts'
 
+    # Identificador único de la cuenta en nuestra base de datos.
     id = Column(BigInteger, primary_key=True)
+
+    # El ID de usuario único proporcionado por Telegram.
+    # Es crucial para vincular nuestra cuenta interna con el usuario de Telegram.
     telegram_id = Column(BigInteger, unique=True, nullable=False, index=True)
+
+    # El rol del usuario en el juego (ej: 'JUGADOR', 'ADMINISTRADOR').
+    # Determina el acceso a comandos y funcionalidades especiales.
     role = Column(String, default='JUGADOR', nullable=False)
 
-    # --- NUEVA COLUMNA AÑADIDA ---
-    # Para estados persistentes como 'ACTIVE', 'BLOCKED', etc.
+    # El estado de la cuenta (ej: 'ACTIVE', 'BLOCKED').
+    # Permite gestionar el acceso de los usuarios a nivel de cuenta.
     status = Column(String(20), default='ACTIVE', nullable=False, server_default='ACTIVE')
 
-    # Relación: Una cuenta tiene un personaje
-    character = relationship("src.models.character.Character", back_populates="account", uselist=False)
+    # --- Relaciones de SQLAlchemy ---
+
+    # Relación uno-a-uno con el personaje del juego.
+    # `uselist=False` indica que una cuenta solo puede tener un personaje.
+    # `back_populates` asegura que la relación sea bidireccional, permitiendo
+    # acceder a `character.account`.
+    # SQLAlchemy es lo suficientemente inteligente como para encontrar la clase "Character"
+    # entre los modelos que heredan de la misma Base.
+    character = relationship("Character", back_populates="account", uselist=False)
 
     def __repr__(self):
-        return f"<Account(id={self.id}, telegram_id={self.telegram_id})>"
+        """
+        Representación en string del objeto, útil para logging y depuración.
+        """
+        return f"<Account(id={self.id}, telegram_id={self.telegram_id}, role='{self.role}')>"
 # === FIN: src/models/account.py ===
 
 
 # === INICIO: src/models/base.py ===
 # src/models/base.py
+"""
+Módulo que define la Base Declarativa para todos los Modelos de SQLAlchemy.
+
+Este archivo contiene un único pero crucial objeto: `Base`.
+
+SQLAlchemy utiliza un sistema "declarativo" donde las clases de Python se mapean
+directamente a tablas de la base de datos. Para que esto funcione, todas las
+clases de modelo (como `Account`, `Character`, `Room`, etc.) deben heredar de
+una clase base común.
+
+Esta clase `Base` actúa como un registro central que recopila metadatos sobre
+todas las clases de modelo que heredan de ella. Herramientas como Alembic
+utilizan estos metadatos para comparar los modelos con el estado de la base
+de datos y generar así las migraciones automáticamente.
+"""
+
 from sqlalchemy.orm import declarative_base
 
+# `declarative_base()` es una función de fábrica que construye la clase base.
+# Todos nuestros modelos de datos en el proyecto heredarán de este objeto `Base`.
 Base = declarative_base()
 # === FIN: src/models/base.py ===
 
 
 # === INICIO: src/models/character.py ===
 # src/models/character.py
+"""
+Módulo que define el Modelo de Datos para un Personaje del Juego.
+
+Este archivo contiene la clase `Character`, que se mapea a la tabla `characters`
+en la base de datos. Un personaje es el "avatar" o la entidad con la que un
+jugador interactúa dentro del mundo de Runegram.
+
+El personaje está vinculado a una `Account` (el usuario real) y actúa como el
+punto central para las relaciones de juego, como su ubicación (`Room`), su
+inventario (`Item`), y sus configuraciones (`CharacterSetting`).
+"""
+
 from sqlalchemy import BigInteger, Column, String, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
+
 from .base import Base
 
 class Character(Base):
+    """
+    Representa un personaje jugable en la base de datos.
+    """
     __tablename__ = 'characters'
 
+    # --- Atributos Principales ---
+
+    # Identificador único del personaje en nuestra base de datos.
     id = Column(BigInteger, primary_key=True)
+
+    # El nombre del personaje, que debe ser único en todo el juego.
     name = Column(String(50), unique=True, nullable=False)
 
-    # --- Relaciones ---
+    # --- Claves Foráneas ---
+
+    # Vínculo a la cuenta propietaria de este personaje.
     account_id = Column(BigInteger, ForeignKey('accounts.id'), nullable=False, unique=True)
-    account = relationship("src.models.account.Account", back_populates="character")
 
+    # Vínculo a la sala donde se encuentra actualmente el personaje.
     room_id = Column(BigInteger, ForeignKey('rooms.id'), nullable=False)
-    room = relationship("src.models.room.Room")
 
-    items = relationship("src.models.item.Item", back_populates="character")
+    # --- Atributos de Juego (Datos Estructurados) ---
 
-    settings = relationship(
-        "src.models.character_setting.CharacterSetting",
-        back_populates="character",
-        uselist=False,
-        cascade="all, delete-orphan"
-    )
-
-    # --- LÍNEA MODIFICADA ---
-    # Actualizamos el valor por defecto para que todos los personajes nuevos
-    # tengan acceso a todos los sets de comandos básicos desde el principio.
+    # Almacena la lista de CommandSets base que el personaje conoce.
+    # Por ejemplo: ["general", "interaction", "movement", "channels"].
+    # Este campo es la base para el sistema de comandos dinámicos.
     command_sets = Column(
         JSONB,
         nullable=False,
         server_default='["general", "interaction", "movement", "channels"]',
         default=["general", "interaction", "movement", "channels"]
     )
+
+    # --- Relaciones de SQLAlchemy ---
+
+    # Relación uno-a-uno con la cuenta.
+    # Permite acceder al objeto `Account` desde el personaje vía `character.account`.
+    account = relationship("Account", back_populates="character")
+
+    # Relación muchos-a-uno con la sala.
+    # Permite acceder al objeto `Room` desde el personaje vía `character.room`.
+    room = relationship("Room")
+
+    # Relación uno-a-muchos con los objetos del inventario.
+    # Permite acceder a una lista de objetos `Item` vía `character.items`.
+    items = relationship("Item", back_populates="character")
+
+    # Relación uno-a-uno con las configuraciones del personaje.
+    # Permite acceder al objeto `CharacterSetting` vía `character.settings`.
+    # `cascade="all, delete-orphan"` asegura que si se borra un personaje,
+    # su fila de configuraciones asociada también se borre automáticamente.
+    settings = relationship(
+        "CharacterSetting",
+        back_populates="character",
+        uselist=False,
+        cascade="all, delete-orphan"
+    )
+
+    def __repr__(self):
+        """
+        Representación en string del objeto, útil para logging y depuración.
+        """
+        return f"<Character(id={self.id}, name='{self.name}')>"
 # === FIN: src/models/character.py ===
 
 
 # === INICIO: src/models/character_setting.py ===
 # src/models/character_setting.py
+"""
+Módulo que define el Modelo de Datos para las Configuraciones de un Personaje.
+
+Este archivo contiene la clase `CharacterSetting`, que se mapea a la tabla
+`character_settings`. Esta tabla almacena configuraciones personalizables
+para cada personaje, manteniendo el modelo `Character` principal más limpio.
+
+El uso de una columna `JSONB` (`active_channels`) permite añadir futuras
+configuraciones (ej: colores, flags de tutorial) sin necesidad de modificar
+el esquema de la base de datos, lo que hace que el sistema sea muy flexible
+y extensible.
+"""
+
 from sqlalchemy import BigInteger, Column, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
+
 from .base import Base
 
 class CharacterSetting(Base):
+    """
+    Representa una fila de configuraciones para un personaje específico.
+    """
     __tablename__ = 'character_settings'
 
-    # Usamos el character_id como clave primaria para forzar una relación 1 a 1.
+    # --- Clave Primaria y Foránea ---
+
+    # Usamos el ID del personaje como clave primaria (`primary_key=True`).
+    # Esto impone una relación estricta de uno-a-uno a nivel de base de datos:
+    # no puede haber más de una fila de configuraciones por personaje.
     character_id = Column(BigInteger, ForeignKey('characters.id'), primary_key=True)
 
-    # Columna JSONB para guardar una lista de los canales activos.
-    # Ejemplo: {"active_channels": ["novato", "comercio"]}
+    # --- Atributos de Configuración ---
+
+    # Columna JSONB para guardar una lista de los canales a los que el personaje
+    # está suscrito. Usar JSONB es muy flexible.
+    # Ejemplo de contenido: `{"active_channels": ["novato", "comercio"]}`
     active_channels = Column(JSONB, nullable=False, server_default='{}')
 
-    # Relación inversa para poder acceder desde el personaje
-    character = relationship("src.models.character.Character", back_populates="settings")
+    # --- Relaciones de SQLAlchemy ---
+
+    # Relación inversa uno-a-uno con el personaje.
+    # Permite acceder al objeto `Character` desde la configuración vía `settings.character`.
+    character = relationship("Character", back_populates="settings")
+
+    def __repr__(self):
+        """
+        Representación en string del objeto, útil para logging y depuración.
+        """
+        return f"<CharacterSetting(character_id={self.character_id})>"
 # === FIN: src/models/character_setting.py ===
 
 
 # === INICIO: src/models/exit.py ===
 # src/models/exit.py
+"""
+Módulo que define el Modelo de Datos para una Salida entre Salas.
+
+Este archivo contiene la clase `Exit`, que se mapea a la tabla `exits`.
+Cada fila en esta tabla representa una conexión UNIDIRECCIONAL desde una sala
+de origen (`from_room_id`) hacia una sala de destino (`to_room_id`).
+
+Una conexión bidireccional (ej: una puerta entre la sala A y la sala B) se
+representa como dos filas separadas en esta tabla:
+1. Una salida desde A hacia B (ej: "norte").
+2. Una salida desde B hacia A (ej: "sur").
+"""
 
 from sqlalchemy import BigInteger, Column, String, ForeignKey
 from sqlalchemy.orm import relationship
@@ -2322,99 +3202,224 @@ class Exit(Base):
     """
     __tablename__ = 'exits'
 
+    # --- Atributos Principales ---
+
     id = Column(BigInteger, primary_key=True)
 
-    # El nombre que el jugador escribe para usar la salida (ej: "norte", "puerta de roble")
+    # El nombre que el jugador escribe para usar la salida (ej: "norte", "puerta").
     name = Column(String(50), nullable=False, index=True)
 
-    # De qué sala parte esta salida
-    from_room_id = Column(BigInteger, ForeignKey('rooms.id'), nullable=False)
-    # A qué sala lleva esta salida
-    to_room_id = Column(BigInteger, ForeignKey('rooms.id'), nullable=False)
-
-    # El string de lock para esta salida específica
+    # El string de permisos para esta salida específica.
     locks = Column(String, nullable=False, default="")
 
-    # Relación para poder acceder a la sala de origen
-    from_room = relationship("src.models.room.Room", foreign_keys=[from_room_id], back_populates="exits_from")
+    # --- Claves Foráneas ---
 
-    # Relación para poder acceder a la sala de destino (útil para validaciones)
-    # --- LÍNEA MODIFICADA ---
-    to_room = relationship("src.models.room.Room", foreign_keys=[to_room_id], back_populates="exits_to")
+    # El ID de la sala desde la que parte esta salida.
+    from_room_id = Column(BigInteger, ForeignKey('rooms.id'), nullable=False)
+
+    # El ID de la sala a la que lleva esta salida.
+    to_room_id = Column(BigInteger, ForeignKey('rooms.id'), nullable=False)
+
+    # --- Relaciones de SQLAlchemy ---
+
+    # Relación para poder acceder al objeto `Room` de origen.
+    # `foreign_keys=[from_room_id]` es necesario para que SQLAlchemy sepa cuál de
+    # las dos claves foráneas a 'rooms.id' debe usar para esta relación.
+    # `back_populates="exits_from"` la conecta con la lista de salidas en el modelo Room.
+    from_room = relationship("Room", foreign_keys=[from_room_id], back_populates="exits_from")
+
+    # Relación para poder acceder al objeto `Room` de destino.
+    # `back_populates="exits_to"` la conecta con la lista de "llegadas" en el modelo Room.
+    to_room = relationship("Room", foreign_keys=[to_room_id], back_populates="exits_to")
+
+    def __repr__(self):
+        """
+        Representación en string del objeto, útil para logging y depuración.
+        """
+        return f"<Exit(id={self.id}, name='{self.name}', from={self.from_room_id}, to={self.to_room_id})>"
 # === FIN: src/models/exit.py ===
 
 
 # === INICIO: src/models/item.py ===
 # src/models/item.py
+"""
+Módulo que define el Modelo de Datos para una Instancia de Objeto (Item).
+
+Este archivo contiene la clase `Item`, que se mapea a la tabla `items`.
+Es fundamental entender que este modelo NO representa un tipo de objeto, sino
+una INSTANCIA única de un objeto en el mundo.
+
+Este modelo es deliberadamente "ligero". La mayoría de sus propiedades (nombre,
+descripción, scripts, etc.) no se almacenan en la base de datos, sino que se
+obtienen en tiempo de ejecución a través de la columna `key`, que lo vincula
+a su prototipo correspondiente en `game_data/item_prototypes.py`.
+"""
 
 from sqlalchemy import BigInteger, Column, String, Text, ForeignKey
 from sqlalchemy.orm import relationship
-from game_data.item_prototypes import ITEM_PROTOTYPES # <-- Importa los prototipos
 
+from game_data.item_prototypes import ITEM_PROTOTYPES
 from .base import Base
 
 class Item(Base):
     """
-    Representa una instancia de un objeto en el mundo.
+    Representa una instancia de un objeto en el mundo del juego.
     """
     __tablename__ = 'items'
 
+    # --- Atributos de la Instancia ---
+
     id = Column(BigInteger, primary_key=True)
+
+    # La clave que vincula esta instancia con su prototipo en ITEM_PROTOTYPES.
+    # Por ejemplo: "espada_viviente".
     key = Column(String(50), nullable=False, index=True)
+
+    # Atributos `_override`: Permiten que una instancia específica tenga
+    # un nombre o descripción diferente a la de su prototipo, creando objetos únicos.
+    # Si son `NULL`, se usarán los valores del prototipo.
     name_override = Column(String(100), nullable=True)
     description_override = Column(Text, nullable=True)
+
+    # --- Ubicación del Objeto ---
+
+    # El ID de la sala donde se encuentra el objeto.
+    # Es `NULL` si el objeto está en el inventario de un personaje.
     room_id = Column(BigInteger, ForeignKey('rooms.id'), nullable=True)
+
+    # El ID del personaje que lleva el objeto.
+    # Es `NULL` si el objeto está en el suelo de una sala.
     character_id = Column(BigInteger, ForeignKey('characters.id'), nullable=True)
 
-    room = relationship("src.models.room.Room", back_populates="items")
-    character = relationship("src.models.character.Character", back_populates="items")
+    # --- Relaciones de SQLAlchemy ---
+
+    # Relación muchos-a-uno con la sala. Permite acceder a `item.room`.
+    room = relationship("Room", back_populates="items")
+
+    # Relación muchos-a-uno con el personaje. Permite acceder a `item.character`.
+    character = relationship("Character", back_populates="items")
 
     @property
-    def prototype(self):
-        """Devuelve el diccionario del prototipo para este objeto."""
+    def prototype(self) -> dict:
+        """
+        Propiedad de conveniencia que devuelve el diccionario del prototipo
+        para este objeto desde `game_data`. Es el puente entre la instancia
+        de la base de datos y su definición de contenido.
+        """
         return ITEM_PROTOTYPES.get(self.key, {})
 
     def get_name(self) -> str:
-        """Obtiene el nombre del item, usando override o el prototipo."""
+        """
+        Obtiene el nombre del item.
+        Prioriza el `name_override` si existe; de lo contrario,
+        recurre al nombre definido en el prototipo.
+        """
         return self.name_override or self.prototype.get("name", "un objeto misterioso")
 
     def get_description(self) -> str:
-        """Obtiene la descripción del item, usando override o el prototipo."""
+        """
+        Obtiene la descripción del item.
+        Prioriza el `description_override` si existe; de lo contrario,
+        recurre a la descripción definida en el prototipo.
+        """
         return self.description_override or self.prototype.get("description", "No tiene nada de especial.")
 
     def get_keywords(self) -> list[str]:
-        """Obtiene las keywords del item desde el prototipo."""
+        """
+        Obtiene las palabras clave del item, que siempre provienen del prototipo.
+        """
         return self.prototype.get("keywords", [])
+
+    def __repr__(self):
+        """
+        Representación en string del objeto, útil para logging y depuración.
+        """
+        return f"<Item(id={self.id}, key='{self.key}')>"
 # === FIN: src/models/item.py ===
 
 
 # === INICIO: src/models/room.py ===
 # src/models/room.py
+"""
+Módulo que define el Modelo de Datos para una Sala del Mundo.
+
+Este archivo contiene la clase `Room`, que se mapea a la tabla `rooms`.
+Cada fila en esta tabla representa una ubicación única en el juego.
+
+Siguiendo la filosofía de diseño del motor, una `Room` en la base de datos
+es principalmente una instancia que se corresponde con un prototipo definido en
+`game_data/room_prototypes.py`, vinculado a través de la columna `key`.
+"""
 
 from sqlalchemy import BigInteger, Column, String, Text
 from sqlalchemy.orm import relationship
 
 from .base import Base
+from game_data.room_prototypes import ROOM_PROTOTYPES
 
 class Room(Base):
+    """
+    Representa una sala o ubicación en el mundo del juego.
+    """
     __tablename__ = 'rooms'
 
+    # --- Atributos de la Instancia ---
+
     id = Column(BigInteger, primary_key=True)
+
+    # La clave que vincula esta instancia con su prototipo en ROOM_PROTOTYPES.
+    # Por ejemplo: "plaza_central". Es único y no debería cambiar.
     key = Column(String(50), unique=True, nullable=True, index=True)
+
+    # El nombre y la descripción pueden ser actualizados desde los prototipos
+    # por el `world_loader_service`.
     name = Column(String(100), nullable=False)
     description = Column(Text, nullable=False, default="Esta es una sala sin describir.")
+
+    # String de permisos para la sala en sí (ej: para impedir la entrada).
     locks = Column(String, nullable=False, default="")
 
-    # Relaciones existentes
-    items = relationship("src.models.item.Item", back_populates="room")
+    # --- Relaciones de SQLAlchemy ---
 
-    # --- RELACIONES PARA SALIDAS ---
-    # Una lista de todas las salidas QUE PARTEN DE ESTA SALA.
-    exits_from = relationship("src.models.exit.Exit", foreign_keys="[Exit.from_room_id]", back_populates="from_room", cascade="all, delete-orphan")
+    # Relación uno-a-muchos con los objetos que se encuentran en esta sala.
+    # Permite acceder a una lista de `Item` vía `room.items`.
+    items = relationship("Item", back_populates="room")
 
-    # Una lista de todas las salidas QUE LLEGAN A ESTA SALA.
-    # --- LÍNEA MODIFICADA ---
-    exits_to = relationship("src.models.exit.Exit", foreign_keys="[Exit.to_room_id]", back_populates="to_room", cascade="all, delete-orphan")
+    # Relación uno-a-muchos con las salidas QUE PARTEN DESDE ESTA SALA.
+    # Permite acceder a una lista de `Exit` vía `room.exits_from`.
+    # `cascade="all, delete-orphan"` asegura que si se borra una sala,
+    # todas sus salidas asociadas también se eliminen.
+    exits_from = relationship(
+        "Exit",
+        foreign_keys="[Exit.from_room_id]",
+        back_populates="from_room",
+        cascade="all, delete-orphan"
+    )
+
+    # Relación uno-a-muchos con las salidas QUE LLEGAN A ESTA SALA.
+    # Es útil para comprobaciones inversas (ej: "¿qué salas conectan aquí?").
+    exits_to = relationship(
+        "Exit",
+        foreign_keys="[Exit.to_room_id]",
+        back_populates="to_room",
+        cascade="all, delete-orphan"
+    )
+
+    @property
+    def prototype(self) -> dict:
+        """
+        Propiedad de conveniencia que devuelve el diccionario del prototipo
+        para esta sala desde `game_data`.
+        """
+        if not self.key:
+            return {}
+        return ROOM_PROTOTYPES.get(self.key, {})
+
+    def __repr__(self):
+        """
+        Representación en string del objeto, útil para logging y depuración.
+        """
+        return f"<Room(id={self.id}, key='{self.key}', name='{self.name}')>"
 # === FIN: src/models/room.py ===
 
 
@@ -2424,6 +3429,22 @@ class Room(Base):
 
 # === INICIO: src/services/broadcaster_service.py ===
 # src/services/broadcaster_service.py
+"""
+Módulo de Servicio de Transmisión (Broadcasting).
+
+Este archivo centraliza toda la lógica para enviar mensajes a los jugadores
+a través del bot de Telegram. Actúa como una capa de abstracción sobre la API
+directa del bot.
+
+Centralizar la comunicación aquí ofrece varias ventajas:
+1.  **Consistencia:** Todos los mensajes enviados por el juego pueden tener un
+    formato y comportamiento consistentes.
+2.  **Manejo de Errores Unificado:** La lógica para manejar errores de la API de
+    Telegram (ej: un usuario bloquea el bot) se encuentra en un solo lugar.
+3.  **Desacoplamiento:** El resto de los servicios (scripts, canales, etc.) no
+    necesitan saber los detalles de cómo se envía un mensaje; simplemente
+    llaman a una función en este servicio.
+"""
 
 import logging
 from sqlalchemy import select
@@ -2441,11 +3462,18 @@ async def send_message_to_character(
 ):
     """
     Envía un mensaje formateado a un personaje específico.
+
+    Args:
+        character (Character): La instancia del modelo Character a la que se enviará el mensaje.
+                               Es crucial que este objeto tenga su relación `.account` precargada.
+        message_text (str): El contenido del mensaje a enviar.
+        parse_mode (str): El modo de parseo de Telegram (por defecto 'HTML').
     """
     if not character:
         logging.warning("BROADCASTER: Se intentó enviar un mensaje a un personaje nulo.")
         return
 
+    # Salvaguarda para asegurar que la relación con la cuenta está cargada.
     if not character.account:
         logging.error(f"BROADCASTER: El personaje {character.name} (ID: {character.id}) no tiene su cuenta cargada. No se puede enviar mensaje.")
         return
@@ -2459,7 +3487,8 @@ async def send_message_to_character(
         )
         logging.info(f"[BROADCASTER DEBUG] Mensaje enviado con éxito a {character.name}")
     except Exception:
-        # Usamos logging.exception para obtener un traceback completo si el envío falla
+        # Usamos logging.exception para obtener un traceback completo si el envío falla.
+        # Esto es común si un usuario ha bloqueado el bot. No debe detener el juego.
         logging.exception(f"BROADCASTER: No se pudo enviar mensaje a {character.name} (ID: {character.id})")
 
 
@@ -2472,24 +3501,35 @@ async def send_message_to_room(
 ):
     """
     Envía un mensaje a todos los personajes presentes en una sala específica.
+
+    Args:
+        session (AsyncSession): La sesión de base de datos activa.
+        room_id (int): El ID de la sala a la que se enviará el mensaje.
+        message_text (str): El contenido del mensaje a enviar.
+        exclude_character_id (int, optional): El ID de un personaje a excluir de la transmisión.
+        parse_mode (str): El modo de parseo de Telegram.
     """
     if not room_id:
         logging.warning("BROADCASTER: Se intentó enviar un mensaje a un room_id nulo.")
         return
 
+    # 1. Obtenemos todos los personajes en la sala.
+    #    Usamos `selectinload(Character.account)` para cargar eficientemente la
+    #    información de la cuenta de todos los personajes en una sola consulta.
     query = (
         select(Character)
         .where(Character.room_id == room_id)
         .options(selectinload(Character.account))
     )
-
     result = await session.execute(query)
     characters_in_room = result.scalars().all()
 
+    # 2. Iteramos y enviamos el mensaje a cada personaje.
     for char in characters_in_room:
         if char.id == exclude_character_id:
             continue
 
+        # Reutilizamos nuestra propia función para mantener la lógica de envío en un solo lugar.
         await send_message_to_character(
             character=char,
             message_text=message_text,
@@ -2500,23 +3540,49 @@ async def send_message_to_room(
 
 # === INICIO: src/services/channel_service.py ===
 # src/services/channel_service.py
+"""
+Módulo de Servicio para la Gestión de Canales de Chat.
+
+Este servicio encapsula toda la lógica de negocio relacionada con los canales
+de comunicación globales. Sus responsabilidades incluyen:
+- Gestionar la configuración de canales por personaje (suscripciones).
+- Formatear y transmitir mensajes a todos los jugadores suscritos a un canal.
+- Proveer funciones de ayuda para comprobar el estado de los canales.
+
+Depende de `broadcaster_service` para el envío final de mensajes y de
+`game_data/channel_prototypes.py` como fuente de la verdad sobre los
+canales disponibles.
+"""
+
 import logging
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from src.models import Character, CharacterSetting
-from src.services import broadcaster_service, player_service
+from src.services import broadcaster_service
 from game_data.channel_prototypes import CHANNEL_PROTOTYPES
 
 async def get_or_create_settings(session: AsyncSession, character: Character) -> CharacterSetting:
-    """Obtiene o crea las configuraciones para un personaje, asegurando valores por defecto."""
+    """
+    Obtiene las configuraciones para un personaje. Si no existen, las crea con
+    los valores por defecto definidos en los prototipos de canal.
+
+    Args:
+        session (AsyncSession): La sesión de base de datos activa.
+        character (Character): El personaje para el que se obtienen las configuraciones.
+
+    Returns:
+        CharacterSetting: El objeto de configuración del personaje.
+    """
+    # Si las settings ya están cargadas en el objeto character, las devolvemos directamente.
     if character.settings:
         return character.settings
 
+    # Si no, las creamos.
     logging.info(f"Creando configuraciones por defecto para el personaje {character.name}")
 
-    # Determinamos los canales activos por defecto desde los prototipos
+    # Leemos los prototipos para ver qué canales deben estar activados por defecto.
     default_channels = [
         key for key, data in CHANNEL_PROTOTYPES.items() if data.get("default_on", False)
     ]
@@ -2527,40 +3593,47 @@ async def get_or_create_settings(session: AsyncSession, character: Character) ->
     )
     session.add(new_settings)
     await session.commit()
-    await session.refresh(new_settings)
-    # Refrescamos también el personaje para que la relación se actualice
+
+    # Refrescamos el objeto 'character' para que la relación 'settings' se cargue.
     await session.refresh(character, attribute_names=["settings"])
 
-    return new_settings
+    return character.settings
 
 async def is_channel_active(settings: CharacterSetting, channel_key: str) -> bool:
     """Comprueba si un canal está en la lista de canales activos de un jugador."""
+    if not settings:
+        return False
     return channel_key in settings.active_channels.get("active_channels", [])
 
 async def broadcast_to_channel(session: AsyncSession, channel_key: str, message: str, exclude_character_id: int | None = None):
     """
-    Envía un mensaje a todos los jugadores suscritos a un canal.
+    Envía un mensaje a todos los jugadores que estén suscritos a un canal.
     """
-    if channel_key not in CHANNEL_PROTOTYPES:
-        logging.warning(f"Intento de transmitir a un canal desconocido: {channel_key}")
-        return
+    try:
+        if channel_key not in CHANNEL_PROTOTYPES:
+            logging.warning(f"Intento de transmitir a un canal desconocido: {channel_key}")
+            return
 
-    proto = CHANNEL_PROTOTYPES[channel_key]
-    formatted_message = f"{proto['icon']} <b>{proto['name']}:</b> {message}"
+        # 1. Formatear el mensaje con el ícono y nombre del canal.
+        proto = CHANNEL_PROTOTYPES[channel_key]
+        formatted_message = f"{proto['icon']} <b>{proto['name']}:</b> {message}"
 
-    # Buscamos a todos los personajes que tengan la configuración
-    query = select(Character).options(selectinload(Character.settings), selectinload(Character.account))
-    result = await session.execute(query)
-    all_characters = result.scalars().all()
+        # 2. Obtener todos los personajes del juego.
+        #    Precargamos sus settings y cuentas para evitar consultas adicionales en el bucle.
+        query = select(Character).options(selectinload(Character.settings), selectinload(Character.account))
+        result = await session.execute(query)
+        all_characters = result.scalars().all()
 
-    for char in all_characters:
-        if char.id == exclude_character_id:
-            continue
+        # 3. Iterar y enviar el mensaje a los que estén suscritos.
+        for char in all_characters:
+            if char.id == exclude_character_id:
+                continue
 
-        # Obtenemos/creamos las settings y comprobamos si el canal está activo para este usuario
-        settings = await get_or_create_settings(session, char)
-        if await is_channel_active(settings, channel_key):
-            await broadcaster_service.send_message_to_character(char, formatted_message)
+            settings = await get_or_create_settings(session, char)
+            if await is_channel_active(settings, channel_key):
+                await broadcaster_service.send_message_to_character(char, formatted_message)
+    except Exception:
+        logging.exception(f"Error al transmitir al canal '{channel_key}'")
 
 async def set_channel_status(session: AsyncSession, character: Character, channel_key: str, activate: bool):
     """Activa o desactiva un canal para un personaje."""
@@ -2568,23 +3641,47 @@ async def set_channel_status(session: AsyncSession, character: Character, channe
         raise ValueError("El canal especificado no existe.")
 
     settings = await get_or_create_settings(session, character)
+
+    # SQLAlchemy es capaz de detectar cambios en listas dentro de un JSONB "mutable".
+    # Obtenemos la lista actual de canales activos.
     active_channels_list = settings.active_channels.get("active_channels", [])
 
     if activate:
+        # Añadir el canal si no está ya en la lista.
         if channel_key not in active_channels_list:
             active_channels_list.append(channel_key)
     else: # Desactivar
+        # Quitar el canal si está en la lista.
         if channel_key in active_channels_list:
             active_channels_list.remove(channel_key)
 
-    # SQLAlchemy detecta el cambio en el JSONB y lo guardará
+    # Reasignamos la lista modificada al campo JSONB.
     settings.active_channels["active_channels"] = active_channels_list
+
+    # Marcamos el objeto como "modificado" para que SQLAlchemy sepa que debe guardarlo.
+    from sqlalchemy.orm.attributes import flag_modified
+    flag_modified(settings, "active_channels")
+
     await session.commit()
 # === FIN: src/services/channel_service.py ===
 
 
 # === INICIO: src/services/command_service.py ===
 # src/services/command_service.py
+"""
+Módulo de Servicio para la Gestión de Comandos.
+
+Este servicio es el cerebro detrás del sistema de comandos dinámicos.
+No define los comandos en sí, sino que orquesta cuáles están disponibles
+para un jugador en un momento dado y cómo se presentan en la interfaz.
+
+Responsabilidades Clave:
+1. Calcular la lista de `CommandSets` activos para un personaje basándose
+   en su estado, equipo y ubicación (contexto).
+2. Sincronizar la lista de comandos disponibles con la interfaz del cliente
+   de Telegram, proporcionando una experiencia de usuario (UX) reactiva.
+"""
+
 import logging
 from aiogram.types import BotCommand, BotCommandScopeChat
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -2592,20 +3689,29 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.bot.bot import bot
 from src.models import Character
 
-# Importamos el dispatcher de forma segura para evitar importaciones circulares
-def get_command_sets():
+def get_command_sets() -> dict:
+    """
+    Obtiene el diccionario `COMMAND_SETS` del dispatcher de forma segura.
+
+    Este es un patrón para evitar una "importación circular", ya que el dispatcher
+    importa este servicio, y este servicio necesita acceso al diccionario que
+    el dispatcher define. La importación se realiza dentro de la función para
+    retrasar su ejecución hasta que todos los módulos estén cargados.
+    """
     from src.handlers.player.dispatcher import COMMAND_SETS
     return COMMAND_SETS
 
 async def get_active_command_sets_for_character(character: Character) -> list[str]:
     """
-    Construye la lista de nombres de CommandSets activos para un personaje.
+    Construye la lista de nombres de CommandSets activos para un personaje
+    basándose en su contexto actual (base, equipo, sala, rol).
     """
+    # Si no hay personaje (durante la creación), solo están disponibles los
+    # comandos de creación de personaje.
     if not character:
         return ["character_creation"]
 
-    # --- LÍNEA CORREGIDA ---
-    # character.command_sets es una lista, no un diccionario. La tratamos como tal.
+    # 1. Empezamos con los sets base del personaje desde la BD (ej: "general", "movement").
     active_sets = set(character.command_sets)
 
     # 2. Añadimos sets otorgados por los objetos en el inventario.
@@ -2614,13 +3720,11 @@ async def get_active_command_sets_for_character(character: Character) -> list[st
         active_sets.update(granted_sets)
 
     # 3. Añadimos sets otorgados por la sala actual.
-    if hasattr(character.room, 'key') and character.room.key: # Salvaguarda por si la sala no tiene prototipo
-        from game_data.room_prototypes import ROOM_PROTOTYPES
-        room_proto = ROOM_PROTOTYPES.get(character.room.key, {})
-        granted_sets = room_proto.get("grants_command_sets", [])
+    if character.room and character.room.prototype:
+        granted_sets = character.room.prototype.get("grants_command_sets", [])
         active_sets.update(granted_sets)
 
-    # 4. Añadimos sets de administrador si corresponde.
+    # 4. Añadimos sets de administrador si el rol de la cuenta es el adecuado.
     if character.account and character.account.role == "ADMINISTRADOR":
         active_sets.update(["spawning", "admin_movement", "admin_info"])
 
@@ -2629,45 +3733,64 @@ async def get_active_command_sets_for_character(character: Character) -> list[st
 
 async def update_telegram_commands(character: Character):
     """
-    Actualiza la lista de comandos visibles en el cliente de Telegram
+    Actualiza la lista de comandos visibles en el menú '/' del cliente de Telegram
     para un personaje específico.
     """
-    if not character:
+    if not character or not character.account:
         return
 
-    COMMAND_SETS = get_command_sets()
-    active_set_names = await get_active_command_sets_for_character(character)
-
-    telegram_commands = []
-    seen_commands = set()
-
-    for set_name in active_set_names:
-        for command_instance in COMMAND_SETS.get(set_name, []):
-            main_name = command_instance.names[0]
-            if main_name not in seen_commands:
-                telegram_commands.append(
-                    BotCommand(command=main_name, description=command_instance.description)
-                )
-                seen_commands.add(main_name)
-
     try:
+        COMMAND_SETS = get_command_sets()
+        active_set_names = await get_active_command_sets_for_character(character)
+
+        telegram_commands = []
+        seen_commands = set() # Para evitar duplicados si un comando está en varios sets.
+
+        # Construimos la lista de objetos BotCommand que la API de Telegram espera.
+        for set_name in active_set_names:
+            for command_instance in COMMAND_SETS.get(set_name, []):
+                # Usamos el primer alias como el comando principal (ej: "norte" de ["norte", "n"]).
+                main_name = command_instance.names[0]
+                if main_name not in seen_commands:
+                    telegram_commands.append(
+                        BotCommand(command=main_name, description=command_instance.description)
+                    )
+                    seen_commands.add(main_name)
+
+        # Usamos un `BotCommandScopeChat` para aplicar estos comandos únicamente
+        # al chat con este jugador específico, y no globalmente.
         scope = BotCommandScopeChat(chat_id=character.account.telegram_id)
         await bot.set_my_commands(commands=telegram_commands, scope=scope)
+
         logging.info(f"Actualizados {len(telegram_commands)} comandos de Telegram para {character.name}.")
+
     except Exception as e:
+        # Los errores al actualizar comandos no son críticos y no deben detener el juego.
+        # Por ejemplo, si el usuario ha bloqueado al bot.
         logging.warning(f"No se pudieron actualizar los comandos de Telegram para {character.name}: {e}")
 # === FIN: src/services/command_service.py ===
 
 
 # === INICIO: src/services/item_service.py ===
 # src/services/item_service.py
+"""
+Módulo de Servicio para la Gestión de Objetos (Items).
 
+Este servicio encapsula la lógica de negocio para crear y manipular instancias
+de objetos en el mundo del juego. Se encarga de la interacción directa con el
+modelo `Item`.
+
+Responsabilidades:
+- Crear nuevas instancias de objetos a partir de prototipos (`spawn`).
+- Mover objetos entre salas y los inventarios de los personajes.
+"""
+
+import logging
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.item import Item
 from game_data.item_prototypes import ITEM_PROTOTYPES
-# Importamos el ticker_service para registrar nuevos objetos
 from src.services import ticker_service
 
 
@@ -2675,37 +3798,61 @@ async def spawn_item_in_room(session: AsyncSession, room_id: int, item_key: str)
     """
     Crea una instancia de un prototipo de objeto, la coloca en una sala
     y registra sus tickers.
+
+    Args:
+        session (AsyncSession): La sesión de base de datos activa.
+        room_id (int): El ID de la sala donde se creará el objeto.
+        item_key (str): La clave del prototipo del objeto a crear.
+
+    Returns:
+        Item: La nueva instancia del objeto `Item` creada.
+
+    Raises:
+        ValueError: Si la `item_key` no corresponde a ningún prototipo definido.
     """
     if item_key not in ITEM_PROTOTYPES:
         raise ValueError(f"No existe un prototipo de objeto con la clave '{item_key}'")
 
-    new_item = Item(room_id=room_id, key=item_key)
-    session.add(new_item)
-    await session.commit()
-    await session.refresh(new_item)
+    try:
+        # 1. Crear la instancia del modelo Item, vinculándola a la sala.
+        new_item = Item(room_id=room_id, key=item_key)
+        session.add(new_item)
+        await session.commit()
+        await session.refresh(new_item)
 
-    # Después de crear el objeto, le decimos al scheduler que lo "observe"
-    # por si tiene tareas programadas (tickers).
-    await ticker_service.schedule_tickers_for_entity(new_item)
+        # 2. Notificar al ticker_service para que programe los tickers de este nuevo objeto.
+        await ticker_service.schedule_tickers_for_entity(new_item)
 
-    return new_item
+        return new_item
+    except Exception:
+        logging.exception(f"Error inesperado al intentar generar el objeto con clave '{item_key}' en la sala {room_id}")
+        # Relanzamos la excepción para que la capa superior (el comando) la maneje.
+        raise
 
 
 async def move_item_to_character(session: AsyncSession, item_id: int, character_id: int):
-    """Mueve un objeto desde una sala al inventario de un personaje."""
-    query = update(Item).where(Item.id == item_id).values(
-        room_id=None,
-        character_id=character_id
+    """
+    Mueve un objeto desde una sala (o de ningún sitio) al inventario de un personaje.
+    Actualiza el `room_id` a NULL y establece el `character_id`.
+    """
+    query = (
+        update(Item)
+        .where(Item.id == item_id)
+        .values(room_id=None, character_id=character_id)
     )
     await session.execute(query)
     await session.commit()
 
 
 async def move_item_to_room(session: AsyncSession, item_id: int, room_id: int):
-    """Mueve un objeto desde el inventario de un personaje a una sala."""
-    query = update(Item).where(Item.id == item_id).values(
-        room_id=room_id,
-        character_id=None
+    """
+    Mueve un objeto desde el inventario de un personaje al suelo de una sala.
+    Actualiza el `character_id` a NULL y establece el `room_id`.
+    """
+    query = (
+        update(Item)
+        .where(Item.id == item_id)
+        .values(room_id=room_id, character_id=None)
     )
     await session.execute(query)
     await session.commit()
@@ -2714,6 +3861,22 @@ async def move_item_to_room(session: AsyncSession, item_id: int, room_id: int):
 
 # === INICIO: src/services/online_service.py ===
 # src/services/online_service.py
+"""
+Módulo de Servicio para el Seguimiento de Actividad (Presencia).
+
+Este servicio gestiona el estado de "online" o "AFK" (Away From Keyboard) de los
+personajes. Utiliza Redis para un almacenamiento y recuperación de datos de alta
+velocidad, lo cual es ideal para datos volátiles como el timestamp de la última
+actividad.
+
+Responsabilidades:
+- Registrar la última vez que un jugador envía un comando.
+- Determinar si un jugador está "online" basándose en un umbral de inactividad.
+- Gestionar las notificaciones cuando un jugador pasa a estado AFK o vuelve.
+- Proveer una tarea global (`check_for_newly_afk_players`) para ser ejecutada
+  periódicamente por el `ticker_service`.
+"""
+
 import time
 import logging
 import redis.asyncio as redis
@@ -2723,9 +3886,10 @@ from src.config import settings
 from src.models import Character
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from src.db import async_session_factory # Importamos la fábrica de sesiones
+from src.db import async_session_factory
 
-# --- CONFIGURACIÓN ---
+
+# --- Configuración del Servicio ---
 ONLINE_THRESHOLD = timedelta(minutes=5)
 
 redis_client = redis.Redis(
@@ -2735,42 +3899,61 @@ redis_client = redis.Redis(
     decode_responses=True
 )
 
+# Variable global en memoria para rastrear quién estaba online en el último chequeo.
+PREVIOUSLY_ONLINE_IDS = set()
+
+
+# --- Funciones de Ayuda (Internas) ---
+
 def _get_last_seen_key(character_id: int) -> str:
+    """Genera la clave de Redis estandarizada para el timestamp de un personaje."""
     return f"last_seen:{character_id}"
 
 def _get_afk_notified_key(character_id: int) -> str:
+    """Genera la clave de Redis para el flag que indica si ya se notificó el estado AFK."""
     return f"afk_notified:{character_id}"
 
-PREVIOUSLY_ONLINE_IDS = set()
+
+# --- Funciones Principales del Servicio ---
 
 async def update_last_seen(session: AsyncSession, character: Character):
     """
-    Actualiza la última actividad y notifica si el personaje vuelve de estar AFK.
+    Actualiza la última actividad de un personaje y notifica si vuelve de estar AFK.
+    Esta función es llamada por el dispatcher en cada mensaje.
     """
     from src.services import channel_service
+
     char_id = character.id
+
+    # 1. Actualizar el timestamp de "última vez visto" en Redis.
     key = _get_last_seen_key(char_id)
     await redis_client.set(key, time.time())
     await redis_client.expire(key, timedelta(days=7))
 
+    # 2. Comprobar si el personaje estaba marcado como AFK.
     afk_notified_key = _get_afk_notified_key(char_id)
-    if await redis_client.exists(afk_notified_key):
+    # Usamos `getdel` para obtener y borrar la clave atómicamente si existe.
+    was_afk = await redis_client.getdel(afk_notified_key)
+
+    if was_afk:
+        # El personaje estaba AFK y acaba de volver. Notificamos.
         logging.info(f"Personaje {character.name} ha vuelto de su inactividad (AFK).")
         await channel_service.broadcast_to_channel(
             session,
             "sistema",
             f"<i>{character.name} ha vuelto de su inactividad.</i>"
         )
-        await redis_client.delete(afk_notified_key)
+
 
 async def is_character_online(character_id: int) -> bool:
     """
-    Verifica si un personaje se considera "online" basado en su última actividad.
+    Verifica si un personaje se considera "online" (activo recientemente).
     """
     key = _get_last_seen_key(character_id)
     last_seen_timestamp_str = await redis_client.get(key)
     if not last_seen_timestamp_str:
         return False
+
     try:
         elapsed_time = time.time() - float(last_seen_timestamp_str)
         return elapsed_time < ONLINE_THRESHOLD.total_seconds()
@@ -2778,49 +3961,56 @@ async def is_character_online(character_id: int) -> bool:
         return False
 
 async def get_online_characters(session: AsyncSession) -> list[Character]:
-    # ... (código sin cambios) ...
+    """
+    Devuelve una lista de todos los objetos Character que se consideran "online".
+    """
     result = await session.execute(select(Character))
     all_characters = result.scalars().all()
+
     online_characters = []
     for char in all_characters:
         if await is_character_online(char.id):
             online_characters.append(char)
+
     return online_characters
 
-# --- FUNCIÓN MODIFICADA ---
 async def check_for_newly_afk_players():
     """
-    Una tarea global que detecta personajes que acaban de pasar a estado AFK y los notifica.
-    Esta función ahora crea su propia sesión de base de datos.
+    Tarea global periódica para detectar y notificar sobre personajes que se
+    han vuelto inactivos (AFK).
     """
     from src.services import channel_service, player_service
     global PREVIOUSLY_ONLINE_IDS
     logging.info("[AFK CHECK] Ejecutando chequeo de jugadores inactivos...")
 
-    # Creamos una sesión de corta duración solo para esta tarea
     async with async_session_factory() as session:
-        result = await session.execute(select(Character.id))
-        all_char_ids = set(result.scalars().all())
+        try:
+            result = await session.execute(select(Character.id))
+            all_char_ids = set(result.scalars().all())
 
-        currently_online_ids = set()
-        for char_id in all_char_ids:
-            if await is_character_online(char_id):
-                currently_online_ids.add(char_id)
+            currently_online_ids = set()
+            for char_id in all_char_ids:
+                if await is_character_online(char_id):
+                    currently_online_ids.add(char_id)
 
-        newly_afk_ids = PREVIOUSLY_ONLINE_IDS - currently_online_ids
+            newly_afk_ids = PREVIOUSLY_ONLINE_IDS - currently_online_ids
 
-        for char_id in newly_afk_ids:
-            afk_notified_key = _get_afk_notified_key(char_id)
-            if not await redis_client.exists(afk_notified_key):
-                character = await player_service.get_character_with_relations_by_id(session, char_id)
-                if character:
-                    logging.info(f"Personaje {character.name} ha entrado en inactividad (AFK).")
-                    await channel_service.broadcast_to_channel(
-                        session,
-                        "sistema",
-                        f"<i>{character.name} ha entrado en inactividad.</i>"
-                    )
-                    await redis_client.set(afk_notified_key, "1", ex=timedelta(days=1))
+            for char_id in newly_afk_ids:
+                afk_notified_key = _get_afk_notified_key(char_id)
+                # Solo notificamos si no lo hemos hecho ya.
+                if not await redis_client.exists(afk_notified_key):
+                    character = await player_service.get_character_with_relations_by_id(session, char_id)
+                    if character:
+                        logging.info(f"Personaje {character.name} ha entrado en inactividad (AFK).")
+                        await channel_service.broadcast_to_channel(
+                            session,
+                            "sistema",
+                            f"<i>{character.name} ha entrado en inactividad.</i>"
+                        )
+                        # Marcamos que ya fue notificado para no spamear.
+                        await redis_client.set(afk_notified_key, "1", ex=timedelta(days=1))
+        except Exception:
+            logging.exception("[AFK CHECK] Ocurrió un error durante el chequeo de AFK.")
 
     PREVIOUSLY_ONLINE_IDS = currently_online_ids
     logging.info(f"[AFK CHECK] Chequeo finalizado. {len(PREVIOUSLY_ONLINE_IDS)} jugadores online.")
@@ -2829,45 +4019,93 @@ async def check_for_newly_afk_players():
 
 # === INICIO: src/services/permission_service.py ===
 # src/services/permission_service.py
+"""
+Módulo de Servicio para la Gestión de Permisos y Locks.
+
+Este servicio es el responsable de interpretar los "lock strings" (cadenas de
+permisos) que se encuentran en varias entidades del juego (comandos, salidas,
+objetos) y determinar si un personaje tiene permiso para realizar una acción.
+
+Actualmente, solo implementa la función de lock `rol()`, pero está diseñado
+para ser fácilmente expandible con funciones más complejas como `habilidad()`,
+`tiene_objeto()`, etc.
+"""
+
+import logging
 from src.models.character import Character
 
 
 def _check_role(character: Character, required_role: str) -> bool:
-    """Verifica si el personaje tiene el rol requerido."""
+    """
+    Función de lock interna: Verifica si el personaje tiene el rol requerido.
+    Compara de forma insensible a mayúsculas.
+    """
+    if not character or not character.account:
+        return False
     return character.account.role.upper() == required_role.upper()
 
 
 async def can_execute(character: Character, lock_string: str) -> tuple[bool, str]:
     """
-    Verifica si un personaje puede pasar un lock.
-    Devuelve una tupla: (puede_pasar, mensaje_de_error).
+    Evalúa un `lock_string` contra un personaje para ver si puede pasar el lock.
+
+    Args:
+        character (Character): El personaje que intenta la acción.
+        lock_string (str): La cadena de permisos a evaluar (ej: "rol(ADMINISTRADOR)").
+
+    Returns:
+        tuple[bool, str]: Una tupla conteniendo:
+                          - `True` si puede pasar, `False` si no.
+                          - Una cadena con el mensaje de error si falla, o vacía si tiene éxito.
     """
-    if not lock_string:
-        return True, ""  # Un lock vacío siempre se puede pasar.
+    try:
+        # Un lock vacío siempre se puede pasar. Es la forma de definir una acción "pública".
+        if not lock_string:
+            return True, ""
 
-    # Lógica AND: todas las funciones de lock deben ser verdaderas.
-    lock_functions = lock_string.lower().split(' y ')
+        # Por ahora, el parser es simple y solo soporta la lógica 'Y' (AND).
+        # "rol(A) y tiene_objeto(B)" se divide en una lista de dos funciones.
+        lock_functions = lock_string.lower().split(' y ')
 
-    for func in lock_functions:
-        # Por ahora, solo implementamos la función 'rol(argumento)'
-        if func.startswith('rol(') and func.endswith(')'):
-            required_role = func[4:-1]
-            if not _check_role(character, required_role):
-                # Devolvemos un mensaje de error específico
-                return False, "No tienes el rango necesario."
-        else:
-            # Si encontramos una función de lock que no entendemos, por seguridad, fallamos.
-            print(f"ADVERTENCIA: Función de lock desconocida: {func}")
-            return False, "Esa acción está bloqueada por una fuerza desconocida."
+        for func_str in lock_functions:
+            # Futuro: Aquí iría un parser más avanzado para manejar funciones
+            # con argumentos y operadores lógicos complejos.
 
-    # Si el personaje pasó todos los chequeos de la cadena AND
-    return True, ""
+            # Implementación actual: `rol(argumento)`
+            if func_str.startswith('rol(') and func_str.endswith(')'):
+                required_role = func_str[4:-1]
+                if not _check_role(character, required_role):
+                    return False, "No tienes el rango necesario para hacer eso."
+
+            # Si encontramos una función de lock que no entendemos, por seguridad, denegamos el acceso.
+            else:
+                logging.warning(f"Función de lock desconocida encontrada: {func_str} en lock string: '{lock_string}'")
+                return False, "Esa acción está bloqueada por una fuerza desconocida."
+
+        # Si el personaje pasó todos los chequeos de la cadena, tiene permiso.
+        return True, ""
+
+    except Exception:
+        logging.exception(f"Error al parsear el lock_string: '{lock_string}'")
+        # En caso de cualquier error de parseo, siempre fallamos de forma segura.
+        return False, "Error interno al comprobar los permisos."
 # === FIN: src/services/permission_service.py ===
 
 
 # === INICIO: src/services/player_service.py ===
 # src/services/player_service.py
+"""
+Módulo de Servicio para la Gestión de Jugadores y Personajes.
 
+Este es uno de los servicios centrales de la aplicación. Encapsula toda la
+lógica de negocio para crear, recuperar y modificar las entidades `Account` y
+`Character`.
+
+Actúa como la única capa que interactúa directamente con los modelos de jugador,
+asegurando que toda la lógica de negocio esté centralizada y sea consistente.
+"""
+
+import logging
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -2875,66 +4113,79 @@ from sqlalchemy.orm import selectinload
 from src.models.account import Account
 from src.models.character import Character
 from src.models.room import Room
-from src.models.item import Item
-from src.models.exit import Exit
 from src.services import channel_service, command_service
 
 
 async def get_character_with_relations_by_id(session: AsyncSession, character_id: int) -> Character | None:
     """
     Busca un personaje por su ID y carga explícitamente todas sus relaciones
-    críticas para evitar errores de carga perezosa.
-    """
-    query = (
-        select(Character)
-        .where(Character.id == character_id)
-        .options(
-            selectinload(Character.room).selectinload(Room.items),
-            selectinload(Character.room).selectinload(Room.exits_from),
-            selectinload(Character.items),
-            selectinload(Character.account),
-            selectinload(Character.settings)
-        )
-    )
-    result = await session.execute(query)
-    return result.scalar_one_or_none()
+    críticas (sala, inventario, cuenta, configuraciones) en una sola consulta.
 
+    Esta es una función de ayuda crucial para evitar errores de "carga perezosa"
+    (lazy loading) en un entorno asíncrono.
+    """
+    try:
+        query = (
+            select(Character)
+            .where(Character.id == character_id)
+            .options(
+                selectinload(Character.room).selectinload(Room.items),
+                selectinload(Character.room).selectinload(Room.exits_from),
+                selectinload(Character.items),
+                selectinload(Character.account),
+                selectinload(Character.settings)
+            )
+        )
+        result = await session.execute(query)
+        return result.scalar_one_or_none()
+    except Exception:
+        logging.exception(f"Error al obtener el personaje completo con ID {character_id}")
+        return None
 
 async def get_or_create_account(session: AsyncSession, telegram_id: int) -> Account:
     """
     Busca una cuenta por su telegram_id. Si no existe, la crea.
-    Devuelve el objeto de la cuenta con su personaje y todas las relaciones cargadas.
+    Garantiza que el objeto `Account` devuelto contenga un `Character` completamente
+    cargado si este existe.
     """
-    # Primero, buscamos la cuenta y su relación con el personaje.
-    account_query = select(Account).where(Account.telegram_id == telegram_id).options(selectinload(Account.character))
-    result = await session.execute(account_query)
-    account = result.scalar_one_or_none()
+    try:
+        # 1. Buscar la cuenta y su personaje asociado.
+        account_query = select(Account).where(Account.telegram_id == telegram_id).options(selectinload(Account.character))
+        result = await session.execute(account_query)
+        account = result.scalar_one_or_none()
 
-    # Si la cuenta no existe, la creamos y la devolvemos. No tendrá personaje.
-    if not account:
-        print(f"Creando nueva cuenta para el telegram_id: {telegram_id}")
-        new_account = Account(telegram_id=telegram_id)
-        session.add(new_account)
-        await session.commit()
-        await session.refresh(new_account)
-        return new_account
+        # 2. Si la cuenta no existe, crearla y devolverla.
+        if not account:
+            logging.info(f"Creando nueva cuenta para el telegram_id: {telegram_id}")
+            new_account = Account(telegram_id=telegram_id)
+            session.add(new_account)
+            await session.commit()
+            await session.refresh(new_account)
+            return new_account
 
-    # Si la cuenta existe pero no tiene personaje, la devolvemos tal cual.
-    if not account.character:
+        # 3. Si la cuenta existe pero no tiene personaje, devolverla tal cual.
+        if not account.character:
+            return account
+
+        # 4. Si la cuenta y el personaje existen, usar nuestra función de ayuda para
+        #    asegurarnos de que el personaje está completamente cargado con todas sus relaciones.
+        full_character = await get_character_with_relations_by_id(session, account.character.id)
+        account.character = full_character
         return account
-
-    # Si la cuenta y el personaje existen, recargamos el personaje con todas sus relaciones.
-    full_character = await get_character_with_relations_by_id(session, account.character.id)
-    account.character = full_character
-    return account
-
+    except Exception:
+        logging.exception(f"Error al obtener o crear la cuenta para telegram_id {telegram_id}")
+        # En caso de un fallo crítico, es más seguro devolver None.
+        return None
 
 async def create_character(session: AsyncSession, telegram_id: int, character_name: str) -> Character:
     """
-    Crea un nuevo personaje, lo asocia a una cuenta, y envía un mensaje de bienvenida.
+    Crea un nuevo personaje, lo asocia a una cuenta, y dispara los hooks de bienvenida.
     """
     account = await get_or_create_account(session, telegram_id)
+    if not account:
+        raise RuntimeError("No se pudo obtener o crear una cuenta de usuario.")
 
+    # Validaciones de negocio
     if account.character is not None:
         raise ValueError("Ya tienes un personaje asociado a esta cuenta.")
 
@@ -2942,25 +4193,21 @@ async def create_character(session: AsyncSession, telegram_id: int, character_na
     if result.scalar_one_or_none():
         raise ValueError(f"El nombre '{character_name}' ya está en uso. Por favor, elige otro.")
 
+    # Creación y persistencia
     new_character = Character(
         name=character_name,
         account_id=account.id,
         room_id=1 # Asigna a la sala de inicio "limbo"
     )
     session.add(new_character)
-    await session.commit() # Al hacer commit, new_character obtiene su ID.
+    await session.commit()
 
-    # --- CAMBIO CLAVE: Recargamos el personaje por completo ---
-    # Usamos la función que ya creamos para obtener una versión "fresca" y completa
-    # del personaje, con todas sus relaciones cargadas (incluida .account).
+    # Recargamos el personaje por completo para tener todas las relaciones disponibles.
     full_character = await get_character_with_relations_by_id(session, new_character.id)
-
-    # Ahora usamos este objeto 'full_character' para el resto de operaciones.
     if not full_character:
-        # Esto es una salvaguarda, nunca debería ocurrir.
         raise RuntimeError("No se pudo recargar el personaje recién creado.")
 
-    # --- MENSAJE DE BIENVENIDA ---
+    # Hooks de post-creación
     await channel_service.get_or_create_settings(session, full_character)
     welcome_message = (
         f"¡Bienvenido al mundo, {full_character.name}! "
@@ -2970,19 +4217,19 @@ async def create_character(session: AsyncSession, telegram_id: int, character_na
     )
     await channel_service.broadcast_to_channel(session, "novato", welcome_message)
 
-    # --- ACTUALIZAR COMANDOS DE TELEGRAM ---
-    # Después de crear el personaje, establecemos su lista inicial de comandos.
     await command_service.update_telegram_commands(full_character)
 
     return full_character
 
 
 async def teleport_character(session: AsyncSession, character_id: int, to_room_id: int):
-    """Mueve un personaje a una nueva sala."""
+    """Mueve un personaje a una nueva sala actualizando su `room_id`."""
+    # Validación: asegurar que la sala de destino existe.
     result = await session.execute(select(Room).where(Room.id == to_room_id))
     if not result.scalar_one_or_none():
         raise ValueError(f"La sala con ID {to_room_id} no existe.")
 
+    # Actualización atómica
     query = update(Character).where(Character.id == character_id).values(room_id=to_room_id)
     await session.execute(query)
     await session.commit()
@@ -2991,38 +4238,61 @@ async def teleport_character(session: AsyncSession, character_id: int, to_room_i
 
 # === INICIO: src/services/script_service.py ===
 # src/services/script_service.py
+"""
+Módulo de Servicio para la Ejecución de Scripts.
+
+Este servicio actúa como el "traductor" entre el contenido del juego (definido
+como strings en los archivos de prototipos) y la lógica del motor (código Python).
+Permite que los diseñadores de contenido invoquen funcionalidades del motor
+sin necesidad de escribir código.
+
+Funciona con un sistema de registro:
+1.  Las funciones de script se definen en este archivo.
+2.  Se registran en el diccionario `SCRIPT_REGISTRY` con un nombre único.
+3.  Los archivos de prototipos en `game_data` usan ese nombre para referirse a ellas.
+4.  El método `execute_script` se encarga de parsear el string, buscar la
+    función en el registro y ejecutarla con el contexto adecuado.
+"""
+
 import re
 import random
-import logging  # <-- Importamos logging
+import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 
-# Importamos los modelos de datos con los que los scripts interactuarán
 from src.models.character import Character
 from src.models.item import Item
 from src.models.room import Room
-
-# Importamos el servicio centralizado para enviar mensajes
 from src.services import broadcaster_service
 
 
 # ==============================================================================
 # SECCIÓN 1: DEFINICIONES DE LAS FUNCIONES DE SCRIPT
+#
+# Cada función aquí es una "habilidad" que el motor ofrece a los diseñadores
+# de contenido. Deben ser genéricas y reutilizables.
 # ==============================================================================
 
 async def script_notificar_brillo_magico(session: AsyncSession, character: Character, target: Item, **kwargs):
     """
     Script de evento: Notifica al jugador que un objeto brilla al ser mirado.
+
+    - Disparador Típico: `on_look` en un prototipo de objeto.
+    - Contexto Esperado: `character` (quien mira), `target` (el objeto mirado).
+    - Argumentos: `color` (str, opcional) - el color del brillo.
     """
     color = kwargs.get("color", "una luz misteriosa")
     message = f"🌟 Al fijar tu vista en {target.get_name()}, notas que emite un suave brillo de color {color}."
-
     await broadcaster_service.send_message_to_character(character, message)
 
 
 async def script_espada_susurra_secreto(session: AsyncSession, target: Item, character: Character, **kwargs):
     """
-    Script de ticker: Hace que un objeto emita un susurro a un personaje específico
-    que está activo en la misma sala.
+    Script de ticker: Hace que un objeto emita un susurro a un personaje activo
+    que se encuentre en la misma sala.
+
+    - Disparador Típico: `tickers` en un prototipo de objeto.
+    - Contexto Esperado: `target` (el objeto que susurra), `character` (el jugador que escucha).
+    - Argumentos: Ninguno.
     """
     secretos = [
         "El tesoro se encuentra bajo la sombra del roble marchito...",
@@ -3030,29 +4300,41 @@ async def script_espada_susurra_secreto(session: AsyncSession, target: Item, cha
         "Cuidado con el que no proyecta sombra...",
     ]
     secreto_elegido = random.choice(secretos)
-
     mensaje = f"<i>Un susurro escalofriante parece emanar de {target.get_name()}: \"{secreto_elegido}\"</i>"
-
-    # Ahora enviamos el mensaje solo al personaje del contexto, que ya sabemos que está activo.
     await broadcaster_service.send_message_to_character(character, mensaje)
 
 
 # ==============================================================================
-# SECCIÓN 2: EL MOTOR DE SCRIPTS
+# SECCIÓN 2: REGISTRO DE SCRIPTS
+#
+# Este diccionario es el puente entre los nombres de los scripts (strings)
+# y las funciones de Python reales. Para que un script pueda ser llamado
+# desde `game_data`, DEBE estar registrado aquí.
 # ==============================================================================
 
 SCRIPT_REGISTRY = {
     "script_notificar_brillo_magico": script_notificar_brillo_magico,
     "script_espada_susurra_secreto": script_espada_susurra_secreto,
+    # Futuros scripts se añadirían aquí.
 }
+
+
+# ==============================================================================
+# SECCIÓN 3: EL MOTOR DE EJECUCIÓN
+#
+# Lógica interna del servicio para interpretar y ejecutar los scripts.
+# ==============================================================================
 
 def _parse_script_string(script_string: str) -> tuple[str, dict]:
     """
-    Parsea un string de script como 'nombre_script(key1=val1, key2=val2)'
-    y devuelve el nombre y un diccionario de argumentos.
+    Parsea un string de script como 'nombre(clave=valor, ...)' y devuelve
+    el nombre de la función y un diccionario de argumentos.
+
+    Limitación actual: solo soporta argumentos simples de tipo `clave=valor`.
     """
     match = re.match(r"(\w+)\((.*)\)", script_string)
     if not match:
+        # Si el script no tiene paréntesis, se asume que no tiene argumentos.
         return script_string, {}
 
     name, args_str = match.groups()
@@ -3061,13 +4343,20 @@ def _parse_script_string(script_string: str) -> tuple[str, dict]:
         try:
             kwargs = dict(arg.strip().split('=') for arg in args_str.split(','))
         except ValueError:
-            print(f"ADVERTENCIA: Argumentos de script mal formados en '{script_string}'. Ignorando argumentos.")
+            logging.warning(f"Argumentos de script mal formados en '{script_string}'. Ignorando argumentos.")
     return name, kwargs
 
 
 async def execute_script(script_string: str, session: AsyncSession, **context):
     """
-    El corazón del motor de scripts.
+    El corazón del motor de scripts. Parsea el string, busca la función en
+    el registro y la ejecuta con el contexto proporcionado.
+
+    Args:
+        script_string (str): El string del script a ejecutar (ej: "mi_script(arg=val)").
+        session (AsyncSession): La sesión de base de datos activa.
+        **context: Un diccionario con las entidades relevantes al evento
+                   (ej: `character`, `target`, `room`).
     """
     if not script_string:
         return
@@ -3077,10 +4366,11 @@ async def execute_script(script_string: str, session: AsyncSession, **context):
     if script_name in SCRIPT_REGISTRY:
         script_function = SCRIPT_REGISTRY[script_name]
         try:
+            # Ejecutamos la función encontrada, pasando el contexto y los argumentos parseados.
             await script_function(session=session, **context, **kwargs)
-        except Exception as e:
-            # --- MEJORA DE LOGGING ---
-            # Usamos logging.exception para obtener un traceback completo en los logs de Docker.
+        except Exception:
+            # Si un script falla, registramos el error con un traceback completo
+            # pero no detenemos la ejecución del resto del juego.
             logging.exception(f"Ocurrió un error al ejecutar el script '{script_name}'")
     else:
         logging.warning(f"ADVERTENCIA: Se intentó ejecutar un script desconocido: '{script_name}'")
@@ -3089,6 +4379,21 @@ async def execute_script(script_string: str, session: AsyncSession, **context):
 
 # === INICIO: src/services/ticker_service.py ===
 # src/services/ticker_service.py
+"""
+Módulo de Servicio para Tareas Programadas (Tickers).
+
+Este servicio es el "corazón" que hace que el mundo de Runegram se sienta vivo.
+Utiliza la librería APScheduler para ejecutar scripts de forma periódica,
+independientemente de las acciones de los jugadores.
+
+Responsabilidades:
+- Inicializar y configurar el scheduler global (APScheduler).
+- Cargar las definiciones de tickers desde los prototipos de `game_data`.
+- Programar, ejecutar y gestionar el ciclo de vida de estas tareas.
+- Determinar el contexto correcto para un ticker (ej: la sala de un objeto)
+  y filtrar su ejecución (ej: solo para jugadores activos).
+"""
+
 import logging
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -3101,6 +4406,7 @@ from src.db import async_session_factory
 from src.services import script_service, online_service, player_service
 from src.models import Item, Room, Character
 
+# Instancia única del scheduler para toda la aplicación.
 scheduler = AsyncIOScheduler()
 
 
@@ -3132,7 +4438,7 @@ def parse_schedule(schedule_str: str) -> tuple[str, dict]:
 async def get_entity_by_id(session: AsyncSession, entity_id: int, entity_type: str):
     """
     Busca una entidad por su ID y tipo, cargando explícitamente las relaciones
-    necesarias para evitar errores de carga perezosa (lazy loading).
+    necesarias para evitar errores de carga perezosa.
     """
     MODEL_MAP = {"Item": Item, "Room": Room, "Character": Character}
     model_class = MODEL_MAP.get(entity_type)
@@ -3141,13 +4447,7 @@ async def get_entity_by_id(session: AsyncSession, entity_id: int, entity_type: s
         return None
 
     query = select(model_class)
-
-    # --- CAMBIO CLAVE: Carga de relaciones anidadas ---
     if model_class is Item:
-        # Si es un Item, necesitamos precargar:
-        # 1. La sala en la que está (si está en una).
-        # 2. El personaje que lo lleva (si lo lleva alguien).
-        # 3. La sala del personaje que lo lleva.
         query = query.options(
             selectinload(Item.room),
             selectinload(Item.character).selectinload(Character.room)
@@ -3161,11 +4461,11 @@ async def get_entity_by_id(session: AsyncSession, entity_id: int, entity_type: s
 
 
 # ==============================================================================
-# SECCIÓN PRINCIPAL DEL SERVICIO
+# SECCIÓN DE INICIALIZACIÓN Y CARGA
 # ==============================================================================
 
 def initialize_scheduler():
-    """Configura y arranca el scheduler global."""
+    """Configura y arranca el scheduler global. Debe llamarse al iniciar el bot."""
     jobstores = {'default': SQLAlchemyJobStore(url=settings.sync_database_url)}
     scheduler.configure(jobstores=jobstores)
     scheduler.start()
@@ -3173,16 +4473,25 @@ def initialize_scheduler():
 
 async def load_and_schedule_all_tickers(session: AsyncSession):
     """
-    Busca todas las entidades con tickers en la base de datos y las programa.
+    Busca todas las entidades con tickers en la base de datos (actualmente solo Items)
+    y las programa. Debe llamarse una vez al iniciar el bot para asegurar la persistencia.
     """
     logging.info("Cargando y programando tickers para todas las entidades existentes...")
-    result = await session.execute(select(Item))
-    all_items = result.scalars().all()
-    for item in all_items:
-        if item.prototype.get("tickers"):
-            logging.info(f"  -> Programando tickers para el item '{item.key}' (ID: {item.id})")
-            await schedule_tickers_for_entity(item)
-    logging.info("Carga de tickers existentes finalizada.")
+    try:
+        result = await session.execute(select(Item))
+        all_items = result.scalars().all()
+        for item in all_items:
+            if item.prototype.get("tickers"):
+                logging.info(f"  -> Programando tickers para el item '{item.key}' (ID: {item.id})")
+                await schedule_tickers_for_entity(item)
+        logging.info("Carga de tickers existentes finalizada.")
+    except Exception:
+        logging.exception("Error al cargar los tickers de entidades existentes.")
+
+
+# ==============================================================================
+# SECCIÓN DE EJECUCIÓN DE TAREAS
+# ==============================================================================
 
 async def schedule_tickers_for_entity(entity):
     """
@@ -3193,11 +4502,13 @@ async def schedule_tickers_for_entity(entity):
         schedule_str = ticker_data.get("schedule")
         script_str = ticker_data.get("script")
         category = ticker_data.get("category", "ambient")
+
         if not schedule_str or not script_str:
             continue
         trigger_type, trigger_args = parse_schedule(schedule_str)
         if not trigger_args:
             continue
+
         job_id = f"ticker_{type(entity).__name__}_{entity.id}_{schedule_str}_{script_str}"
         scheduler.add_job(
             execute_ticker_script, trigger=trigger_type,
@@ -3207,58 +4518,69 @@ async def schedule_tickers_for_entity(entity):
 
 async def execute_ticker_script(entity_id: int, entity_type: str, script_string: str, category: str):
     """
-    Función que APScheduler llama. Ahora es inteligente y encuentra la sala
-    incluso si el objeto está en el inventario de un personaje.
+    Función que APScheduler llama. Prepara el contexto, comprueba la actividad
+    del jugador y delega la ejecución al script_service.
     """
     async with async_session_factory() as session:
-        entity = await get_entity_by_id(session, entity_id, entity_type)
-        if not entity:
-            return
+        try:
+            entity = await get_entity_by_id(session, entity_id, entity_type)
+            if not entity: return
 
-        # --- CAMBIO CLAVE: Lógica para encontrar la sala ---
-        room = None
-        if hasattr(entity, 'room') and entity.room:
-            # Opción 1: El objeto está en una sala.
-            room = entity.room
-        elif hasattr(entity, 'character') and entity.character and entity.character.room:
-            # Opción 2: El objeto lo lleva un personaje, usamos la sala de ese personaje.
-            room = entity.character.room
+            # 1. Determinar la sala de contexto del ticker.
+            room = None
+            if hasattr(entity, 'room') and entity.room:
+                room = entity.room
+            elif hasattr(entity, 'character') and entity.character and entity.character.room:
+                room = entity.character.room
 
-        if not room:
-            # Si no hay sala por ninguno de los dos métodos, abortamos.
-            return
+            if not room: return
 
-        char_ids_in_room_query = select(Character.id).where(Character.room_id == room.id)
-        result = await session.execute(char_ids_in_room_query)
-        char_ids_in_room = result.scalars().all()
+            # 2. Encontrar los IDs de los personajes en esa sala.
+            char_ids_query = select(Character.id).where(Character.room_id == room.id)
+            result = await session.execute(char_ids_query)
+            char_ids_in_room = result.scalars().all()
 
-        for char_id in char_ids_in_room:
-            is_online = await online_service.is_character_online(char_id)
-            if category == "ambient" and not is_online:
-                continue
+            # 3. Iterar sobre cada personaje, aplicar filtros y ejecutar el script.
+            for char_id in char_ids_in_room:
+                is_online = await online_service.is_character_online(char_id)
+                if category == "ambient" and not is_online:
+                    continue
 
-            full_character = await player_service.get_character_with_relations_by_id(session, char_id)
-            if not full_character:
-                continue
+                full_character = await player_service.get_character_with_relations_by_id(session, char_id)
+                if not full_character:
+                    continue
 
-            context = {
-                "target": entity,
-                "room": full_character.room,
-                "character": full_character
-            }
+                context = {
+                    "target": entity,
+                    "room": full_character.room,
+                    "character": full_character
+                }
 
-            await script_service.execute_script(
-                script_string=script_string,
-                session=session,
-                **context
-            )
+                await script_service.execute_script(
+                    script_string=script_string,
+                    session=session,
+                    **context
+                )
+        except Exception:
+            logging.exception(f"Error crítico en la ejecución del ticker para {entity_type} {entity_id}")
 # === FIN: src/services/ticker_service.py ===
 
 
 # === INICIO: src/services/world_loader_service.py ===
 # src/services/world_loader_service.py
+"""
+Módulo de Servicio para la Carga del Mundo.
+
+Este servicio es el responsable de construir y sincronizar el mundo estático del
+juego (salas y salidas) con la base de datos. Se ejecuta una sola vez durante
+el arranque de la aplicación.
+
+Lee las definiciones de contenido desde `game_data/room_prototypes.py` y se
+asegura de que el estado de la base de datos refleje fielmente esa "fuente de
+la verdad".
+"""
+
 import logging
-# --- ¡Importación clave añadida! ---
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -3266,7 +4588,7 @@ from sqlalchemy.orm import selectinload
 from src.models import Room, Exit
 from game_data.room_prototypes import ROOM_PROTOTYPES
 
-# Mapa de direcciones opuestas para conexiones bidireccionales
+# Mapa de direcciones opuestas para crear automáticamente las salidas bidireccionales.
 OPPOSITE_DIRECTIONS = {
     "norte": "sur", "sur": "norte",
     "este": "oeste", "oeste": "este",
@@ -3278,89 +4600,135 @@ OPPOSITE_DIRECTIONS = {
 
 async def sync_world_from_prototypes(session: AsyncSession):
     """
-    Sincroniza la base de datos con los prototipos de salas.
-    Es idempotente: crea salas si no existen y las actualiza si existen.
+    Sincroniza la base de datos con los prototipos de salas. Esta función es
+    idempotente: se puede ejecutar de forma segura en cada arranque.
+
+    Su lógica es:
+    1. Crea las salas que no existen y actualiza los datos de las que sí existen.
+    2. Borra por completo todas las salidas existentes.
+    3. Recrea todas las salidas basándose en las definiciones actuales.
     """
-    logging.info(" sincronizando el mundo desde los prototipos...")
+    logging.info("Sincronizando el mundo estático desde los prototipos...")
+    try:
+        # --- PASO 1: Sincronizar Salas ---
+        # Se asegura de que todas las salas definidas en los prototipos existan en la BD
+        # y actualiza su nombre/descripción. Guarda un mapa de `key` a `id` para el siguiente paso.
+        room_key_to_id_map = {}
 
-    # Paso 1: Sincronizar todas las salas para asegurar que existen y obtener sus IDs.
-    room_key_to_id_map = {}
+        # Obtenemos todas las salas existentes de la BD para compararlas.
+        existing_rooms_query = await session.execute(select(Room))
+        existing_rooms = {room.key: room for room in existing_rooms_query.scalars().all()}
 
-    existing_rooms_query = await session.execute(select(Room))
-    existing_rooms = {room.key: room for room in existing_rooms_query.scalars().all()}
-
-    for key, data in ROOM_PROTOTYPES.items():
-        room = existing_rooms.get(key)
-        if not room:
-            logging.info(f"  -> Creando sala '{key}'...")
-            room = Room(key=key, name=data['name'], description=data['description'])
-            session.add(room)
-        else:
-            room.name = data['name']
-            room.description = data['description']
-
-        await session.flush()
-        room_key_to_id_map[key] = room.id
-
-    # Paso 2: Limpiar salidas viejas. Es más fácil borrarlas y recrearlas.
-    logging.info("  -> Limpiando todas las salidas existentes para reconstruir...")
-
-    # --- LÍNEA CORREGIDA ---
-    # La forma correcta de borrar todos los registros de una tabla es usando la instrucción `delete()`.
-    await session.execute(delete(Exit))
-    # --- FIN DE LA CORRECCIÓN ---
-
-    # Paso 3: Crear todas las salidas de nuevo.
-    for key, data in ROOM_PROTOTYPES.items():
-        from_room_id = room_key_to_id_map[key]
-        for direction, to_room_key in data.get("exits", {}).items():
-            if to_room_key in room_key_to_id_map:
-                to_room_id = room_key_to_id_map[to_room_key]
-
-                exit_forward = Exit(name=direction.lower(), from_room_id=from_room_id, to_room_id=to_room_id)
-                session.add(exit_forward)
-
-                opposite = OPPOSITE_DIRECTIONS.get(direction.lower())
-                if opposite:
-                    exit_backward = Exit(name=opposite, from_room_id=to_room_id, to_room_id=from_room_id)
-                    session.add(exit_backward)
+        for key, data in ROOM_PROTOTYPES.items():
+            room = existing_rooms.get(key)
+            if not room:
+                # La sala no existe en la BD, la creamos.
+                logging.info(f"  -> Creando sala '{key}'...")
+                room = Room(key=key, name=data['name'], description=data['description'])
+                session.add(room)
             else:
-                logging.warning(f"  -> La sala de destino '{to_room_key}' definida en '{key}' no existe.")
+                # La sala ya existe, actualizamos sus datos por si cambiaron.
+                room.name = data['name']
+                room.description = data['description']
 
-    await session.commit()
-    logging.info("¡Sincronización del mundo completada!")
+            # `flush` envía los cambios a la BD sin cerrar la transacción, lo que
+            # nos permite obtener el ID de las nuevas salas antes del commit final.
+            await session.flush()
+            room_key_to_id_map[key] = room.id
+
+        # --- PASO 2: Limpiar Salidas Viejas ---
+        # Es más simple y seguro borrar todas las salidas y recrearlas que intentar
+        # parchear las existentes. Esto asegura que las salidas eliminadas de los
+        # prototipos también se eliminen de la BD.
+        logging.info("  -> Limpiando todas las salidas existentes para reconstruir...")
+        await session.execute(delete(Exit))
+
+        # --- PASO 3: Crear Salidas Nuevas ---
+        # Itera de nuevo sobre los prototipos y crea las filas en la tabla `exits`.
+        for key, data in ROOM_PROTOTYPES.items():
+            from_room_id = room_key_to_id_map[key]
+            for direction, to_room_key in data.get("exits", {}).items():
+                if to_room_key in room_key_to_id_map:
+                    to_room_id = room_key_to_id_map[to_room_key]
+
+                    # Crear la salida principal (ej: A -> B, "norte")
+                    exit_forward = Exit(name=direction.lower(), from_room_id=from_room_id, to_room_id=to_room_id)
+                    session.add(exit_forward)
+
+                    # Crear la salida de vuelta automáticamente (ej: B -> A, "sur")
+                    opposite = OPPOSITE_DIRECTIONS.get(direction.lower())
+                    if opposite:
+                        exit_backward = Exit(name=opposite, from_room_id=to_room_id, to_room_id=from_room_id)
+                        session.add(exit_backward)
+                else:
+                    logging.warning(f"  -> La sala de destino '{to_room_key}' definida en la sala '{key}' no existe. Se ignora la salida.")
+
+        await session.commit()
+        logging.info("¡Sincronización del mundo completada!")
+    except Exception:
+        # Un fallo aquí es crítico para el arranque del bot.
+        logging.exception("Error fatal durante la sincronización del mundo.")
+        # Relanzamos la excepción para que la función on_startup la capture y detenga el bot.
+        raise
 # === FIN: src/services/world_loader_service.py ===
 
 
 # === INICIO: src/services/world_service.py ===
 # src/services/world_service.py
+"""
+Módulo de Servicio con Utilidades para el Mundo.
 
+Este servicio contiene funciones de ayuda de bajo nivel para interactuar
+con las entidades del mundo, principalmente el modelo `Room`.
+
+A diferencia del `world_loader_service` que construye el mundo al arrancar,
+las funciones aquí presentes son utilidades genéricas que pueden ser llamadas
+desde otras partes del código, como los comandos.
+
+NOTA: Varias funciones en este archivo (`create_room`, `link_rooms`) han quedado
+obsoletas por el sistema de carga de mundo basado en prototipos, pero se
+mantienen por si son de utilidad para futuras herramientas de administración
+o para depuración.
+"""
+
+import logging
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.room import Room
-from src.models.exit import Exit # <-- Importa el nuevo modelo
+from src.models.exit import Exit
 
-# Mapa de direcciones opuestas para conexiones bidireccionales
-OPPOSITE_DIRECTIONS = {
-    "norte": "sur", "sur": "norte",
-    "este": "oeste", "oeste": "este",
-    "arriba": "abajo", "abajo": "arriba",
-    "dentro": "fuera", "fuera": "dentro",
-    "noreste": "suroeste", "suroeste": "noreste",
-    "noroeste": "sureste", "sureste": "noroeste",
-}
 
 async def get_room(session: AsyncSession, room_id: int) -> Room | None:
-    """Busca y devuelve una sala por su ID."""
-    result = await session.execute(select(Room).where(Room.id == room_id))
-    return result.scalar_one_or_none()
+    """
+    Busca y devuelve una sala por su ID numérico.
+
+    Args:
+        session (AsyncSession): La sesión de base de datos activa.
+        room_id (int): El ID de la sala a buscar.
+
+    Returns:
+        Room | None: El objeto de la sala si se encuentra, de lo contrario None.
+    """
+    try:
+        result = await session.execute(select(Room).where(Room.id == room_id))
+        return result.scalar_one_or_none()
+    except Exception:
+        logging.exception(f"Error al buscar la sala con ID {room_id}")
+        return None
+
+# ==============================================================================
+# Las siguientes funciones han sido mayormente reemplazadas por el sistema de
+# carga de mundo (`world_loader_service`) y ya no se usan en el flujo principal.
+# Se conservan para posible uso futuro en herramientas de administración.
+# ==============================================================================
 
 async def create_room(session: AsyncSession, name: str) -> Room:
-    """Crea una nueva sala en la base de datos."""
+    """
+    (Obsoleto) Crea una nueva sala en la base de datos.
+    """
     if not name:
         raise ValueError("El nombre de la sala no puede estar vacío.")
-
     new_room = Room(name=name)
     session.add(new_room)
     await session.commit()
@@ -3368,25 +4736,34 @@ async def create_room(session: AsyncSession, name: str) -> Room:
     return new_room
 
 async def set_room_description(session: AsyncSession, room_id: int, description: str):
-    """Actualiza la descripción de una sala existente."""
+    """
+    (Obsoleto) Actualiza la descripción de una sala existente.
+    """
     query = update(Room).where(Room.id == room_id).values(description=description)
     await session.execute(query)
     await session.commit()
 
 async def link_rooms(session: AsyncSession, from_room_id: int, direction: str, to_room_id: int, bidirectional: bool = True):
-    """Crea una salida (y opcionalmente su opuesta) entre dos salas."""
+    """
+    (Obsoleto) Crea una salida (y opcionalmente su opuesta) entre dos salas.
+    """
+    # Mapa de direcciones opuestas, duplicado aquí para que la función sea autónoma.
+    OPPOSITE_DIRECTIONS = {
+        "norte": "sur", "sur": "norte", "este": "oeste", "oeste": "este",
+        "arriba": "abajo", "abajo": "arriba", "dentro": "fuera", "fuera": "dentro",
+        "noreste": "suroeste", "suroeste": "noreste", "noroeste": "sureste", "sureste": "noroeste",
+    }
+
     from_room = await get_room(session, from_room_id)
     to_room = await get_room(session, to_room_id)
 
     if not from_room or not to_room:
         raise ValueError("Una o ambas salas no existen.")
 
-    # Crear la salida principal
     direction_lower = direction.lower()
     new_exit = Exit(name=direction_lower, from_room_id=from_room_id, to_room_id=to_room_id)
     session.add(new_exit)
 
-    # Crear la salida de vuelta si es bidireccional
     if bidirectional:
         opposite_direction = OPPOSITE_DIRECTIONS.get(direction_lower)
         if opposite_direction:
@@ -3403,77 +4780,103 @@ async def link_rooms(session: AsyncSession, from_room_id: int, direction: str, t
 
 # === INICIO: src/utils/presenters.py ===
 # src/utils/presenters.py
+"""
+Módulo de Utilidades de Presentación (Presenters).
 
+Este archivo contiene funciones cuya única responsabilidad es tomar los objetos
+de datos del juego (como `Room`, `Item`, `Character`) y convertirlos en texto
+formateado listo para ser mostrado al jugador en Telegram.
+
+Esta capa de "presentación" separa la lógica de cómo se ven las cosas (formato
+HTML, colores, etc.) de la lógica de negocio del juego (que reside en los
+servicios).
+"""
+
+import logging
 from aiogram import types
 from collections import Counter
 
 from src.models.room import Room
-# La importación de Item ya no es estrictamente necesaria aquí, pero es buena práctica mantenerla
-# por si en el futuro se añaden más funciones de formato relacionadas con items.
-from src.models.item import Item
 from src.db import async_session_factory
 from src.services import player_service
 
 
 async def format_room(room: Room) -> str:
     """
-    Construye y formatea la descripción completa de una sala para ser mostrada al jugador.
-    Esta función está diseñada para ser fácilmente extensible.
+    Construye y formatea la descripción completa de una sala para ser
+    mostrada al jugador.
+
+    Args:
+        room (Room): El objeto de la sala a formatear, con sus relaciones
+                     (`items`, `exits_from`) ya cargadas.
+
+    Returns:
+        str: Un string formateado con HTML (`<pre>`, `<b>`) listo para ser enviado.
     """
-    parts = []
+    try:
+        parts = []
 
-    # 1. Título de la Sala (en negrita)
-    parts.append(f"<b>{room.name}</b>")
+        # 1. Título de la Sala
+        parts.append(f"<b>{room.name}</b>")
 
-    # 2. Descripción principal
-    # Usamos strip() para quitar espacios en blanco al inicio/final que puedan venir de la BD
-    parts.append(room.description.strip())
+        # 2. Descripción principal
+        parts.append(room.description.strip())
 
-    # 3. Items en la sala
-    if room.items:
-        # Ahora llamamos al método .get_name() directamente desde cada objeto Item
-        item_names = [item.get_name() for item in room.items]
+        # 3. Objetos en la sala
+        if room.items:
+            # Usamos `collections.Counter` para agrupar objetos idénticos.
+            # Por ejemplo, tres objetos con `get_name()`="una moneda de oro"
+            # se mostrarán como "una moneda de oro (3)".
+            item_names = [item.get_name() for item in room.items]
+            item_counts = Counter(item_names)
+            formatted_items = [f"{name} ({count})" if count > 1 else name for name, count in item_counts.items()]
+            items_str = ", ".join(formatted_items)
+            parts.append(f"\n<b>Ves aquí:</b> {items_str}.")
 
-        # Agrupamos items idénticos para mostrarlos de forma compacta (ej: una moneda de oro (3))
-        item_counts = Counter(item_names)
-        formatted_items = [f"{name} ({count})" if count > 1 else name for name, count in item_counts.items()]
-        items_str = ", ".join(formatted_items)
-        parts.append(f"\n<b>Ves aquí:</b> {items_str}.")
+        # 4. Salidas
+        if room.exits_from:
+            # Ordenamos las salidas alfabéticamente para una visualización consistente.
+            exits_list = sorted([exit_obj.name.capitalize() for exit_obj in room.exits_from])
+            exits_str = ", ".join(exits_list)
+            parts.append(f"\n<b>Salidas:</b> [ {exits_str} ]")
+        else:
+            parts.append("\n<b>Salidas:</b> [ Ninguna ]")
 
-    # 4. Salidas
-    if room.exits_from:
-        exits_list = sorted([exit_obj.name.capitalize() for exit_obj in room.exits_from])
-        exits_str = ", ".join(exits_list)
-        parts.append(f"\n<b>Salidas:</b> [ {exits_str} ]")
-    else:
-        parts.append("\n<b>Salidas:</b> [ Ninguna ]")
+        # Unimos todas las partes y las envolvemos en una etiqueta <pre>
+        # para mantener el formato de monoespaciado y los saltos de línea.
+        description_body = "\n".join(parts)
+        return f"<pre>{description_body}</pre>"
 
-    description_body = "\n".join(parts)
-
-    # Envolvemos el resultado final en etiquetas <pre> para un formato de monoespaciado
-    return f"<pre>{description_body}</pre>"
+    except Exception:
+        logging.exception(f"Error al formatear la descripción de la sala ID {room.id}")
+        return "<pre><b>Error:</b> No se pudo mostrar la descripción de la sala.</pre>"
 
 
 async def show_current_room(message: types.Message):
     """
     Obtiene la sala actual del jugador y le muestra la descripción formateada.
-    Esta función centraliza la lógica de "mirar" el entorno.
+    Esta función centraliza la lógica común de "mirar" el entorno.
     """
-    async with async_session_factory() as session:
-        # Usamos el servicio para obtener la cuenta y sus relaciones precargadas
-        account = await player_service.get_or_create_account(session, message.from_user.id)
+    try:
+        async with async_session_factory() as session:
+            # Usamos el servicio para obtener la cuenta y sus relaciones precargadas.
+            account = await player_service.get_or_create_account(session, message.from_user.id)
 
-        if not account.character or not account.character.room:
-            # Esta es una salvaguarda.
-            await message.answer("Parece que estás perdido en el vacío. Te hemos llevado a un lugar seguro.")
-            return
+            if not account or not account.character or not account.character.room:
+                # Esta es una salvaguarda. No debería ocurrir en un flujo normal.
+                await message.answer("Parece que estás perdido en el vacío. Te hemos llevado a un lugar seguro.")
+                # Futuro: Aquí podríamos teletransportar al jugador a la sala de inicio.
+                return
 
-        room = account.character.room
-        # Usamos nuestro formateador para construir el texto de la sala
-        formatted_room = await format_room(room)
+            room = account.character.room
+            # Usamos nuestro formateador para construir el texto de la sala.
+            formatted_room = await format_room(room)
 
-        # Usamos parse_mode="HTML" para que Telegram entienda las etiquetas <pre> y <b>
-        await message.answer(formatted_room, parse_mode="HTML")
+            await message.answer(formatted_room, parse_mode="HTML")
+
+    except Exception:
+        await message.answer("❌ Ocurrió un error al mostrar tu ubicación actual.")
+        logging.exception(f"Fallo en show_current_room para el usuario {message.from_user.id}")
 # === FIN: src/utils/presenters.py ===
 
 

@@ -3,13 +3,14 @@
 Módulo que define el Modelo de Datos para una Instancia de Objeto (Item).
 
 Este archivo contiene la clase `Item`, que se mapea a la tabla `items`.
-Es fundamental entender que este modelo NO representa un tipo de objeto, sino
-una INSTANCIA única de un objeto en el mundo.
+Representa una INSTANCIA única de un objeto en el mundo.
 
-Este modelo es deliberadamente "ligero". La mayoría de sus propiedades (nombre,
-descripción, scripts, etc.) no se almacenan en la base de datos, sino que se
+Este modelo es deliberadamente "ligero". La mayoría de sus propiedades se
 obtienen en tiempo de ejecución a través de la columna `key`, que lo vincula
-a su prototipo correspondiente en `game_data/item_prototypes.py`.
+a su prototipo en `game_data/item_prototypes.py`.
+
+Un `Item` también puede actuar como un contenedor para otros `Items` a través
+de una relación de auto-referencia.
 """
 
 from sqlalchemy import BigInteger, Column, String, Text, ForeignKey
@@ -27,57 +28,61 @@ class Item(Base):
     # --- Atributos de la Instancia ---
 
     id = Column(BigInteger, primary_key=True)
-
-    # La clave que vincula esta instancia con su prototipo en ITEM_PROTOTYPES.
-    # Por ejemplo: "espada_viviente".
     key = Column(String(50), nullable=False, index=True)
-
-    # Atributos `_override`: Permiten que una instancia específica tenga
-    # un nombre o descripción diferente a la de su prototipo, creando objetos únicos.
-    # Si son `NULL`, se usarán los valores del prototipo.
     name_override = Column(String(100), nullable=True)
     description_override = Column(Text, nullable=True)
 
     # --- Ubicación del Objeto ---
+    # Un objeto solo puede estar en una ubicación a la vez. Por lo tanto,
+    # solo una de las siguientes tres columnas (`room_id`, `character_id`,
+    # `parent_item_id`) debe tener un valor.
 
-    # El ID de la sala donde se encuentra el objeto.
-    # Es `NULL` si el objeto está en el inventario de un personaje.
+    # 1. En el suelo de una sala.
     room_id = Column(BigInteger, ForeignKey('rooms.id'), nullable=True)
 
-    # El ID del personaje que lleva el objeto.
-    # Es `NULL` si el objeto está en el suelo de una sala.
+    # 2. En el inventario de un personaje.
     character_id = Column(BigInteger, ForeignKey('characters.id'), nullable=True)
+
+    # 3. Dentro de otro objeto (contenedor).
+    # Esta es una clave foránea que apunta a la misma tabla `items`.
+    parent_item_id = Column(BigInteger, ForeignKey('items.id'), nullable=True)
 
     # --- Relaciones de SQLAlchemy ---
 
-    # Relación muchos-a-uno con la sala. Permite acceder a `item.room`.
+    # Relación con la sala donde se encuentra el objeto.
     room = relationship("Room", back_populates="items")
 
-    # Relación muchos-a-uno con el personaje. Permite acceder a `item.character`.
+    # Relación con el personaje que lleva el objeto.
     character = relationship("Character", back_populates="items")
+
+    # --- Relaciones de Contenedor (Auto-Referencia) ---
+
+    # Relación para acceder al inventario de este objeto (si es un contenedor).
+    # Es una lista de `Item` que tienen a este objeto como su `parent_item_id`.
+    contained_items = relationship("Item", back_populates="parent_container", cascade="all, delete-orphan")
+
+    # Relación para acceder al contenedor de este objeto (si está dentro de uno).
+    # `remote_side=[id]` es necesario para que SQLAlchemy entienda la dirección
+    # de esta relación de auto-referencia.
+    parent_container = relationship("Item", back_populates="contained_items", remote_side=[id])
+
 
     @property
     def prototype(self) -> dict:
         """
-        Propiedad de conveniencia que devuelve el diccionario del prototipo
-        para este objeto desde `game_data`. Es el puente entre la instancia
-        de la base de datos y su definición de contenido.
+        Devuelve el diccionario del prototipo para este objeto desde `game_data`.
         """
         return ITEM_PROTOTYPES.get(self.key, {})
 
     def get_name(self) -> str:
         """
-        Obtiene el nombre del item.
-        Prioriza el `name_override` si existe; de lo contrario,
-        recurre al nombre definido en el prototipo.
+        Obtiene el nombre del item, priorizando el `override` sobre el prototipo.
         """
         return self.name_override or self.prototype.get("name", "un objeto misterioso")
 
     def get_description(self) -> str:
         """
-        Obtiene la descripción del item.
-        Prioriza el `description_override` si existe; de lo contrario,
-        recurre a la descripción definida en el prototipo.
+        Obtiene la descripción del item, priorizando el `override` sobre el prototipo.
         """
         return self.description_override or self.prototype.get("description", "No tiene nada de especial.")
 

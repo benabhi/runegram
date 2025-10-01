@@ -20,9 +20,9 @@ Para entender el sistema, es crucial diferenciar estos dos conceptos:
 
 Este enfoque ofrece enormes ventajas en escalabilidad y mantenimiento:
 
-1.  **Eficiencia de Datos:** La base de datos no necesita almacenar el nombre, la descripción, los scripts y los tickers de cada una de las 100 espadas del juego. Solo almacena la `key` del prototipo y su ubicación. El resto de la información se lee desde el diccionario de prototipos en memoria, que es mucho más rápido.
+1.  **Eficiencia de Datos:** La base de datos no necesita almacenar el nombre, la descripción, los scripts y los tickers de cada una de las 100 espadas del juego. Solo almacena la `key` del prototipo y su ubicación. El resto de la información se lee desde el diccionario de prototipos en memoria.
 2.  **Facilidad de Creación de Contenido:** Para crear un nuevo tipo de objeto, un diseñador solo necesita añadir una nueva entrada al diccionario `ITEM_PROTOTYPES`. No se requiere ninguna modificación en el código del motor ni en el esquema de la base de datos.
-3.  **Actualizaciones Globales Sencillas:** Si necesitas corregir un error de tipeo en la descripción de la "espada viviente", solo lo cambias en un lugar: el prototipo. Automáticamente, todas las instancias de esa espada en el juego reflejarán el cambio la próxima vez que sean examinadas.
+3.  **Actualizaciones Globales Sencillas:** Si necesitas corregir un error en la descripción de la "espada viviente", solo lo cambias en el prototipo. Automáticamente, todas las instancias de esa espada en el juego reflejarán el cambio.
 
 ## 3. Estructura de los Prototipos
 
@@ -31,35 +31,28 @@ Este enfoque ofrece enormes ventajas en escalabilidad y mantenimiento:
 La clave del diccionario es una `key` única para el tipo de objeto.
 
 ```python
-"espada_viviente": {
-    # (Obligatorio) El nombre que ven los jugadores.
-    "name": "una espada viviente",
+"cofre_roble": {
+    # --- Atributos Básicos ---
+    "name": "un cofre de roble",
+    "keywords": ["cofre", "roble"],
+    "description": "Un pesado cofre de madera con refuerzos de hierro.",
 
-    # (Obligatorio) Palabras clave para interactuar (ej: /mirar espada).
-    "keywords": ["espada", "viviente"],
+    # --- Atributos de Comportamiento (Opcional) ---
+    "scripts": { "on_look": "script_notificar_brillo_magico(color=tenue)" },
+    "tickers": [{ "schedule": "...", "script": "...", "category": "..." }],
 
-    # (Obligatorio) Descripción mostrada con /mirar.
-    "description": "La hoja de acero parece retorcerse...",
+    # --- Atributos de Sistema (Opcional) ---
+    "grants_command_sets": ["secretos_cofre"],
+    "locks": "rol(SUPERADMIN) or tiene_objeto(llave_maestra)",
 
-    # (Opcional) Scripts reactivos a eventos del jugador.
-    "scripts": {
-        "on_look": "script_notificar_brillo_magico(color=rojo)"
-    },
-
-    # (Opcional) Scripts proactivos que se ejecutan periódicamente.
-    "tickers": [{
-        "schedule": "*/2 * * * *",
-        "script": "script_espada_susurra_secreto",
-        "category": "ambient"
-    }],
-
-    # (Opcional) CommandSets que este objeto otorga a su portador.
-    "grants_command_sets": ["magia_oscura"],
-
-    # (Opcional) Restricciones para interactuar con el objeto.
-    "locks": "rol(ADMIN)"
+    # --- Atributos de Contenedor (Opcional) ---
+    "is_container": True,
+    "capacity": 20
 }
 ```
+*   **`locks`**: Para un objeto normal, restringe el comando `/coger`. Para un contenedor, restringe `/meter`, `/sacar` y `/inv`.
+*   **`is_container`**: Si es `True`, el objeto puede contener otros ítems.
+*   **`capacity`**: El número máximo de ítems que puede albergar el contenedor.
 
 ### Prototipos de Salas (`room_prototypes.py`)
 
@@ -67,26 +60,37 @@ La clave del diccionario es una `key` única para la sala, utilizada para las co
 
 ```python
 "plaza_central": {
-    # (Obligatorio) El nombre de la sala.
+    # --- Atributos Básicos ---
     "name": "Plaza Central de Runegard",
-
-    # (Obligatorio) La descripción principal de la sala.
     "description": "Estás en el corazón de la ciudad...",
 
-    # (Opcional) Conexiones a otras salas.
+    # --- Atributos de Conexión (Opcional) ---
     "exits": {
-        "norte": "puerta_del_norte",
-        "este": "calle_mercaderes"
+        "norte": {
+            "to": "puerta_del_norte",
+            "locks": "tiene_objeto(salvoconducto_real)"
+        },
+        "este": "calle_mercaderes" # Sintaxis simple
     },
 
-    # (Opcional) CommandSets que esta sala otorga a quienes estén en ella.
-    "grants_command_sets": ["comercio_ciudad"]
+    # --- Atributos de Sistema (Opcional) ---
+    "grants_command_sets": ["comercio_ciudad"],
+
+    # --- Atributos de Entorno (Opcional) ---
+    "details": {
+        "fuente": {
+            "keywords": ["fuente", "marmol"],
+            "description": "Una magnífica fuente esculpida en mármol blanco..."
+        }
+    }
 }
 ```
+*   **`exits`**: Puede usar una sintaxis simple (`"direccion": "destino"`) para una salida bidireccional sin `lock`, o una sintaxis avanzada (`"direccion": {"to": "destino", "locks": "..."}`) para añadir un `lock` a la salida de ida.
+*   **`details`**: Permite definir elementos de la descripción que se pueden `mirar` con `/mirar [keyword]` sin ser objetos físicos.
 
 ## 4. Conexión en el Código (Modelos)
 
-Los modelos de SQLAlchemy (`Item` y `Room`) actúan como el puente entre la **Instancia** (base de datos) y el **Prototipo** (código).
+Los modelos de SQLAlchemy (`Item` y `Room`) actúan como el puente entre la **Instancia** (base de datos) y el **Prototipo** (código) a través de una propiedad `@property`.
 
 ```python
 # En src/models/item.py

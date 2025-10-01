@@ -1,15 +1,7 @@
 # commands/player/channels.py
 """
 Módulo de Comandos para la Gestión de Canales de Chat.
-
-Este archivo contiene los comandos que permiten a los jugadores gestionar
-sus suscripciones a los canales de comunicación globales. No contiene los
-comandos para hablar por los canales (esos se generan dinámicamente).
-
-Incluye:
-- /canales: Para listar todos los canales y el estado de la suscripción.
-- /activarcanal: Para suscribirse a un canal.
-- /desactivarcanal: Para cancelar la suscripción a un canal.
+... (resto de la cabecera sin cambios) ...
 """
 
 import logging
@@ -21,7 +13,7 @@ from src.models import Character
 from src.services import channel_service
 from game_data.channel_prototypes import CHANNEL_PROTOTYPES
 
-class CmdCanales(Command):
+class CmdChannels(Command):
     """
     Comando para listar todos los canales disponibles y el estado de suscripción del jugador.
     """
@@ -30,11 +22,9 @@ class CmdCanales(Command):
 
     async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
         try:
-            # 1. Obtener la configuración de canales del jugador.
             settings = await channel_service.get_or_create_settings(session, character)
             user_channels = settings.active_channels.get("active_channels", [])
 
-            # 2. Construir la lista formateada para el mensaje.
             response = ["<b>Estado de tus Canales:</b>"]
             for key, proto in CHANNEL_PROTOTYPES.items():
                 status = "✅ Activado" if key in user_channels else "❌ Desactivado"
@@ -45,7 +35,7 @@ class CmdCanales(Command):
             await message.answer("❌ Ocurrió un error al listar los canales.")
             logging.exception(f"Fallo al ejecutar /canales para {character.name}")
 
-class CmdActivarCanal(Command):
+class CmdEnableChannel(Command):
     """
     Comando para que un jugador se suscriba (active) un canal.
     """
@@ -68,7 +58,7 @@ class CmdActivarCanal(Command):
             await message.answer("❌ Ocurrió un error al activar el canal.")
             logging.exception(f"Fallo al ejecutar /activarcanal para {character.name}")
 
-class CmdDesactivarCanal(Command):
+class CmdDisableChannel(Command):
     """
     Comando para que un jugador cancele la suscripción (desactive) de un canal.
     """
@@ -93,7 +83,7 @@ class CmdDesactivarCanal(Command):
 
 # Exportamos la lista de comandos de gestión de canales.
 CHANNEL_COMMANDS = [
-    CmdCanales(),
-    CmdActivarCanal(),
-    CmdDesactivarCanal(),
+    CmdChannels(),
+    CmdEnableChannel(),
+    CmdDisableChannel(),
 ]

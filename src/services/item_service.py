@@ -8,7 +8,7 @@ modelo `Item`.
 
 Responsabilidades:
 - Crear nuevas instancias de objetos a partir de prototipos (`spawn`).
-- Mover objetos entre salas y los inventarios de los personajes.
+- Mover objetos entre salas, inventarios de personajes y contenedores.
 """
 
 import logging
@@ -24,47 +24,31 @@ async def spawn_item_in_room(session: AsyncSession, room_id: int, item_key: str)
     """
     Crea una instancia de un prototipo de objeto, la coloca en una sala
     y registra sus tickers.
-
-    Args:
-        session (AsyncSession): La sesión de base de datos activa.
-        room_id (int): El ID de la sala donde se creará el objeto.
-        item_key (str): La clave del prototipo del objeto a crear.
-
-    Returns:
-        Item: La nueva instancia del objeto `Item` creada.
-
-    Raises:
-        ValueError: Si la `item_key` no corresponde a ningún prototipo definido.
     """
     if item_key not in ITEM_PROTOTYPES:
         raise ValueError(f"No existe un prototipo de objeto con la clave '{item_key}'")
 
     try:
-        # 1. Crear la instancia del modelo Item, vinculándola a la sala.
         new_item = Item(room_id=room_id, key=item_key)
         session.add(new_item)
         await session.commit()
         await session.refresh(new_item)
-
-        # 2. Notificar al ticker_service para que programe los tickers de este nuevo objeto.
         await ticker_service.schedule_tickers_for_entity(new_item)
-
         return new_item
     except Exception:
-        logging.exception(f"Error inesperado al intentar generar el objeto con clave '{item_key}' en la sala {room_id}")
-        # Relanzamos la excepción para que la capa superior (el comando) la maneje.
+        logging.exception(f"Error inesperado al generar el objeto con clave '{item_key}'")
         raise
 
 
 async def move_item_to_character(session: AsyncSession, item_id: int, character_id: int):
     """
-    Mueve un objeto desde una sala (o de ningún sitio) al inventario de un personaje.
-    Actualiza el `room_id` a NULL y establece el `character_id`.
+    Mueve un objeto al inventario de un personaje, quitándolo de cualquier
+    otra ubicación (sala o contenedor).
     """
     query = (
         update(Item)
         .where(Item.id == item_id)
-        .values(room_id=None, character_id=character_id)
+        .values(room_id=None, character_id=character_id, parent_item_id=None)
     )
     await session.execute(query)
     await session.commit()
@@ -72,13 +56,27 @@ async def move_item_to_character(session: AsyncSession, item_id: int, character_
 
 async def move_item_to_room(session: AsyncSession, item_id: int, room_id: int):
     """
-    Mueve un objeto desde el inventario de un personaje al suelo de una sala.
-    Actualiza el `character_id` a NULL y establece el `room_id`.
+    Mueve un objeto al suelo de una sala, quitándolo de cualquier
+    otra ubicación (inventario o contenedor).
     """
     query = (
         update(Item)
         .where(Item.id == item_id)
-        .values(room_id=room_id, character_id=None)
+        .values(room_id=room_id, character_id=None, parent_item_id=None)
+    )
+    await session.execute(query)
+    await session.commit()
+
+
+async def move_item_to_container(session: AsyncSession, item_id: int, container_id: int):
+    """
+    Mueve un objeto al interior de otro objeto (contenedor), quitándolo de
+    cualquier otra ubicación (sala o inventario).
+    """
+    query = (
+        update(Item)
+        .where(Item.id == item_id)
+        .values(room_id=None, character_id=None, parent_item_id=container_id)
     )
     await session.execute(query)
     await session.commit()

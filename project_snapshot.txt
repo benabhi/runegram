@@ -188,80 +188,50 @@ docker system prune -a --volumes
 
 ![Python](https://img.shields.io/badge/python-3.11-blue.svg)![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)![PostgreSQL](https://img.shields.io/badge/postgresql-%23316192.svg?style=for-the-badge&logo=postgresql&logoColor=white)![Redis](https://img.shields.io/badge/redis-%23DD0031.svg?style=for-the-badge&logo=redis&logoColor=white)
 
-Runegram es un proyecto para crear un juego de rol textual multijugador (MUD - Multi-User Dungeon) que se juega a través de la interacción con un bot de Telegram. Este repositorio contiene el motor de un juego funcional, con una arquitectura escalable lista para la expansión masiva de contenido.
+**Runegram** es un motor de juego de rol textual multijugador (MUD - Multi-User Dungeon) diseñado para ser jugado a través de la interacción con un bot de Telegram. Este repositorio contiene el código fuente de un motor de juego funcional, construido con una arquitectura moderna, escalable y centrada en la separación entre la lógica del motor y el contenido del juego.
+
+Este documento es una guía de inicio rápido. Para una documentación exhaustiva sobre la arquitectura, los sistemas del motor y las guías de creación de contenido, por favor, consulta la **[Documentación Completa](./docs/)**.
+
+---
 
 ## Filosofía de Diseño
 
 ### Motor vs. Contenido
 La arquitectura del proyecto se divide en dos conceptos clave para máxima escalabilidad y facilidad de mantenimiento:
 
-1.  **El Motor del Juego (`src/`):** Contiene el **código fuente** de la aplicación. Es la maquinaria genérica que hace que el juego funcione (conexión a la base de datos, comunicación con Telegram, ejecución de lógica). No sabe qué es una "espada", solo sabe cómo manejar un "Ítem".
-2.  **El Contenido del Juego (`game_data/`, `commands/`):** Contiene los **datos y definiciones** que dan vida al mundo. Aquí se define qué es una "espada", qué hace el comando "atacar", o qué monstruos existen. Está diseñado para que los diseñadores de juego puedan añadir contenido sin tocar el motor principal.
+1.  **El Motor del Juego (`src/`):** Contiene el **código fuente** en **inglés**. Es la maquinaria genérica que hace que el juego funcione. No sabe qué es una "espada", solo sabe cómo manejar un `Item`.
+2.  **El Contenido del Juego (`game_data/`, `commands/`):** Contiene los **datos y definiciones** en **español** (o el idioma del juego). Aquí se define qué es una "espada", qué hace el comando `/atacar`, etc.
 
 ### Filosofía de Comandos
 Los comandos en Runegram buscan ser simples, descriptivos e intuitivos. Se prefiere la claridad de tener más comandos dedicados (ej: `/activarcanal`, `/desactivarcanal`) a la complejidad de un único comando con múltiples subcomandos. El formato preferido es `/<acción> [argumentos]`.
 
-Además, el motor del juego genera dinámicamente comandos de comunicación a partir del contenido definido en `game_data`. Si un diseñador crea un nuevo canal de chat llamado "Comercio" (`comercio`), el comando `/comercio [mensaje]` estará disponible automáticamente para los jugadores, asegurando que el contenido y la interfaz estén siempre sincronizados.
-
-## Sistemas Clave Implementados
-
-### 1. Carga del Mundo Dirigida por Datos
-El mundo estático del juego se define enteramente en `game_data/room_prototypes.py`. Al iniciar el bot, un `world_loader_service` lee este "mapa maestro" y sincroniza la base de datos, garantizando un mundo consistente en cada reinicio.
-
-### 2. Sistema de Comandos Dinámicos y Contextuales
-La lista de comandos disponibles para un jugador cambia en tiempo real según su contexto (rol, inventario, ubicación). Un `command_service` centralizado construye la lista de comandos activos y la sincroniza con la interfaz del cliente de Telegram en cada cambio de contexto.
-
-### 3. Sistema de Permisos (Locks) Extensible
-Inspirado en frameworks de MUDs como Evennia, el sistema de `locks` permite un control de acceso granular.
-*   **Sintaxis Potente:** Los `locks` son strings que soportan lógica booleana (`rol(ADMIN) or tiene_objeto(llave)`).
-*   **Parser Seguro:** Un `permission_service` utiliza el módulo `ast` de Python para parsear y evaluar estos `locks` de forma segura.
-*   **Extensible:** Añadir nuevos tipos de chequeos (ej: `habilidad(magia)>50`) es tan simple como registrar una nueva función de `lock`.
-
-### 4. Sistema Dual de Scripts: Eventos y Tickers
-El motor permite que el contenido ejecute lógica a través de dos sistemas:
-*   **Scripts Reactivos (Eventos):** Disparados por acciones del jugador (ej: `"on_look": "..."`).
-*   **Scripts Proactivos (Tickers):** Se ejecutan de forma programada (`APScheduler`), haciendo que el mundo se sienta vivo (ej: un objeto que susurra cada 5 minutos). Los tickers de categoría `"ambient"` se pausan para jugadores inactivos.
-
-### 5. Sistema de Canales y Presencia
-Para facilitar la comunicación y la inmersión:
-*   **Seguimiento de Actividad (`online_service.py`):** Utiliza Redis para rastrear si un jugador está "online" (activo en los últimos 5 minutos) y notifica los cambios de estado a AFK.
-*   **Canales (`channel_service.py`):** Permiten la comunicación global. Los comandos de chat (`/novato`, etc.) se generan dinámicamente a partir de `game_data/channel_prototypes.py`.
-
-## Estructura del Proyecto
-*(La estructura del proyecto se mantiene igual, no necesita cambios)*
-
-## Puesta en Marcha
-*(Las instrucciones de puesta en marcha se mantienen igual, no necesitan cambios)*
+Además, el motor del juego genera dinámicamente comandos de comunicación a partir del contenido definido en `game_data`. Si un diseñador crea un nuevo canal de chat llamado "Comercio" (`comercio`), el comando `/comercio [mensaje]` estará disponible automáticamente para los jugadores.
 
 ---
 
-## Visión a Futuro y Tareas Pendientes (TODO)
-*(Esta sección se actualiza para reflejar el progreso)*
+## Puesta en Marcha Rápida
 
-### 🚀 **Próximas Grandes Funcionalidades**
+**Requisitos:**
+*   [Docker](https://www.docker.com/products/docker-desktop/) y Docker Compose.
 
-*   #### **Sistema de Combate y Habilidades**
-    *   **Visión:** Crear un sistema de combate y progresión de habilidades basado en una mecánica de d100.
-    *   **Tareas:**
-        1.  **Modelos de Datos:** Crear `Skill`, `CharacterSkill` y añadir atributos de combate (Salud, Maná) a `Character`.
-        2.  **Mecánica d100:** Implementar la lógica de "aprender haciendo".
-        3.  **PNJs y Spawners:** Crear `npc_prototypes.py`, un modelo `NPC` y un `npc_service` para gestionar su IA y respawns.
-        4.  **Comandos de Combate:** Crear el `CommandSet` de combate (`/atacar`, `/huir`, etc.).
+**Pasos:**
 
-*   #### **Expandir el Sistema de Locks y Permisos**
-    *   **Visión:** Utilizar el nuevo motor de `locks` para crear interacciones más complejas.
-    *   **Tareas:**
-        1.  **Añadir Nuevas Funciones de Lock:** Implementar y registrar funciones como `habilidad(nombre)>valor`, `clase(nombre)`, etc.
-        2.  **Aplicar a Contenido:** Añadir `locks` a prototipos de objetos (ej: un arma que requiere una habilidad) y salidas (ej: una puerta que requiere una llave).
-        3.  **Comandos de Admin:** Crear comandos `/lock` y `/unlock` para que los administradores puedan modificar los `locks` de las entidades en vivo.
+1.  **Clona el Repositorio** y entra en el directorio.
+2.  **Configura el Entorno:** Crea un archivo `.env` en la raíz del proyecto y rellena las variables, especialmente `BOT_TOKEN` y `SUPERADMIN_TELEGRAM_ID`.
+3.  **Ejecuta el Script de Reinicio:**
+    ```bash
+    # En Windows (CMD o PowerShell)
+    scripts\full_reset.bat
+    ```
+4.  **¡A Jugar!** Abre Telegram y envía `/start` a tu bot.
 
-### ✨ **Mejoras del Motor y Calidad de Vida**
+---
 
-*   **Bandeja de Entrada para Notificaciones:** Implementar un sistema que guarde los tickers de categoría `important` o `quest` para jugadores inactivos y se los presente al volver a conectarse.
-*   **Sistema de Contenedores:** Expandir los ítems para que puedan ser contenedores (mochilas, cofres) con su propio inventario, capacidad y `locks`.
-*   **Mejorar Comando `/decir`:** Hacer que el comando envíe mensajes a todos los jugadores *online* en la misma sala, utilizando el `broadcaster_service`.
-*   **Sistema de Clases y Razas (FSM):** Usar una Máquina de Estados Finitos (FSM) de Aiogram para guiar la creación de personaje, permitiendo elegir clase y raza, lo que establecerá sus `CommandSets` base y atributos iniciales.
+## Documentación Detallada
 
+Toda la documentación exhaustiva sobre la arquitectura, los sistemas del motor, las guías para crear contenido y la visión a futuro del proyecto se encuentra en la carpeta `docs/`.
+
+**[➡️ Acceder a la Documentación Completa](./docs/01_GETTING_STARTED.md)**
 # === FIN: README.md ===
 
 
@@ -942,6 +912,51 @@ def downgrade() -> None:
 # === FIN: alembic/versions/57531370cbd7_refactorizar_items_a_un_sistema_de_.py ===
 
 
+# === INICIO: alembic/versions/5c4d38b0f409_añadir_capacidad_de_contenedor_a_los_.py ===
+# alembic/script.py.mako
+
+"""Añadir capacidad de contenedor a los items
+
+Revision ID: 5c4d38b0f409
+Revises: d1b407d64b9b
+Create Date: 2025-10-01 14:00:11.616518+00:00
+
+"""
+from alembic import op
+import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
+
+# revision identifiers, used by Alembic.
+revision = '5c4d38b0f409'
+down_revision = 'd1b407d64b9b'
+branch_labels = None
+depends_on = None
+
+
+def upgrade() -> None:
+    # ### commands auto generated by Alembic - please adjust! ###
+    op.drop_index('ix_apscheduler_jobs_next_run_time', table_name='apscheduler_jobs')
+    op.drop_table('apscheduler_jobs')
+    op.add_column('items', sa.Column('parent_item_id', sa.BigInteger(), nullable=True))
+    op.create_foreign_key(None, 'items', 'items', ['parent_item_id'], ['id'])
+    # ### end Alembic commands ###
+
+
+def downgrade() -> None:
+    # ### commands auto generated by Alembic - please adjust! ###
+    op.drop_constraint(None, 'items', type_='foreignkey')
+    op.drop_column('items', 'parent_item_id')
+    op.create_table('apscheduler_jobs',
+    sa.Column('id', sa.VARCHAR(length=191), autoincrement=False, nullable=False),
+    sa.Column('next_run_time', sa.DOUBLE_PRECISION(precision=53), autoincrement=False, nullable=True),
+    sa.Column('job_state', postgresql.BYTEA(), autoincrement=False, nullable=False),
+    sa.PrimaryKeyConstraint('id', name='apscheduler_jobs_pkey')
+    )
+    op.create_index('ix_apscheduler_jobs_next_run_time', 'apscheduler_jobs', ['next_run_time'], unique=False)
+    # ### end Alembic commands ###
+# === FIN: alembic/versions/5c4d38b0f409_añadir_capacidad_de_contenedor_a_los_.py ===
+
+
 # === INICIO: alembic/versions/859294539439_refactorizar_salidas_a_su_propia_tabla.py ===
 # alembic/script.py.mako
 
@@ -1140,6 +1155,47 @@ def downgrade() -> None:
     op.drop_column('rooms', 'key')
     # ### end Alembic commands ###
 # === FIN: alembic/versions/cdb486941d55_añadir_key_a_las_salas_para_prototipos.py ===
+
+
+# === INICIO: alembic/versions/d1b407d64b9b_añadir_relacion_de_personajes_a_salas.py ===
+# alembic/script.py.mako
+
+"""Añadir relacion de personajes a salas
+
+Revision ID: d1b407d64b9b
+Revises: abe6da21ae81
+Create Date: 2025-10-01 13:51:32.906868+00:00
+
+"""
+from alembic import op
+import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
+
+# revision identifiers, used by Alembic.
+revision = 'd1b407d64b9b'
+down_revision = 'abe6da21ae81'
+branch_labels = None
+depends_on = None
+
+
+def upgrade() -> None:
+    # ### commands auto generated by Alembic - please adjust! ###
+    op.drop_index('ix_apscheduler_jobs_next_run_time', table_name='apscheduler_jobs')
+    op.drop_table('apscheduler_jobs')
+    # ### end Alembic commands ###
+
+
+def downgrade() -> None:
+    # ### commands auto generated by Alembic - please adjust! ###
+    op.create_table('apscheduler_jobs',
+    sa.Column('id', sa.VARCHAR(length=191), autoincrement=False, nullable=False),
+    sa.Column('next_run_time', sa.DOUBLE_PRECISION(precision=53), autoincrement=False, nullable=True),
+    sa.Column('job_state', postgresql.BYTEA(), autoincrement=False, nullable=False),
+    sa.PrimaryKeyConstraint('id', name='apscheduler_jobs_pkey')
+    )
+    op.create_index('ix_apscheduler_jobs_next_run_time', 'apscheduler_jobs', ['next_run_time'], unique=False)
+    # ### end Alembic commands ###
+# === FIN: alembic/versions/d1b407d64b9b_añadir_relacion_de_personajes_a_salas.py ===
 
 
 # === INICIO: alembic/versions/db2dac1704aa_crear_tabla_para_apscheduler_jobs.py ===
@@ -1810,15 +1866,7 @@ from . import settings
 # commands/player/channels.py
 """
 Módulo de Comandos para la Gestión de Canales de Chat.
-
-Este archivo contiene los comandos que permiten a los jugadores gestionar
-sus suscripciones a los canales de comunicación globales. No contiene los
-comandos para hablar por los canales (esos se generan dinámicamente).
-
-Incluye:
-- /canales: Para listar todos los canales y el estado de la suscripción.
-- /activarcanal: Para suscribirse a un canal.
-- /desactivarcanal: Para cancelar la suscripción a un canal.
+... (resto de la cabecera sin cambios) ...
 """
 
 import logging
@@ -1830,7 +1878,7 @@ from src.models import Character
 from src.services import channel_service
 from game_data.channel_prototypes import CHANNEL_PROTOTYPES
 
-class CmdCanales(Command):
+class CmdChannels(Command):
     """
     Comando para listar todos los canales disponibles y el estado de suscripción del jugador.
     """
@@ -1839,11 +1887,9 @@ class CmdCanales(Command):
 
     async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
         try:
-            # 1. Obtener la configuración de canales del jugador.
             settings = await channel_service.get_or_create_settings(session, character)
             user_channels = settings.active_channels.get("active_channels", [])
 
-            # 2. Construir la lista formateada para el mensaje.
             response = ["<b>Estado de tus Canales:</b>"]
             for key, proto in CHANNEL_PROTOTYPES.items():
                 status = "✅ Activado" if key in user_channels else "❌ Desactivado"
@@ -1854,7 +1900,7 @@ class CmdCanales(Command):
             await message.answer("❌ Ocurrió un error al listar los canales.")
             logging.exception(f"Fallo al ejecutar /canales para {character.name}")
 
-class CmdActivarCanal(Command):
+class CmdEnableChannel(Command):
     """
     Comando para que un jugador se suscriba (active) un canal.
     """
@@ -1877,7 +1923,7 @@ class CmdActivarCanal(Command):
             await message.answer("❌ Ocurrió un error al activar el canal.")
             logging.exception(f"Fallo al ejecutar /activarcanal para {character.name}")
 
-class CmdDesactivarCanal(Command):
+class CmdDisableChannel(Command):
     """
     Comando para que un jugador cancele la suscripción (desactive) de un canal.
     """
@@ -1902,9 +1948,9 @@ class CmdDesactivarCanal(Command):
 
 # Exportamos la lista de comandos de gestión de canales.
 CHANNEL_COMMANDS = [
-    CmdCanales(),
-    CmdActivarCanal(),
-    CmdDesactivarCanal(),
+    CmdChannels(),
+    CmdEnableChannel(),
+    CmdDisableChannel(),
 ]
 # === FIN: commands/player/channels.py ===
 
@@ -2085,73 +2131,76 @@ Estos comandos están disponibles para todos los jugadores en todo momento.
 
 import logging
 from aiogram import types
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from collections import Counter
 
 from commands.command import Command
-from src.models.character import Character
+from src.models import Character
 from src.utils.presenters import show_current_room
-from src.services import script_service, online_service
+from src.services import script_service, online_service, permission_service
+
+# Re-importamos `find_item_in_list` aquí ya que CmdInventory lo necesita.
+from .interaction import find_item_in_list
 
 class CmdLook(Command):
     """
-    Comando para observar el entorno actual (la sala) o un objeto o
-    personaje específico dentro de ella.
+    Comando para observar el entorno, objetos, personajes o detalles.
     """
     names = ["mirar", "m", "l"]
     lock = ""
-    description = "Observa tu entorno o un objeto/personaje específico."
+    description = "Observa tu entorno o un objeto/personaje/detalle específico."
 
     async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
         try:
-            # Si no se proporcionan argumentos, el jugador mira la sala.
             if not args:
                 await show_current_room(message)
                 return
 
-            target_name = " ".join(args).lower()
-            found_target = None
+            target_string = " ".join(args).lower()
 
-            # 1. Buscar en los objetos de la sala.
-            if character.room.items:
-                for item in character.room.items:
-                    if target_name in item.get_keywords() or target_name in item.get_name().lower():
-                        found_target = item
-                        break
+            # 1. Buscar en los detalles de la sala.
+            room_details = character.room.prototype.get("details", {})
+            for detail_key, detail_data in room_details.items():
+                if target_string in detail_data.get("keywords", []):
+                    await message.answer(f"<pre>{detail_data['description']}</pre>", parse_mode="HTML")
+                    return
 
-            # 2. Si no se encontró, buscar en el inventario del personaje.
-            if not found_target and character.items:
-                for item in character.items:
-                    if target_name in item.get_keywords() or target_name in item.get_name().lower():
-                        found_target = item
-                        break
+            # 2. Buscar en los objetos de la sala.
+            for item in character.room.items:
+                if target_string in item.get_keywords() or target_string == item.get_name().lower():
+                    await message.answer(f"<pre>{item.get_description()}</pre>", parse_mode="HTML")
+                    if "on_look" in item.prototype.get("scripts", {}):
+                        await script_service.execute_script(
+                            script_string=item.prototype["scripts"]["on_look"],
+                            session=session, character=character, target=item
+                        )
+                    return
 
-            # Futuro: 3. Buscar otros personajes en la sala.
-            # Futuro: 4. Buscar NPCs en la sala.
+            # 3. Buscar en el inventario del personaje.
+            for item in character.items:
+                if target_string in item.get_keywords() or target_string == item.get_name().lower():
+                    await message.answer(f"<pre>{item.get_description()}</pre>", parse_mode="HTML")
+                    if "on_look" in item.prototype.get("scripts", {}):
+                        await script_service.execute_script(
+                            script_string=item.prototype["scripts"]["on_look"],
+                            session=session, character=character, target=item
+                        )
+                    return
 
-            if not found_target:
-                await message.answer("No ves eso por aquí.")
-                return
+            # 4. Buscar otros personajes en la sala.
+            for other_char in character.room.characters:
+                if other_char.id != character.id and target_string == other_char.name.lower():
+                    await message.answer(f"<pre>{other_char.get_description()}</pre>", parse_mode="HTML")
+                    return
 
-            # Mostramos la descripción del objeto encontrado.
-            await message.answer(f"<pre>{found_target.get_description()}</pre>", parse_mode="HTML")
+            await message.answer("No ves eso por aquí.")
 
-            # Finalmente, disparamos el evento on_look si el objeto tiene un script asociado.
-            if "on_look" in found_target.prototype.get("scripts", {}):
-                await script_service.execute_script(
-                    script_string=found_target.prototype["scripts"]["on_look"],
-                    session=session,
-                    character=character,
-                    target=found_target
-                )
         except Exception:
             await message.answer("❌ Ocurrió un error al intentar mirar.")
             logging.exception(f"Fallo al ejecutar /mirar para {character.name}")
 
 class CmdSay(Command):
-    """
-    Comando para que el personaje hable a otros en la misma sala.
-    """
+    """Comando para que el personaje hable a otros en la misma sala."""
     names = ["decir", "'"]
     lock = ""
     description = "Habla con las personas que están en tu misma sala."
@@ -2161,37 +2210,67 @@ class CmdSay(Command):
             await message.answer("¿Qué quieres decir?")
             return
 
-        # Futuro: Este mensaje debería ser transmitido a otros jugadores en la sala.
         say_text = " ".join(args)
+        # Futuro: Usar broadcaster_service para notificar a la sala.
         await message.answer(f"Dices: {say_text}")
 
 class CmdInventory(Command):
-    """
-    Comando para mostrar al jugador los objetos que lleva en su inventario.
-    """
+    """Comando para mostrar el inventario del jugador o el de un contenedor."""
     names = ["inventario", "inv", "i"]
-    lock = ""
-    description = "Muestra los objetos que llevas en tu inventario."
+    description = "Muestra tu inventario o el de un contenedor. Uso: /inv [contenedor]"
 
     async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
         try:
-            inventory = character.items
+            # CASO 1: Mirar el inventario propio.
+            if not args:
+                inventory = character.items
+                if not inventory:
+                    response = "No llevas nada."
+                else:
+                    items_list = [f" - {item.get_name()}" for item in inventory]
+                    items_str = "\n".join(items_list)
+                    response = f"<b>Llevas lo siguiente:</b>\n{items_str}"
+                await message.answer(f"<pre>{response}</pre>", parse_mode="HTML")
+                return
+
+            # CASO 2: Mirar el inventario de un contenedor.
+            container_name = " ".join(args).lower()
+            container = find_item_in_list(container_name, character.items) or \
+                        find_item_in_list(container_name, character.room.items)
+
+            if not container:
+                await message.answer(f"No ves ningún '{container_name}' por aquí.")
+                return
+            if not container.prototype.get("is_container"):
+                await message.answer(f"{container.get_name().capitalize()} no es un contenedor.")
+                return
+
+            lock_string = container.prototype.get("locks", "")
+            can_pass, _ = await permission_service.can_execute(character, lock_string)
+            if not can_pass:
+                await message.answer(f"No puedes ver el contenido de {container.get_name()}.")
+                return
+
+            await session.refresh(container, attribute_names=['contained_items'])
+            inventory = container.contained_items
             if not inventory:
-                response = "No llevas nada."
+                response = f"{container.get_name().capitalize()} está vacío."
             else:
-                items_list = [f" - {item.get_name()}" for item in inventory]
-                items_str = "\n".join(items_list)
-                response = f"<b>Llevas lo siguiente:</b>\n{items_str}"
+                item_names = [item.get_name() for item in inventory]
+                item_counts = Counter(item_names)
+                formatted_items = [f" - {name}" + (f" ({count})" if count > 1 else "") for name, count in item_counts.items()]
+                items_str = "\n".join(formatted_items)
+                response = f"<b>En {container.get_name()} ves:</b>\n{items_str}"
 
             await message.answer(f"<pre>{response}</pre>", parse_mode="HTML")
+
         except Exception:
-            await message.answer("❌ Ocurrió un error al mostrar tu inventario.")
+            await message.answer("❌ Ocurrió un error al mostrar el inventario.")
             logging.exception(f"Fallo al ejecutar /inventario para {character.name}")
 
+
 class CmdHelp(Command):
-    """
-    Comando para mostrar un mensaje de ayuda básico con los comandos principales.
-    """
+    """Comando para mostrar un mensaje de ayuda básico."""
     names = ["ayuda", "help"]
     lock = ""
     description = "Muestra una lista con los comandos básicos del juego."
@@ -2204,7 +2283,7 @@ class CmdHelp(Command):
             "/inventario - Muestra los objetos que llevas.\n"
             "/decir [mensaje] - Hablas a la gente en tu misma sala.\n"
             "/coger [objeto] - Recoges un objeto del suelo.\n"
-            "/dejar [objeto] - Dejas un objeto que llevas.\n"
+            "/dejar [objeto] - Dejas un objeto en el suelo.\n"
             "/quien - Muestra quién está conectado.\n"
             "/canales - Gestiona tus suscripciones a canales.\n\n"
             "Para moverte, usa /norte, /sur, etc."
@@ -2212,10 +2291,7 @@ class CmdHelp(Command):
         await message.answer(f"<pre>{help_text}</pre>", parse_mode="HTML")
 
 class CmdWho(Command):
-    """
-    Comando social que muestra una lista de todos los personajes que
-    están actualmente conectados al juego.
-    """
+    """Comando social que muestra una lista de personajes conectados."""
     names = ["quien", "who"]
     lock = ""
     description = "Muestra una lista de los jugadores conectados."
@@ -2224,14 +2300,11 @@ class CmdWho(Command):
         try:
             online_characters = await online_service.get_online_characters(session)
 
-            # Si la lista está vacía o solo contiene al jugador actual, se muestra
-            # un mensaje indicando que está solo.
             if not online_characters or (len(online_characters) == 1 and online_characters[0].id == character.id):
                 await message.answer("Eres la única alma aventurera en este mundo ahora mismo.")
                 return
 
             response_lines = [f"<b>Hay {len(online_characters)} aventureros en Runegram:</b>"]
-            # Ordenamos la lista alfabéticamente por nombre para una visualización clara.
             for char in sorted(online_characters, key=lambda c: c.name):
                 response_lines.append(f"- {char.name}")
 
@@ -2241,6 +2314,21 @@ class CmdWho(Command):
             await message.answer("❌ Ocurrió un error al obtener la lista de jugadores.")
             logging.exception(f"Fallo al ejecutar /quien para {character.name}")
 
+class CmdPray(Command):
+    """Comando que permite al jugador rezar a los dioses."""
+    names = ["orar", "rezar"]
+    description = "Rezas a los dioses en busca de inspiración."
+    lock = ""
+
+    async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
+        try:
+            response_text = "Bajas la cabeza y murmuras una plegaria. Sientes una cálida sensación de esperanza."
+            await message.answer(response_text)
+        except Exception:
+            await message.answer("❌ Ocurrió un error al intentar procesar tu plegaria.")
+            logging.exception(f"Fallo al ejecutar /orar para {character.name}")
+
+
 # Exportamos la lista de comandos de este módulo.
 GENERAL_COMMANDS = [
     CmdLook(),
@@ -2248,6 +2336,7 @@ GENERAL_COMMANDS = [
     CmdInventory(),
     CmdHelp(),
     CmdWho(),
+    CmdPray(),
 ]
 # === FIN: commands/player/general.py ===
 
@@ -2258,67 +2347,79 @@ GENERAL_COMMANDS = [
 Módulo de Comandos de Interacción con Objetos.
 
 Este archivo contiene los comandos que permiten al jugador manipular directamente
-los objetos (`Items`) en el mundo del juego.
-
-Incluye acciones fundamentales como coger objetos del entorno y dejar
-objetos del inventario.
+los objetos (`Items`) en el mundo del juego, incluyendo la interacción con
+objetos que funcionan como contenedores.
 """
 
 import logging
+import re
 from aiogram import types
 from sqlalchemy.ext.asyncio import AsyncSession
+from collections import Counter
 
 from commands.command import Command
 from src.models.character import Character
 from src.services import item_service, command_service, player_service, permission_service
 
+# --- Funciones de Ayuda para Búsqueda ---
+
+def find_item_in_list(item_name: str, item_list: list):
+    """Busca un objeto en una lista por su nombre o keywords."""
+    for item in item_list:
+        if item_name in item.get_keywords() or item_name == item.get_name().lower():
+            return item
+    return None
+
+def parse_interaction_args(args: list[str]) -> tuple[str | None, str | None]:
+    """
+    Parsea argumentos complejos como "espada en mochila".
+    Devuelve (nombre_objeto, nombre_contenedor).
+    """
+    arg_string = " ".join(args).lower()
+    # Buscamos patrones como "en", "dentro de", "de", "desde"
+    match = re.search(r'\s(en|dentro de|de|desde)\s', arg_string)
+    if match:
+        # Usamos `re.split` para manejar el separador de múltiples palabras
+        parts = re.split(r'\s(?:en|dentro de|de|desde)\s', arg_string, 1)
+        return parts[0].strip(), parts[1].strip()
+    return arg_string, None
+
+# --- Comandos ---
 
 class CmdGet(Command):
-    """
-    Comando para que un jugador recoja un objeto del suelo en su sala actual
-    y lo añada a su inventario.
-    """
+    """Comando para coger un objeto del suelo."""
     names = ["coger", "g"]
+    description = "Recoge un objeto del suelo. Uso: /coger <objeto>"
     lock = ""
-    description = "Recoge un objeto del suelo."
 
-    async def execute(
-        self,
-        character: Character,
-        session: AsyncSession,
-        message: types.Message,
-        args: list[str]
-    ):
+    async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
         try:
             if not args:
                 await message.answer("¿Qué quieres coger?")
                 return
 
-            item_name_to_get = " ".join(args).lower()
-            item_to_get = None
+            item_name_to_get, container_name = parse_interaction_args(args)
 
-            for item in character.room.items:
-                if item_name_to_get in item.get_name().lower():
-                    item_to_get = item
-                    break
+            # --- Lógica para Coger de un Contenedor ---
+            if container_name:
+                await CmdSacar().execute(character, session, message, args)
+                return
+
+            # --- Lógica para Coger del Suelo ---
+            item_to_get = find_item_in_list(item_name_to_get, character.room.items)
 
             if not item_to_get:
                 await message.answer("No ves eso por aquí.")
                 return
 
-            # Comprobamos si el prototipo del objeto tiene una definición de lock.
             lock_string = item_to_get.prototype.get("locks", "")
             can_pass, error_message = await permission_service.can_execute(character, lock_string)
             if not can_pass:
-                # Si el objeto está bloqueado, mostramos un mensaje y detenemos la acción.
-                # Futuro: El mensaje de error podría venir del prototipo del objeto.
                 await message.answer(error_message or "No puedes coger eso.")
                 return
 
-            # Llamamos al servicio para actualizar la ubicación del objeto en la BD.
             await item_service.move_item_to_character(session, item_to_get.id, character.id)
 
-            # Si el objeto que cogimos otorga un CommandSet, actualizamos la lista en Telegram.
             if item_to_get.prototype.get("grants_command_sets"):
                 refreshed_character = await player_service.get_character_with_relations_by_id(session, character.id)
                 await command_service.update_telegram_commands(refreshed_character)
@@ -2328,46 +2429,27 @@ class CmdGet(Command):
             await message.answer("❌ Ocurrió un error al intentar coger el objeto.")
             logging.exception(f"Fallo al ejecutar /coger para {character.name}")
 
-
 class CmdDrop(Command):
-    """
-    Comando para que un jugador deje un objeto de su inventario en el suelo
-    de su sala actual.
-    """
+    """Comando para dejar un objeto del inventario en el suelo."""
     names = ["dejar", "d"]
+    description = "Deja un objeto en el suelo. Uso: /dejar <objeto>"
     lock = ""
-    description = "Deja un objeto de tu inventario en el suelo."
 
-    async def execute(
-        self,
-        character: Character,
-        session: AsyncSession,
-        message: types.Message,
-        args: list[str]
-    ):
+    async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
         try:
             if not args:
                 await message.answer("¿Qué quieres dejar?")
                 return
 
-            item_name_to_drop = " ".join(args).lower()
-            item_to_drop = None
-
-            for item in character.items:
-                if item_name_to_drop in item.get_name().lower():
-                    item_to_drop = item
-                    break
+            item_to_drop_name = " ".join(args).lower()
+            item_to_drop = find_item_in_list(item_to_drop_name, character.items)
 
             if not item_to_drop:
                 await message.answer("No llevas eso.")
                 return
 
-            # Futuro: Aquí se podría añadir un chequeo de lock para "dejar" objetos.
-            # Por ejemplo, un objeto maldito que no se puede soltar.
-
             await item_service.move_item_to_room(session, item_to_drop.id, character.room_id)
 
-            # Si el objeto que dejamos otorgaba un CommandSet, actualizamos la lista en Telegram.
             if item_to_drop.prototype.get("grants_command_sets"):
                 refreshed_character = await player_service.get_character_with_relations_by_id(session, character.id)
                 await command_service.update_telegram_commands(refreshed_character)
@@ -2378,10 +2460,158 @@ class CmdDrop(Command):
             logging.exception(f"Fallo al ejecutar /dejar para {character.name}")
 
 
+class CmdMeter(Command):
+    """Comando para meter un objeto en un contenedor."""
+    names = ["meter", "guardar"]
+    description = "Guarda un objeto en un contenedor. Uso: /meter <objeto> en <contenedor>"
+
+    async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
+        try:
+            item_name, container_name = parse_interaction_args(args)
+            if not item_name or not container_name:
+                await message.answer("Uso: /meter <objeto> en <contenedor>")
+                return
+
+            container = find_item_in_list(container_name, character.items) or \
+                        find_item_in_list(container_name, character.room.items)
+            if not container:
+                await message.answer(f"No ves ningún '{container_name}' por aquí.")
+                return
+            if not container.prototype.get("is_container"):
+                await message.answer(f"{container.get_name().capitalize()} no es un contenedor.")
+                return
+
+            lock_string = container.prototype.get("locks", "")
+            can_pass, _ = await permission_service.can_execute(character, lock_string)
+            if not can_pass:
+                await message.answer(f"No puedes meter nada en {container.get_name()}.")
+                return
+
+            capacity = container.prototype.get("capacity", 0)
+            # Aseguramos cargar la relación para contar los items.
+            await session.refresh(container, attribute_names=['contained_items'])
+            if len(container.contained_items) >= capacity:
+                await message.answer(f"{container.get_name().capitalize()} está lleno.")
+                return
+
+            item_to_store = find_item_in_list(item_name, character.items) or \
+                            find_item_in_list(item_name, character.room.items)
+            if not item_to_store:
+                await message.answer(f"No tienes ni ves ningún '{item_name}'.")
+                return
+            if item_to_store.id == container.id:
+                await message.answer("No puedes meter un objeto dentro de sí mismo.")
+                return
+
+            await item_service.move_item_to_container(session, item_to_store.id, container.id)
+            await message.answer(f"Guardas {item_to_store.get_name()} en {container.get_name()}.")
+
+        except Exception:
+            await message.answer("❌ Ocurrió un error al intentar guardar el objeto.")
+            logging.exception(f"Fallo al ejecutar /meter para {character.name}")
+
+class CmdSacar(Command):
+    """Comando para sacar un objeto de un contenedor."""
+    names = ["sacar"]
+    description = "Saca un objeto de un contenedor. Uso: /sacar <objeto> de <contenedor>"
+
+    async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
+        try:
+            item_name, container_name = parse_interaction_args(args)
+            if not item_name or not container_name:
+                await message.answer("Uso: /sacar <objeto> de <contenedor>")
+                return
+
+            container = find_item_in_list(container_name, character.items) or \
+                        find_item_in_list(container_name, character.room.items)
+            if not container:
+                await message.answer(f"No ves ningún '{container_name}' por aquí.")
+                return
+
+            lock_string = container.prototype.get("locks", "")
+            can_pass, _ = await permission_service.can_execute(character, lock_string)
+            if not can_pass:
+                await message.answer(f"No puedes sacar nada de {container.get_name()}.")
+                return
+
+            # Aseguramos cargar la relación para buscar items dentro.
+            await session.refresh(container, attribute_names=['contained_items'])
+            item_to_take = find_item_in_list(item_name, container.contained_items)
+            if not item_to_take:
+                await message.answer(f"No ves ningún '{item_name}' en {container.get_name()}.")
+                return
+
+            await item_service.move_item_to_character(session, item_to_take.id, character.id)
+            await message.answer(f"Sacas {item_to_take.get_name()} de {container.get_name()}.")
+
+        except Exception:
+            await message.answer("❌ Ocurrió un error al intentar sacar el objeto.")
+            logging.exception(f"Fallo al ejecutar /sacar para {character.name}")
+
+class CmdInventory(Command):
+    """
+    Comando para mostrar el inventario del jugador o el contenido de un contenedor.
+    """
+    names = ["inventario", "inv", "i"]
+    description = "Muestra tu inventario o el de un contenedor. Uso: /inv [contenedor]"
+
+    async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
+        try:
+            # CASO 1: Mirar el inventario propio.
+            if not args:
+                inventory = character.items
+                if not inventory:
+                    response = "No llevas nada."
+                else:
+                    items_list = [f" - {item.get_name()}" for item in inventory]
+                    items_str = "\n".join(items_list)
+                    response = f"<b>Llevas lo siguiente:</b>\n{items_str}"
+                await message.answer(f"<pre>{response}</pre>", parse_mode="HTML")
+                return
+
+            # CASO 2: Mirar el inventario de un contenedor.
+            container_name = " ".join(args).lower()
+            container = find_item_in_list(container_name, character.items) or \
+                        find_item_in_list(container_name, character.room.items)
+
+            if not container:
+                await message.answer(f"No ves ningún '{container_name}' por aquí.")
+                return
+            if not container.prototype.get("is_container"):
+                await message.answer(f"{container.get_name().capitalize()} no es un contenedor.")
+                return
+
+            lock_string = container.prototype.get("locks", "")
+            can_pass, _ = await permission_service.can_execute(character, lock_string)
+            if not can_pass:
+                await message.answer(f"No puedes ver el contenido de {container.get_name()}.")
+                return
+
+            # Aseguramos cargar la relación para ver los items.
+            await session.refresh(container, attribute_names=['contained_items'])
+            inventory = container.contained_items
+            if not inventory:
+                response = f"{container.get_name().capitalize()} está vacío."
+            else:
+                item_names = [item.get_name() for item in inventory]
+                item_counts = Counter(item_names)
+                formatted_items = [f" - {name}" + (f" ({count})" if count > 1 else "") for name, count in item_counts.items()]
+                items_str = "\n".join(formatted_items)
+                response = f"<b>En {container.get_name()} ves:</b>\n{items_str}"
+
+            await message.answer(f"<pre>{response}</pre>", parse_mode="HTML")
+
+        except Exception:
+            await message.answer("❌ Ocurrió un error al mostrar el inventario.")
+            logging.exception(f"Fallo al ejecutar /inventario para {character.name}")
+
 # Exportamos la lista de comandos de este módulo.
+# CmdInventory se mueve a GENERAL_COMMANDS para unificarlo.
 INTERACTION_COMMANDS = [
     CmdGet(),
     CmdDrop(),
+    CmdMeter(),
+    CmdSacar(),
 ]
 # === FIN: commands/player/interaction.py ===
 
@@ -2530,6 +2760,1298 @@ SETTINGS_COMMANDS = [
 # === FIN: commands/player/settings.py ===
 
 
+# === INICIO: docs/01_GETTING_STARTED.md ===
+# Guía de Inicio para Desarrolladores
+
+Este documento proporciona una guía detallada paso a paso para configurar el entorno de desarrollo de Runegram en una máquina local. El proyecto está completamente contenerizado con Docker, lo que simplifica enormemente el proceso de instalación.
+
+## 1. Prerrequisitos
+
+Antes de comenzar, asegúrate de tener instalado el siguiente software:
+
+*   **[Git](https://git-scm.com/)**: Para clonar el repositorio.
+*   **[Docker Desktop](https://www.docker.com/products/docker-desktop/)**: Gestiona los contenedores, imágenes y volúmenes. Incluye `docker` y `docker-compose`.
+
+## 2. Proceso de Instalación
+
+### Paso 1: Clonar el Repositorio
+
+Abre tu terminal preferida, navega al directorio donde quieres guardar el proyecto y clona el repositorio desde GitHub.
+
+```bash
+git clone https://github.com/tu-usuario/runegram.git
+cd runegram
+```
+
+### Paso 2: Configurar las Variables de Entorno
+
+La aplicación utiliza un archivo `.env` en la raíz del proyecto para gestionar secretos y configuraciones específicas del entorno. Este archivo **no se debe subir a Git**.
+
+1.  Crea un nuevo archivo llamado `.env` en la raíz del proyecto.
+2.  Copia y pega el siguiente contenido en el archivo:
+
+    ```env
+    # ===============================================================
+    #          Archivo de Configuración de Entorno para Runegram
+    # ===============================================================
+
+    # --- Configuración del Superadministrador ---
+    # El ID numérico de Telegram del usuario que tendrá el rol más alto.
+    # Puedes obtener tu ID hablando con bots como @userinfobot en Telegram.
+    SUPERADMIN_TELEGRAM_ID=123456789
+
+    # --- Telegram ---
+    # El token de autenticación para tu bot de Telegram, proporcionado por @BotFather.
+    BOT_TOKEN=7647451243:AAF7TOxVmEGjEtvMUQo69uM0yvLbpyS39Wc
+
+    # --- Base de Datos (PostgreSQL) ---
+    # Credenciales para el servicio de la base de datos.
+    POSTGRES_USER=runegram
+    POSTGRES_PASSWORD=runegram
+    POSTGRES_DB=runegram_db
+    POSTGRES_HOST=postgres
+    POSTGRES_PORT=5432
+
+    # --- Caché y Estados (Redis) ---
+    # Configuración para la conexión al servicio de Redis.
+    REDIS_HOST=redis
+    REDIS_PORT=6379
+    REDIS_DB=0
+    ```
+
+3.  **Modifica las variables `SUPERADMIN_TELEGRAM_ID` y `BOT_TOKEN` con tus propios valores.**
+
+### Paso 3: Construir y Ejecutar los Contenedores
+
+El proyecto incluye un script de conveniencia que automatiza todo el proceso de limpieza y arranque.
+
+Desde la raíz del proyecto, ejecuta:
+```bash
+# En Windows (CMD o PowerShell)
+scripts\full_reset.bat
+```
+Este script realizará las siguientes acciones:
+1.  `docker-compose down -v`: Detiene y elimina los contenedores existentes y, crucialmente, **borra el volumen de la base de datos**, asegurando un estado completamente limpio.
+2.  `docker-compose up --build -d`: Reconstruye la imagen de la aplicación (si hay cambios en el `Dockerfile` o `requirements.txt`) y levanta todos los servicios (`bot`, `postgres`, `redis`) en segundo plano.
+
+### Paso 4: Verificar la Instalación
+
+Tras ejecutar el script, puedes verificar que todo está funcionando correctamente:
+
+1.  **Comprueba los contenedores en ejecución:**
+    ```bash
+    docker ps
+    ```
+    Deberías ver tres contenedores en estado `Up`: `runegram-bot-1`, `runegram-postgres-1` y `runegram-redis-1`.
+
+2.  **Revisa los logs de la aplicación:**
+    ```bash
+    docker-compose logs -f bot
+    ```
+    Espera a que el proceso de arranque finalice. Verás los logs del `entrypoint.sh` esperando a PostgreSQL, ejecutando las migraciones y, finalmente, el bot de Python iniciándose. La última línea debería ser similar a:
+    `[INFO] - aiogram.dispatcher.dispatcher: Start polling.`
+
+### Paso 5: ¡A Jugar!
+Abre tu cliente de Telegram, busca tu bot y envíale el comando `/start`. ¡Deberías recibir el mensaje de bienvenida!
+
+## 3. Flujo de Trabajo de Desarrollo
+
+### Realizar Cambios en el Código
+Gracias a los volúmenes de Docker configurados en `docker-compose.yml`, cualquier cambio que hagas en los archivos de tu máquina local (en `src/`, `commands/`, `game_data/`, etc.) se refleja **instantáneamente** dentro del contenedor. El servidor de Aiogram se reiniciará automáticamente para aplicar la mayoría de los cambios en el código Python.
+
+### Gestionar Migraciones de la Base de Datos
+Cuando modificas la estructura de un modelo en `src/models/` (ej: añades una nueva columna), debes generar y aplicar una migración.
+
+1.  **Generar una nueva migración:**
+    ```bash
+    docker-compose exec bot alembic revision --autogenerate -m "Un mensaje descriptivo del cambio"
+    ```
+2.  **Revisar el archivo generado:** Es una buena práctica abrir el nuevo archivo en `alembic/versions/` para asegurarte de que los cambios generados son los que esperabas.
+3.  **Aplicar la migración:** La forma más segura de aplicar la nueva migración en un entorno de desarrollo es reiniciar todo el sistema.
+    ```bash
+    scripts\full_reset.bat
+    ```
+
+### Comandos Útiles de Docker
+*   `docker-compose up -d`: Levanta los servicios en segundo plano.
+*   `docker-compose down`: Detiene y elimina los contenedores.
+*   `docker-compose logs -f bot`: Muestra los logs del contenedor del bot en tiempo real.
+*   `docker-compose exec bot <comando>`: Ejecuta un comando dentro del contenedor del bot (ej: `docker-compose exec bot alembic current`).
+# === FIN: docs/01_GETTING_STARTED.md ===
+
+
+# === INICIO: docs/02_CORE_PHILOSOPHY.md ===
+# Filosofía del Núcleo de Runegram
+
+La arquitectura de Runegram no es accidental; se basa en un conjunto de principios de diseño bien definidos. Comprender esta filosofía es clave para desarrollar y expandir el juego de manera consistente, mantenible y escalable.
+
+Estos principios se dividen en dos áreas principales: la separación estructural entre el **Motor y el Contenido**, y el diseño de la interfaz de usuario a través de la **Filosofía de Comandos**.
+
+## 1. El Principio del Motor vs. el Contenido (Data-Driven Design)
+
+Este es el principio más fundamental de Runegram. El proyecto entero está dividido en dos dominios lógicos estrictamente separados:
+
+### El Motor del Juego (`src/`)
+
+*   **¿Qué es?** El Motor es el **código fuente** de la aplicación. Es la maquinaria genérica, abstracta y reutilizable que hace que el juego funcione.
+*   **Responsabilidades:** Conexión a la base de datos, comunicación con Telegram, ejecución de la lógica de los sistemas (comandos, permisos, tickers), gestión de modelos de datos, etc.
+*   **Cómo piensa:** El Motor no sabe qué es una "espada mágica" o la "Ciudad de Runegard". Solo conoce conceptos genéricos como `Item` y `Room`. No contiene nombres, descripciones ni reglas de juego específicas. Su trabajo es proporcionar un conjunto de herramientas potentes para que el Contenido pueda existir.
+
+### El Contenido del Juego (`game_data/`, `commands/`)
+
+*   **¿Qué es?** El Contenido son los **datos y definiciones** que dan vida, forma y reglas al mundo del juego.
+*   **Responsabilidades:** Definir qué objetos existen (`item_prototypes.py`), cómo se conectan las salas (`room_prototypes.py`), qué canales de chat hay (`channel_prototypes.py`), qué hacen los comandos (`commands/`) y cómo reacciona el mundo (`scripts`).
+*   **Cómo piensa:** El Contenido define qué es una "Espada Viviente", qué descripción tiene, qué hace cuando la miras y que susurra secretos cada dos minutos. Utiliza las herramientas que el Motor le proporciona para implementar estas reglas.
+
+### La Ventaja de la Separación
+
+Esta estricta separación (conocida como **diseño dirigido por datos** o *Data-Driven Design*) es la clave de la escalabilidad de Runegram:
+
+1.  **Aceleración del Desarrollo:** Un diseñador de contenido puede crear cientos de salas, objetos y PNJ sin escribir una sola línea de código Python del motor. El desarrollo del mundo se convierte en una tarea de edición de archivos de datos, no de programación.
+2.  **Reducción de Bugs:** Al aislar la lógica compleja en el Motor, se reduce drásticamente la superficie de ataque para los errores. Un error de tipeo en la descripción de un objeto no puede romper el servidor.
+3.  **Mantenibilidad:** El Motor se puede refactorizar y mejorar de forma independiente sin afectar al Contenido, y viceversa.
+4.  **Control de Versiones Claro:** Los cambios en el mundo del juego son visibles directamente en el historial de `git` de la carpeta `game_data/`, lo que permite un seguimiento y una colaboración mucho más sencillos.
+
+## 2. La Filosofía de Comandos
+
+La interfaz a través de la cual los jugadores interactúan con el mundo sigue una filosofía centrada en la claridad y la facilidad de uso.
+
+### Principio de Comando Descriptivo
+
+Se prefiere la claridad de tener **más comandos dedicados y explícitos** a la complejidad de tener un único comando con múltiples subcomandos.
+
+*   **Ejemplo Bueno:** `/activarcanal`, `/desactivarcanal`, `/listarsalas`. Cada comando hace una sola cosa y su nombre lo describe.
+*   **Ejemplo a Evitar:** `/canal set novato on`, `/admin salas listar`. Este enfoque, aunque potente, es menos intuitivo y más difícil de descubrir para el jugador.
+
+El formato estándar para todos los comandos es `/<acción> [argumentos]`.
+
+### Principio de Descubrimiento Dinámico
+
+El motor del juego está diseñado para que la interfaz se adapte al contexto del jugador, ayudándole a descubrir las acciones disponibles.
+
+*   **Generación Dinámica:** Los comandos de chat (como `/novato` o `/sistema`) no están hardcodeados. Se generan automáticamente al leer los prototipos de canal. Si un diseñador añade un nuevo canal de chat `comercio`, el comando `/comercio` pasa a existir sin necesidad de programación adicional.
+*   **Actualización en Vivo:** El motor actualiza la lista de comandos disponibles en el menú (`/`) del cliente de Telegram en tiempo real. Si un jugador coge un objeto que le otorga una nueva habilidad (y por tanto, un nuevo comando), ese comando aparecerá inmediatamente en su lista. Esto elimina la necesidad de que los jugadores memoricen comandos contextuales.
+
+Estos principios combinados buscan crear una experiencia de juego fluida, donde la interfaz es una ayuda y no un obstáculo, y donde el mundo puede crecer y evolucionar de forma rápida y segura.
+# === FIN: docs/02_CORE_PHILOSOPHY.md ===
+
+
+# === INICIO: docs/05_ADMIN_GUIDE.md ===
+# Guía de Comandos de Administración
+
+Este documento es una referencia completa para todos los comandos especiales disponibles para los roles de `ADMIN` y `SUPERADMIN`. Estos comandos son herramientas para la creación, depuración y gestión del mundo de Runegram.
+
+## Jerarquía de Roles
+
+El sistema de permisos se basa en una jerarquía simple:
+*   **SUPERADMIN:** Tiene acceso a todos los comandos. Es el rol más alto.
+*   **ADMIN:** Tiene acceso a la mayoría de los comandos de construcción y moderación, pero no a los que son potencialmente destructivos o alteran la configuración fundamental del juego.
+*   **JUGADOR:** El rol base sin acceso a comandos administrativos.
+
+---
+
+## Comandos de Generación (Spawning)
+
+Estos comandos permiten crear nuevas instancias de entidades en el mundo.
+
+### `/generarobjeto <clave_prototipo>`
+*   **Alias:** `/genobj`
+*   **Permiso:** `ADMIN`
+*   **Descripción:** Crea una instancia del objeto especificado por su `clave_prototipo` y la coloca en el suelo de la sala actual del administrador. La clave debe corresponder a una entrada en `game_data/item_prototypes.py`.
+*   **Uso:**
+    ```
+    /generarobjeto espada_viviente
+    ```
+
+---
+
+## Comandos de Movimiento
+
+Estos comandos permiten a los administradores moverse libremente por el mundo.
+
+### `/teleport <id_sala>`
+*   **Alias:** `/tp`
+*   **Permiso:** `ADMIN`
+*   **Descripción:** Te teletransporta instantáneamente a la sala especificada por su `ID` numérico. Para encontrar el ID de una sala, utiliza el comando `/listarsalas`.
+*   **Uso:**
+    ```
+    /tp 3
+    ```
+
+---
+
+## Comandos de Información y Diagnóstico
+
+Estos comandos son herramientas de solo lectura para inspeccionar el estado del juego.
+
+### `/listarsalas`
+*   **Alias:** `/lsalas`
+*   **Permiso:** `ADMIN`
+*   **Descripción:** Muestra una lista de todas las salas que existen en el mundo, incluyendo su `ID`, su `key` de prototipo y su `nombre`. Esencial para usar `/teleport`.
+
+### `/examinarpersonaje <nombre_o_id>`
+*   **Alias:** `/exchar`
+*   **Permiso:** `ADMIN`
+*   **Descripción:** Muestra un informe detallado sobre un personaje. Incluye su ID, sala actual, rol de cuenta, CommandSets base y contenido del inventario.
+*   **Uso:**
+    ```
+    /exchar Ben
+    /exchar 1
+    ```
+
+### `/examinarobjeto <id>`
+*   **Alias:** `/exobj`
+*   **Permiso:** `ADMIN`
+*   **Descripción:** Muestra un informe detallado sobre una **instancia** específica de un objeto, identificado por su ID único en la base de datos. Incluye su clave de prototipo, ubicación (sala o inventario de un jugador) y cualquier `override` de nombre o descripción.
+*   **Uso:**
+    ```
+    /exobj 12
+    ```
+
+---
+
+## Comandos de Gestión (Management)
+
+Estos comandos modifican el estado fundamental de las entidades del juego y generalmente requieren el permiso más alto.
+
+### `/asignarrol <nombre_personaje> <rol>`
+*   **Permiso:** `SUPERADMIN`
+*   **Descripción:** Cambia el rol de la cuenta asociada al personaje especificado. El Superadmin no puede asignar un rol igual o superior al suyo a otra persona.
+*   **Roles Disponibles:** `JUGADOR`, `ADMIN`, `SUPERADMIN`.
+*   **Uso:**
+    ```
+    /asignarrol Pippin ADMIN
+    ```
+# === FIN: docs/05_ADMIN_GUIDE.md ===
+
+
+# === INICIO: docs/06_DATABASE_AND_MIGRATIONS.md ===
+# Guía de Base de Datos y Migraciones
+
+La base de datos es la columna vertebral de Runegram, almacenando todo el estado persistente del mundo. La gestión de los cambios en su estructura (el "esquema") se realiza a través de una herramienta llamada **Alembic**. Esta guía explica el concepto y el flujo de trabajo para manejar las migraciones de la base de datos.
+
+## 1. ¿Qué es una Migración?
+
+Cuando cambias el código de un modelo en `src/models/` (por ejemplo, añades una nueva columna `status` a la tabla `Account`), la base de datos no se actualiza mágicamente. Una **migración** es un script de Python que contiene las instrucciones (`ALTER TABLE`, `CREATE TABLE`, etc.) necesarias para llevar la base de datos desde su estado antiguo al nuevo estado que tus modelos definen.
+
+Alembic se encarga de generar y ejecutar estos scripts de forma ordenada.
+
+## 2. El Flujo de Trabajo para Cambios en los Modelos
+
+Cada vez que realices un cambio en la estructura de un modelo, debes seguir este proceso para que el cambio se refleje correctamente en la base de datos.
+
+### Paso 1: Modificar el Modelo de Python
+
+Realiza los cambios necesarios en el archivo del modelo correspondiente en `src/models/`.
+
+**Ejemplo:** Añadir una columna `nickname` a la tabla `characters`.
+
+```python
+# En src/models/character.py
+class Character(Base):
+    # ...
+    name = Column(String(50), unique=True, nullable=False)
+    nickname = Column(String(50), nullable=True) # <-- NUEVA COLUMNA
+    # ...
+```
+
+### Paso 2: Generar el Script de Migración
+
+Una vez guardados los cambios en el modelo, necesitas que Alembic compare tus modelos actualizados con el estado actual de la base de datos y genere el script de migración.
+
+1.  **Asegúrate de que tus contenedores estén en ejecución:**
+    ```bash
+    docker-compose up -d
+    ```
+
+2.  **Ejecuta el comando `autogenerate`:**
+    Usa `docker-compose exec` para ejecutar Alembic dentro del contenedor del bot. Proporciona siempre un mensaje descriptivo con `-m`.
+
+    ```bash
+    docker-compose exec bot alembic revision --autogenerate -m "Añadir columna nickname a characters"
+    ```
+
+Alembic generará un nuevo archivo en `alembic/versions/` con un nombre como `xxxxxxxxxxxx_añadir_columna_nickname_a_characters.py`.
+
+### Paso 3: Revisar y Corregir el Script (¡Paso Crucial!)
+
+El comando `autogenerate` es una herramienta potente, pero **no es perfecto**. A veces puede interpretar los cambios de forma incorrecta o añadir operaciones no deseadas.
+
+**Siempre debes abrir el nuevo archivo de migración y revisarlo.**
+
+**Caso Común de Error: Tablas Externas**
+Alembic solo conoce los modelos definidos en `src/models/`. Si tienes una tabla creada "manualmente" por una migración (como `apscheduler_jobs`), `autogenerate` la verá en la base de datos pero no en los modelos y pensará que debe ser eliminada.
+
+**Si ves líneas como `op.drop_table('apscheduler_jobs')` o `op.drop_index(...)` en una migración que no debería afectar a esa tabla, ¡bórralas del archivo!**
+
+### Paso 4: Aplicar la Migración
+
+Una vez que has revisado y estás conforme con el script de migración, puedes aplicarlo. En el entorno de desarrollo, la forma más simple y segura es reiniciar todo el sistema con el script de reseteo.
+
+```bash
+# En Windows
+scripts\full_reset.bat```
+
+Este script detendrá los contenedores, borrará la base de datos antigua y la reconstruirá desde cero, aplicando **todas** las migraciones en orden, incluida la nueva que acabas de crear. Al arrancar, el `entrypoint.sh` se encarga de ejecutar `alembic upgrade head`, que pone la base de datos al día.
+
+## 3. Comandos Útiles de Alembic
+
+Puedes ejecutar estos comandos usando `docker-compose exec bot alembic <comando>`.
+
+*   `alembic current`: Muestra el ID de la última migración aplicada a la base de datos.
+*   `alembic heads`: Muestra el ID de la migración más reciente en tus archivos (la "cabeza" o `head`).
+*   `alembic history`: Muestra el historial de todas las migraciones, desde la base hasta la cabeza, indicando cuál es la actual.
+*   `alembic upgrade head`: Aplica todas las migraciones pendientes.
+*   `alembic downgrade -1`: Revierte la última migración aplicada. (Usar con cuidado).
+# === FIN: docs/06_DATABASE_AND_MIGRATIONS.md ===
+
+
+# === INICIO: docs/07_ROADMAP.md ===
+# Visión a Futuro y Roadmap de Runegram
+
+Este documento describe la visión a largo plazo para el desarrollo de Runegram y enumera las próximas grandes funcionalidades y mejoras planificadas. Actúa como una hoja de ruta para evolucionar desde el motor de juego actual hacia una experiencia MUD completa y rica.
+
+## Visión General
+
+El objetivo es transformar Runegram en un MUD social y dinámico con sistemas de juego profundos, incluyendo combate, progresión de habilidades, crafteo y quests. La arquitectura actual, basada en la separación de Motor y Contenido, está diseñada para facilitar la implementación de estas características de manera modular y escalable.
+
+---
+
+## 🚀 Próximas Grandes Funcionalidades
+
+Estas son las características de alto impacto que definirán la siguiente etapa del juego.
+
+### 1. Sistema de Combate y Habilidades
+*   **Visión:** Crear un sistema de combate táctico por turnos y una progresión de habilidades basada en la mecánica de "aprender haciendo" (d100).
+*   **Tareas:**
+    1.  **Modelos de Datos:** Crear las tablas `skills` y `character_skills` en la base de datos. Añadir atributos de combate (ej: `current_hp`, `max_hp`, `current_mana`, `max_mana`) al modelo `Character`.
+    2.  **Mecánica d100:** Implementar en un `skill_service` la lógica central de resolución de acciones: una acción tiene éxito si `d100 <= nivel_de_habilidad`. El éxito otorga experiencia en esa habilidad.
+    3.  **PNJs (Personajes No Jugadores):**
+        *   Crear un archivo `game_data/npc_prototypes.py` y un modelo `NPC` en la base de datos.
+        *   Desarrollar un `npc_service` para gestionar el "spawn" (aparición), el "despawn" (desaparición) y la IA básica (ej: agresivo, pasivo, patrulla).
+        *   Implementar un sistema de "respawn" para que los monstruos vuelvan a aparecer después de un tiempo.
+    4.  **Comandos de Combate:** Crear el `CommandSet` de `combat` con comandos como `/atacar [objetivo]`, `/huir`, `/lanzar [hechizo] [objetivo]`, etc.
+
+### 2. Sistema de Interacción Social
+*   **Visión:** Hacer que el mundo se sienta verdaderamente multijugador, donde las acciones de un jugador son visibles y tienen un impacto en los demás.
+*   **Tareas:**
+    1.  **Refactorizar `/decir`:** Modificar el comando para que use `broadcaster_service.send_message_to_room`, de modo que todos los jugadores *online* en la misma sala vean el mensaje.
+    2.  **Notificaciones de Movimiento:** Implementar mensajes de "entrada/salida" en el `CmdMove`. Cuando un jugador se mueve, los jugadores en la sala de origen y de destino deben ser notificados.
+    3.  **Notificaciones de Acción:** Modificar comandos como `/coger` y `/dejar` para que notifiquen a la sala sobre la acción (ej: "Benabhi coge una espada viviente.").
+    4.  **Expandir `/mirar`:** Mejorar el comando para que pueda `mirar` a otros jugadores y PNJ en la sala, mostrando sus descripciones.
+
+### 3. Sistema de Clases y Razas
+*   **Visión:** Permitir a los jugadores personalizar su personaje al inicio del juego, eligiendo una clase y/o raza que defina sus habilidades y `CommandSets` iniciales.
+*   **Tareas:**
+    1.  **Máquina de Estados Finitos (FSM):** Utilizar el sistema de `FSM` de Aiogram para guiar al jugador a través de un proceso de creación de personaje por pasos (nombre -> elegir raza -> elegir clase).
+    2.  **Prototipos de Clases/Razas:** Crear archivos en `game_data` que definan las estadísticas, habilidades y `CommandSets` base para cada clase y raza.
+    3.  **Integración:** Hacer que el `player_service.create_character` lea la elección del jugador y aplique las plantillas correspondientes al nuevo personaje.
+
+---
+
+## ✨ Mejoras del Motor y Calidad de Vida
+
+Estas son mejoras a los sistemas existentes que pulirán la experiencia de juego y desarrollo.
+
+*   **Expandir el Sistema de Locks:**
+    *   Implementar y registrar nuevas funciones de `lock` en el `permission_service`, como `habilidad(nombre)>valor`, `clase(nombre)`, etc.
+    *   Integrar los `locks` en los prototipos de `Exits` para que el `world_loader_service` los aplique, permitiendo la creación de puertas con llave.
+
+*   **Sistema de Contenedores:**
+    *   Modificar el modelo `Item` para que pueda actuar como un contenedor (con capacidad, inventario propio).
+    *   Crear comandos como `/meter [objeto] en [contenedor]` y `/sacar [objeto] de [contenedor]`.
+
+*   **Bandeja de Entrada para Notificaciones:**
+    *   Para los tickers de categoría `important` o `quest`, implementar la lógica para guardar los mensajes para los jugadores inactivos y presentárselos cuando vuelvan a conectarse.
+
+*   **Detalles de Sala Interactivos:**
+    *   Expandir `room_prototypes.py` y `CmdLook` para permitir "keywords" en la descripción de una sala. Al `mirar` una `keyword` (ej: `/mirar cuadro`), se revelaría un texto adicional sin necesidad de que sea un objeto físico.
+# === FIN: docs/07_ROADMAP.md ===
+
+
+# === INICIO: docs/08_COMBAT_SYSTEM.md ===
+# Sistema de Combate
+
+*(Este documento es un borrador y se completará a medida que el Sistema de Combate sea diseñado e implementado).*
+
+## Visión General
+
+El Sistema de Combate de Runegram será un sistema táctico por turnos diseñado para la interfaz de un MUD de texto. Se centrará en la claridad de la información y en decisiones significativas por parte del jugador.
+
+## Flujo de un Turno de Combate
+
+1.  **Iniciación:** El combate comienza cuando un jugador ataca a un PNJ agresivo o viceversa. Todos los participantes en la sala entran en "modo de combate".
+2.  **Cola de Acciones:** El sistema determinará el orden de acción (basado en atributos como Agilidad o Iniciativa).
+3.  **Resolución de Acciones:** Las acciones (atacar, lanzar hechizo, usar objeto) se resuelven una por una.
+4.  **Fin del Turno:** Se muestra un resumen del turno a todos los participantes.
+5.  **Comprobación de Fin de Combate:** Si solo queda un bando en pie, el combate termina. De lo contrario, comienza un nuevo turno.
+
+## Comandos de Combate
+
+El `CommandSet` de `combat` incluirá, como mínimo:
+*   `/atacar <objetivo>`
+*   `/lanzar <hechizo> <objetivo>`
+*   `/usar <objeto> <objetivo>`
+*   `/huir`
+
+## Atributos de Personaje y PNJ
+
+Los personajes y PNJ tendrán atributos clave para el combate:
+*   Salud (HP)
+*   Maná/Energía (MP/EP)
+*   Atributos primarios (Fuerza, Agilidad, Inteligencia)
+*   Atributos secundarios (Ataque, Defensa, Probabilidad de Crítico)
+# === FIN: docs/08_COMBAT_SYSTEM.md ===
+
+
+# === INICIO: docs/09_SKILL_SYSTEM.md ===
+# Sistema de Habilidades
+
+*(Este documento es un borrador y se completará a medida que el Sistema de Habilidades sea diseñado e implementado).*
+
+## Visión General
+
+El Sistema de Habilidades de Runegram se basará en el principio de "aprender haciendo" (*learning by doing*). Los personajes mejorarán sus habilidades al usarlas exitosamente, en lugar de gastar puntos de experiencia de forma manual. La resolución de acciones se basará en una tirada de d100.
+
+## Mecánica Central (d100)
+
+1.  **Resolución de Acción:** Cuando un personaje intenta una acción basada en una habilidad (ej: forzar una cerradura), el sistema realiza una tirada de `d100` (un número aleatorio entre 1 y 100).
+2.  **Comprobación:** La acción tiene éxito si `d100 <= Nivel de Habilidad del Personaje`.
+3.  **Progresión:** Si la acción tiene éxito, el personaje tiene una probabilidad de ganar un punto (o una fracción de punto) en esa habilidad. La probabilidad de ganar un punto disminuirá a medida que el nivel de la habilidad aumente, haciendo que la progresión sea natural.
+
+## Tipos de Habilidades
+
+Las habilidades se dividirán en categorías, como:
+
+*   **Habilidades de Combate:**
+    *   `espadas`
+    *   `hachas`
+    *   `arcos`
+    *   `parada`
+    *   `esquiva`
+*   **Habilidades Mágicas:**
+    *   `evocacion`
+    *   `alteracion`
+    *   `necromancia`
+*   **Habilidades de Artesanía y Generales:**
+    *   `herreria`
+    *   `alquimia`
+    *   `forzar_cerraduras`
+    *   `sigilo`
+
+## Integración con el Sistema de Locks
+
+Este sistema se integrará directamente con el `permission_service`. Se creará una nueva función de `lock`, `habilidad()`, que permitirá crear `lock strings` como:
+
+*   `"habilidad(forzar_cerraduras)>50"`
+*   `"habilidad(herreria)>75 and tiene_objeto(martillo_especial)"`
+# === FIN: docs/09_SKILL_SYSTEM.md ===
+
+
+# === INICIO: docs/03_ENGINE_SYSTEMS/01_COMMAND_SYSTEM.md ===
+# Sistema de Comandos
+
+El Sistema de Comandos es el corazón de la interacción del jugador con el mundo de Runegram. Está diseñado para ser robusto, extensible y, sobre todo, dinámico. Esta documentación desglosa su arquitectura, desde la estructura de un comando individual hasta cómo el sistema decide qué comandos están disponibles para un jugador en un momento dado.
+
+## 1. Arquitectura General
+
+El sistema se basa en tres componentes principales que trabajan en conjunto:
+
+1.  **El Dispatcher Principal (`dispatcher.py`):** Un único manejador de Aiogram que actúa como el "cerebro" central. Intercepta todos los mensajes de texto y orquesta el proceso de identificación y ejecución del comando.
+2.  **El Catálogo de Comandos (`COMMAND_SETS`):** Un diccionario global en el `dispatcher` que contiene una instancia de cada comando disponible en todo el juego, agrupados por funcionalidad en `CommandSets`.
+3.  **El Servicio de Comandos (`command_service.py`):** La lógica de negocio que determina, en tiempo real, qué `CommandSets` están activos para un personaje según su contexto (rol, inventario, ubicación).
+
+## 2. El Flujo de Ejecución de un Comando
+
+Cuando un jugador envía un mensaje como `/mirar espada`, ocurre el siguiente flujo:
+
+1.  **Intercepción:** El `main_command_dispatcher` recibe el objeto de mensaje de Aiogram.
+2.  **Contextualización:** Se obtiene la `Account` y el `Character` del jugador desde la base de datos.
+3.  **Determinación de Comandos Activos:** El `dispatcher` llama a `command_service.get_active_command_sets_for_character(character)`.
+4.  **Construcción Dinámica (en `command_service`):**
+    *   Se obtiene la lista de `CommandSets` base del personaje desde la base de datos.
+    *   Se inspecciona el inventario del personaje para añadir `CommandSets` otorgados por objetos.
+    *   Se inspecciona la sala actual para añadir `CommandSets` otorgados por la ubicación.
+    *   Se comprueba el rol del jugador para añadir sets de administración.
+    *   El servicio devuelve una lista unificada de todos los `CommandSets` activos.
+5.  **Búsqueda y Ejecución:**
+    *   El `dispatcher` itera sobre los nombres de los `CommandSets` activos.
+    *   Para cada nombre, busca la lista de comandos correspondiente en el catálogo `COMMAND_SETS`.
+    *   Compara los alias (`names`) de cada comando con el comando invocado (`mirar`).
+    *   Cuando encuentra una coincidencia, ejecuta el método `.execute()` de esa instancia, pasándole el contexto.
+
+## 3. La Clase `Command` (El Contrato)
+
+Todo comando en el juego hereda de la clase base `Command` (`commands/command.py`). Esta clase define el "contrato" que todos los comandos deben cumplir:
+
+*   `names` (list[str]): Una lista de alias.
+*   `description` (str): El texto que se muestra en la lista de comandos de Telegram.
+*   `lock` (str): El string de permisos evaluado por el `permission_service`.
+*   `execute()` (async method): El método que contiene la lógica del comando.
+
+## 4. Tipos de Comandos Implementados
+
+### Comandos Generales y de Interacción
+*   Comandos básicos como `/mirar`, `/decir`, `/ayuda` y `/quien`.
+*   El comando `/inventario` (`/inv`) ha sido mejorado. Ahora puede usarse sin argumentos para ver el inventario del personaje, o con un argumento para ver el contenido de un contenedor (ej: `/inv mochila`).
+*   Nuevos comandos para contenedores: `/meter <objeto> en <contenedor>` y `/sacar <objeto> de <contenedor>`.
+
+### Generación Dinámica de Comandos
+Para sistemas como los canales de chat, se utiliza un patrón de "fábrica":
+*   Una clase genérica como `CmdDynamicChannel` define la lógica para "hablar por un canal".
+*   Una función `generate_channel_commands()` lee los prototipos de `game_data` y crea una instancia de `CmdDynamicChannel` para cada canal de tipo `CHAT` (ej: `/novato`, `/sistema`).
+*   Esta lista de comandos generados se registra como un `CommandSet` más en el `dispatcher`.
+
+## 5. Sincronización con la Interfaz de Telegram
+
+El motor actualiza la lista de comandos visibles en el menú `/` de Telegram en tiempo real.
+*   **`command_service.update_telegram_commands(character)`:** Esta función es la responsable de esta tarea.
+*   **Triggers:** Se llama en puntos clave donde el contexto del jugador puede cambiar: al entrar al juego, al moverse de sala, o al coger/dejar un objeto.
+*   **Funcionamiento:** La función obtiene la lista completa de comandos activos, genera los objetos `BotCommand` y los envía a la API de Telegram usando un `BotCommandScopeChat` para que la actualización solo afecte al jugador específico.
+# === FIN: docs/03_ENGINE_SYSTEMS/01_COMMAND_SYSTEM.md ===
+
+
+# === INICIO: docs/03_ENGINE_SYSTEMS/02_PERMISSION_SYSTEM.md ===
+# Sistema de Permisos (Locks)
+
+El Sistema de Permisos, o sistema de `locks`, es el "guardián" de Runegram. Es un motor de reglas potente y extensible que determina si un personaje (`Character`) tiene permiso para realizar una acción determinada, como usar un comando, pasar por una salida o coger un objeto.
+
+El diseño está inspirado en los sistemas de `locks` de frameworks de MUDs avanzados como Evennia y se basa en dos pilares: **`lock strings` expresivos** y un **motor de evaluación seguro**.
+
+## 1. Arquitectura General
+
+El sistema se compone de tres partes principales, todas encapsuladas en `src/services/permission_service.py`:
+
+1.  **El Parser (basado en `ast`):** El corazón del sistema. En lugar de un parser manual, se utiliza el módulo `ast` (Abstract Syntax Tree) de Python para convertir de forma segura un `lock string` en un árbol de sintaxis que representa su estructura lógica.
+2.  **El Evaluador (`LockEvaluator`):** Una clase que "camina" por el árbol de sintaxis generado por `ast` y evalúa el resultado booleano final. Es una caja de arena segura que solo permite ejecutar operadores lógicos (`and`, `or`, `not`) y llamadas a funciones de `lock` pre-aprobadas.
+3.  **El Registro de Funciones de Lock (`LOCK_FUNCTIONS`):** Un diccionario que mapea los nombres de las funciones permitidas en un `lock string` (ej: `rol`) a las funciones de Python reales que implementan la lógica de comprobación (ej: `_lock_rol`).
+
+## 2. El `Lock String`
+
+Un `lock string` es una cadena de texto que define una o más condiciones que deben cumplirse. Gracias al uso de `ast`, la sintaxis es muy similar a una expresión booleana de Python.
+
+### Operadores Soportados
+
+*   **`and`**: Ambas condiciones deben ser verdaderas.
+*   **`or`**: Al menos una de las condiciones debe ser verdadera.
+*   **`not`**: Niega el resultado de una condición.
+*   **`()`**: Permite agrupar condiciones para controlar el orden de evaluación.
+
+### Funciones de Lock Disponibles
+
+Actualmente, el sistema implementa las siguientes funciones de `lock`:
+
+*   **`rol(ROL)`**: Comprueba si el rol del personaje es igual o superior al `ROL` especificado.
+    *   **Jerarquía:** `SUPERADMIN > ADMIN > JUGADOR`.
+    *   Un `SUPERADMIN` pasará las comprobaciones de `rol(ADMIN)` y `rol(JUGADOR)`.
+    *   **Ejemplo:** `rol(ADMIN)`
+
+*   **`tiene_objeto(clave_prototipo)`**: Comprueba si el personaje lleva un objeto con la `key` especificada en su inventario.
+    *   **Ejemplo:** `tiene_objeto(llave_maestra)`
+
+### Ejemplos de `Lock Strings` Complejos
+
+```python
+# Solo un ADMIN o superior puede pasar.
+"rol(ADMIN)"
+
+# El personaje debe llevar la llave de la torre en su inventario.
+"tiene_objeto(llave_torre)"
+
+# Debe ser un ADMIN Y llevar la llave.
+"rol(ADMIN) and tiene_objeto(llave_torre)"
+
+# Debe ser un SUPERADMIN O llevar la llave especial.
+"rol(SUPERADMIN) or tiene_objeto(llave_especial)"
+
+# Cualquiera puede pasar, EXCEPTO los JUGADORES (es decir, solo ADMINS y superiores).
+"not rol(JUGADOR)"
+
+# Un lock complejo: debe ser un ADMIN que lleve la llave, O ser un SUPERADMIN.
+"(rol(ADMIN) and tiene_objeto(llave_gremio)) or rol(SUPERADMIN)"
+```
+
+## 3. Flujo de Evaluación de un Permiso
+
+Cuando una parte del juego necesita comprobar un permiso (ej: el `dispatcher` para un comando, o `CmdMove` para una salida), se llama a `permission_service.can_execute(character, lock_string)`.
+
+1.  **Parseo:** `ast.parse(lock_string, mode='eval')` convierte el string en un árbol de nodos. Si la sintaxis es inválida, se lanza un `SyntaxError`.
+2.  **Creación del Evaluador:** Se crea una instancia de `LockEvaluator`, pasándole el objeto `character` que intenta la acción. Este `character` es el contexto contra el cual se evaluarán todas las condiciones.
+3.  **Recorrido del Árbol:** El método `evaluator.visit(tree)` comienza a "caminar" por el árbol.
+    *   Si encuentra un nodo `BoolOp` (`and`/`or`), evalúa recursivamente sus hijos y combina los resultados.
+    *   Si encuentra un nodo `UnaryOp` (`not`), evalúa recursivamente su operando y niega el resultado.
+    *   Si encuentra un nodo `Call` (una función como `rol(...)`), busca el nombre (`rol`) en el registro `LOCK_FUNCTIONS`. Si lo encuentra, ejecuta la función de Python correspondiente (`_lock_rol`), pasándole el `character` y los argumentos parseados. Si no lo encuentra, devuelve `False`.
+    *   Cualquier otro tipo de nodo (asignaciones, bucles, etc.) no está permitido y lanzará un `TypeError`, lo que garantiza la seguridad del sistema.
+4.  **Resultado:** La función `can_execute` devuelve una tupla `(True, "")` si el resultado final es verdadero, o `(False, "Mensaje de error")` si es falso.
+
+## 4. Cómo Extender el Sistema
+
+Añadir un nuevo tipo de `lock` (ej: `habilidad(magia)>10`) es un proceso de tres pasos:
+
+1.  **Crear la Lógica:** Escribir una nueva función de chequeo en `permission_service.py`, similar a `_lock_rol`. Esta función recibiría `character` y una lista de argumentos (`["magia>10"]`).
+2.  **Registrar la Función:** Añadir la nueva función al diccionario `LOCK_FUNCTIONS` con su nombre en minúsculas.
+    ```python
+    LOCK_FUNCTIONS = {
+        # ...
+        "habilidad": _lock_habilidad,
+    }
+    ```
+3.  **Usar en Contenido:** ¡Listo! Ahora los diseñadores pueden empezar a escribir `lock strings` como `"habilidad(magia)>10"` en sus prototipos.
+
+Este diseño hace que el Sistema de Permisos sea una de las herramientas más potentes y escalables del motor de Runegram.
+# === FIN: docs/03_ENGINE_SYSTEMS/02_PERMISSION_SYSTEM.md ===
+
+
+# === INICIO: docs/03_ENGINE_SYSTEMS/03_PROTOTYPE_SYSTEM.md ===
+# Sistema de Prototipos
+
+El Sistema de Prototipos es la implementación central de la filosofía "Motor vs. Contenido" en Runegram. Es un enfoque de diseño dirigido por datos (Data-Driven) que separa la **definición** de una entidad de su **instancia** en el mundo.
+
+## 1. El Concepto: Prototipo vs. Instancia
+
+Para entender el sistema, es crucial diferenciar estos dos conceptos:
+
+*   **Prototipo (El "Plano"):**
+    *   **¿Qué es?** Es la plantilla o el plano maestro que define un *tipo* de entidad. Contiene todos los datos base que son comunes a todas las entidades de ese tipo.
+    *   **¿Dónde vive?** En los archivos de `game_data/` (ej: `item_prototypes.py`, `room_prototypes.py`).
+    *   **Ejemplo:** El prototipo de la "espada viviente" define que su nombre es "una espada viviente", su descripción, que susurra cada 2 minutos, y que brilla al ser mirada.
+
+*   **Instancia (La "Copia"):**
+    *   **¿Qué es?** Es una copia única y específica de un prototipo que existe en el mundo del juego en un momento dado.
+    *   **¿Dónde vive?** Como una fila en una tabla de la base de datos (ej: la tabla `items` o `rooms`).
+    *   **Ejemplo:** Pueden existir tres "espadas vivientes" en el juego. Cada una es una `Instancia` diferente (con un `id` único en la tabla `items`), pero todas apuntan al mismo `Prototipo` "espada_viviente" a través de su columna `key`.
+
+## 2. Ventajas del Sistema de Prototipos
+
+Este enfoque ofrece enormes ventajas en escalabilidad y mantenimiento:
+
+1.  **Eficiencia de Datos:** La base de datos no necesita almacenar el nombre, la descripción, los scripts y los tickers de cada una de las 100 espadas del juego. Solo almacena la `key` del prototipo y su ubicación. El resto de la información se lee desde el diccionario de prototipos en memoria.
+2.  **Facilidad de Creación de Contenido:** Para crear un nuevo tipo de objeto, un diseñador solo necesita añadir una nueva entrada al diccionario `ITEM_PROTOTYPES`. No se requiere ninguna modificación en el código del motor ni en el esquema de la base de datos.
+3.  **Actualizaciones Globales Sencillas:** Si necesitas corregir un error en la descripción de la "espada viviente", solo lo cambias en el prototipo. Automáticamente, todas las instancias de esa espada en el juego reflejarán el cambio.
+
+## 3. Estructura de los Prototipos
+
+### Prototipos de Objetos (`item_prototypes.py`)
+
+La clave del diccionario es una `key` única para el tipo de objeto.
+
+```python
+"cofre_roble": {
+    # --- Atributos Básicos ---
+    "name": "un cofre de roble",
+    "keywords": ["cofre", "roble"],
+    "description": "Un pesado cofre de madera con refuerzos de hierro.",
+
+    # --- Atributos de Comportamiento (Opcional) ---
+    "scripts": { "on_look": "script_notificar_brillo_magico(color=tenue)" },
+    "tickers": [{ "schedule": "...", "script": "...", "category": "..." }],
+
+    # --- Atributos de Sistema (Opcional) ---
+    "grants_command_sets": ["secretos_cofre"],
+    "locks": "rol(SUPERADMIN) or tiene_objeto(llave_maestra)",
+
+    # --- Atributos de Contenedor (Opcional) ---
+    "is_container": True,
+    "capacity": 20
+}
+```
+*   **`locks`**: Para un objeto normal, restringe el comando `/coger`. Para un contenedor, restringe `/meter`, `/sacar` y `/inv`.
+*   **`is_container`**: Si es `True`, el objeto puede contener otros ítems.
+*   **`capacity`**: El número máximo de ítems que puede albergar el contenedor.
+
+### Prototipos de Salas (`room_prototypes.py`)
+
+La clave del diccionario es una `key` única para la sala, utilizada para las conexiones.
+
+```python
+"plaza_central": {
+    # --- Atributos Básicos ---
+    "name": "Plaza Central de Runegard",
+    "description": "Estás en el corazón de la ciudad...",
+
+    # --- Atributos de Conexión (Opcional) ---
+    "exits": {
+        "norte": {
+            "to": "puerta_del_norte",
+            "locks": "tiene_objeto(salvoconducto_real)"
+        },
+        "este": "calle_mercaderes" # Sintaxis simple
+    },
+
+    # --- Atributos de Sistema (Opcional) ---
+    "grants_command_sets": ["comercio_ciudad"],
+
+    # --- Atributos de Entorno (Opcional) ---
+    "details": {
+        "fuente": {
+            "keywords": ["fuente", "marmol"],
+            "description": "Una magnífica fuente esculpida en mármol blanco..."
+        }
+    }
+}
+```
+*   **`exits`**: Puede usar una sintaxis simple (`"direccion": "destino"`) para una salida bidireccional sin `lock`, o una sintaxis avanzada (`"direccion": {"to": "destino", "locks": "..."}`) para añadir un `lock` a la salida de ida.
+*   **`details`**: Permite definir elementos de la descripción que se pueden `mirar` con `/mirar [keyword]` sin ser objetos físicos.
+
+## 4. Conexión en el Código (Modelos)
+
+Los modelos de SQLAlchemy (`Item` y `Room`) actúan como el puente entre la **Instancia** (base de datos) y el **Prototipo** (código) a través de una propiedad `@property`.
+
+```python
+# En src/models/item.py
+
+class Item(Base):
+    # ... columnas de la instancia (id, key, room_id) ...
+
+    @property
+    def prototype(self) -> dict:
+        """
+        Esta propiedad busca en el diccionario ITEM_PROTOTYPES usando
+        la `self.key` de la instancia y devuelve el diccionario del prototipo.
+        """
+        return ITEM_PROTOTYPES.get(self.key, {})
+```
+
+Todos los servicios y comandos del motor interactúan con las instancias de los modelos, pero utilizan la propiedad `.prototype` para acceder a la definición de contenido, manteniendo la separación limpia.
+# === FIN: docs/03_ENGINE_SYSTEMS/03_PROTOTYPE_SYSTEM.md ===
+
+
+# === INICIO: docs/03_ENGINE_SYSTEMS/04_SCRIPTING_ENGINE.md ===
+# Motor de Scripts
+
+El Motor de Scripts es el sistema que permite que el **Contenido** del juego (definido en `game_data`) pueda ejecutar **Lógica** del juego (definida en el `src/services`). Es el mecanismo que da comportamiento a los objetos y al mundo.
+
+El motor tiene una arquitectura dual, separando las acciones que son una **reacción** a algo que hace el jugador (Eventos) de las acciones que ocurren de forma **proactiva** con el tiempo (Tickers). Toda la lógica está centralizada en `src/services/script_service.py`.
+
+## 1. El `script_service`
+
+Este servicio actúa como un "traductor" e "invocador" seguro. Su funcionamiento es análogo al del `permission_service`:
+
+1.  **Registro de Funciones (`SCRIPT_REGISTRY`):** Es un diccionario que mapea nombres de script (en formato string, ej: `"script_espada_susurra_secreto"`) a las funciones de Python reales que contienen la lógica.
+2.  **Parser de Scripts (`_parse_script_string`):** Una función simple que toma un string como `"nombre_script(arg1=valor1)"` y lo descompone en el nombre de la función y un diccionario de argumentos.
+3.  **Ejecutor (`execute_script`):** Es el corazón del servicio. Recibe un `script_string` y un `contexto` (que contiene los objetos relevantes como `character`, `target`, `room`), busca la función en el registro y la ejecuta de forma segura, pasándole el contexto y los argumentos.
+
+## 2. Scripts Reactivos (Eventos)
+
+Estos scripts se ejecutan como respuesta directa a una acción del jugador.
+
+*   **Definición:** Se definen en la clave `"scripts"` de un prototipo. La clave del diccionario es el nombre del evento (el "trigger") y el valor es el `script_string`.
+
+    ```python
+    # En game_data/item_prototypes.py
+    "espada_viviente": {
+        "scripts": {
+            "on_look": "script_notificar_brillo_magico(color=rojo)"
+        }
+    }
+    ```
+
+*   **Flujo de Ejecución (Ejemplo: `/mirar espada`):**
+    1.  El jugador ejecuta el comando `/mirar`.
+    2.  La lógica de `CmdLook.execute()` encuentra el objeto `Item` de la espada.
+    3.  Después de mostrar la descripción, el comando comprueba si el prototipo del objeto tiene una clave `"on_look"` dentro de `"scripts"`.
+    4.  Si la encuentra, llama a `script_service.execute_script()` pasándole el `script_string` `"script_notificar_brillo_magico(color=rojo)"` y el contexto (`character` y `target`).
+    5.  El `script_service` parsea el string, encuentra `script_notificar_brillo_magico` en su registro y la ejecuta.
+
+Actualmente, el único evento implementado es `on_look`, pero la arquitectura permite añadir fácilmente nuevos "triggers" en otros comandos (`on_get`, `on_drop`, `on_enter_room`, etc.).
+
+## 3. Scripts Proactivos (Tickers)
+
+Estos scripts se ejecutan de forma programada, haciendo que el mundo se sienta vivo incluso cuando los jugadores no hacen nada. Están gestionados por el `ticker_service`.
+
+*   **Definición:** Se definen como una lista en la clave `"tickers"` de un prototipo. Cada elemento es un diccionario que define una tarea programada.
+
+    ```python
+    # En game_data/item_prototypes.py
+    "espada_viviente": {
+        "tickers": [{
+            "schedule": "*/2 * * * *",  # Un cronjob: "cada 2 minutos"
+            "script": "script_espada_susurra_secreto",
+            "category": "ambient"
+        }]
+    }
+    ```
+
+*   **Flujo de Ejecución:**
+    1.  **Arranque del Bot:** El `ticker_service` escanea la base de datos en busca de entidades existentes que tengan tickers y las programa en `APScheduler`.
+    2.  **Creación de Entidad:** Cuando se crea un nuevo objeto (`/generarobjeto`), el `item_service` notifica al `ticker_service` para que programe sus tickers.
+    3.  **Disparo:** Cuando el `schedule` se cumple, `APScheduler` ejecuta la función `execute_ticker_script` del `ticker_service`.
+    4.  **Contextualización y Filtrado (en `ticker_service`):**
+        *   Se recupera la entidad (la espada) y su ubicación (la sala, o la sala del personaje que la lleva).
+        *   Se obtienen todos los personajes en esa sala.
+        *   Se itera sobre cada personaje y se comprueba si está "online" (`online_service`). Si el ticker es de categoría `"ambient"` y el jugador está inactivo, se le ignora.
+    5.  **Ejecución Final:** Por cada personaje que pasa el filtro, se llama a `script_service.execute_script()` con el `script_string` y el contexto (`target`, `room`, y el `character` específico que va a recibir el efecto).
+
+## 4. Cómo Crear una Nueva "Habilidad" de Script
+
+Para dar a los diseñadores de contenido una nueva herramienta (ej: un script que haga que un objeto se mueva a una sala aleatoria), un desarrollador del motor debe seguir estos pasos:
+
+1.  **Escribir la Lógica:** Añadir una nueva función `async` en `src/services/script_service.py`. Debe aceptar `session` y `**context` como argumentos.
+    ```python
+    async def script_teleport_aleatorio(session: AsyncSession, target: Item, **kwargs):
+        # Lógica para encontrar una sala aleatoria y mover el 'target' (el objeto).
+        # ...
+        await broadcaster_service.send_message_to_room(...)
+    ```
+2.  **Registrar la Función:** Añadir la nueva función y su nombre en string al diccionario `SCRIPT_REGISTRY`.
+    ```python
+    SCRIPT_REGISTRY = {
+        # ...
+        "script_teleport_aleatorio": script_teleport_aleatorio,
+    }
+    ```
+3.  **Documentar para Diseñadores:** ¡Listo! Ahora un diseñador puede usar `"script": "script_teleport_aleatorio"` en un `ticker` o en un `evento` para hacer que los objetos se teletransporten.
+# === FIN: docs/03_ENGINE_SYSTEMS/04_SCRIPTING_ENGINE.md ===
+
+
+# === INICIO: docs/03_ENGINE_SYSTEMS/05_SOCIAL_SYSTEMS.md ===
+# Sistemas Sociales: Presencia y Canales
+
+Un MUD (Multi-User Dungeon) es, por definición, una experiencia social. Runegram implementa dos sistemas clave que trabajan juntos para crear la sensación de un mundo compartido y vivo: el **Sistema de Presencia** (que gestiona quién está "online") y el **Sistema de Canales** (que gestiona la comunicación global).
+
+## 1. Sistema de Presencia (Online / AFK)
+
+Debido a la naturaleza asíncrona de un bot de Telegram, no existe una "conexión" persistente con el jugador. Por lo tanto, el concepto de "online" se redefine como: **"¿Ha interactuado el jugador con el juego recientemente?"**
+
+Toda esta lógica está encapsulada en `src/services/online_service.py`.
+
+### Arquitectura
+
+*   **Almacenamiento en Redis:** Para una velocidad máxima, el estado de actividad no se guarda en PostgreSQL. Se utiliza Redis para almacenar dos piezas de información por cada personaje:
+    1.  `last_seen:<character_id>`: Un timestamp de Unix que registra la última vez que el personaje envió un comando.
+    2.  `afk_notified:<character_id>`: Un "flag" o marcador que indica si ya se le ha notificado al jugador que ha entrado en estado AFK.
+
+*   **Umbral de Actividad (`ONLINE_THRESHOLD`):** Una constante (actualmente 5 minutos) que define el tiempo máximo de inactividad antes de que un jugador se considere "offline" o AFK.
+
+### Flujo de Funcionamiento
+
+1.  **Actualización de Actividad (`update_last_seen`):**
+    *   En cada mensaje recibido, el `dispatcher` principal llama a esta función.
+    *   Actualiza el `timestamp` `last_seen` del personaje en Redis a la hora actual.
+    *   Comprueba si existía un `flag` `afk_notified`. Si es así, significa que el jugador estaba AFK y acaba de volver. En este caso, le envía un mensaje privado ("Has vuelto de tu inactividad.") y borra el `flag`.
+
+2.  **Chequeo Periódico de AFK (`check_for_newly_afk_players`):**
+    *   El `ticker_service` ejecuta esta tarea global cada 60 segundos.
+    *   La tarea mantiene una lista en memoria (`PREVIOUSLY_ONLINE_IDS`) de quién estaba online en el chequeo anterior.
+    *   Compara esa lista con quién está online *ahora*.
+    *   Cualquier jugador que estuviera en la lista anterior pero no en la actual acaba de pasar a estado AFK.
+    *   A estos jugadores recién inactivos, les envía un mensaje privado ("Has entrado en modo de inactividad (AFK).") y establece su `flag` `afk_notified` en Redis para no volver a notificarles.
+    *   Finalmente, actualiza `PREVIOUSLY_ONLINE_IDS` para el siguiente ciclo.
+
+Este sistema dual asegura notificaciones de estado AFK precisas y sin spam.
+
+## 2. Sistema de Canales
+
+El Sistema de Canales proporciona un medio para la comunicación global entre jugadores, así como para anuncios del sistema. Está gestionado por `src/services/channel_service.py`.
+
+### Arquitectura "Data-Driven"
+
+*   **Prototipos de Canal (`game_data/channel_prototypes.py`):** Es la "fuente de la verdad". Define todos los canales, su nombre, icono, descripción y, lo más importante, su **tipo** y sus **permisos**.
+    *   `"type": "CHAT"`: Indica al sistema que debe generar dinámicamente un comando (ej: `/novato`) para que los jugadores puedan hablar en este canal.
+    *   `"lock": "rol(ADMIN)"`: Un `lock string` opcional que se asigna al comando generado, restringiendo quién puede hablar.
+
+*   **Configuración de Usuario (`CharacterSetting`):** La suscripción de un jugador a un canal se almacena en la base de datos, en la columna `active_channels` de su tabla de `character_settings`. Esto hace que sus preferencias sean persistentes.
+
+### Flujo de Funcionamiento
+
+*   **Hablar en un Canal (ej: `/novato ¡hola!`):**
+    1.  El `dispatcher` identifica el comando `/novato`, que fue generado dinámicamente por el módulo `dynamic_channels`.
+    2.  Se comprueban los `locks` del comando (leídos desde el prototipo del canal).
+    3.  `CmdDynamicChannel.execute()` se ejecuta. Llama a `channel_service` para comprobar si el jugador está suscrito al canal "novato".
+    4.  Si está suscrito, se llama a `channel_service.broadcast_to_channel()`.
+    5.  Esta función recupera de la base de datos a **todos los personajes del juego**.
+    6.  Itera sobre ellos, y para cada uno, comprueba si tiene el canal "novato" activo en su configuración.
+    7.  Si es así, utiliza el `broadcaster_service` para enviarle el mensaje formateado.
+
+*   **Gestión de Canales:**
+    *   `/canales`: Lista todos los prototipos de canal y muestra si el jugador está suscrito a cada uno.
+    *   `/activarcanal <nombre>` y `/desactivarcanal <nombre>`: Modifican la lista de `active_channels` en la configuración del personaje en la base de datos.
+# === FIN: docs/03_ENGINE_SYSTEMS/05_SOCIAL_SYSTEMS.md ===
+
+
+# === INICIO: docs/04_CONTENT_CREATION/01_CREATING_COMMANDS.md ===
+# Guía Práctica: Creando Comandos
+
+Esta guía te mostrará el proceso paso a paso para añadir un nuevo comando a Runegram. Gracias a la arquitectura del sistema, este proceso es sencillo y está bien estructurado.
+
+Como ejemplo, crearemos un comando `/orar`, que permitirá a los jugadores rezar y recibir una bendición simple.
+
+## Paso 1: Elegir o Crear el `CommandSet`
+
+Primero, decide a qué grupo funcional pertenece tu nuevo comando. ¿Es una interacción general? ¿Una acción de combate? ¿Una habilidad de una clase específica?
+
+Para nuestro comando `/orar`, parece una acción general de "rol-playing". Lo añadiremos al `CommandSet` `GENERAL_COMMANDS` que ya existe.
+
+Si estuvieras creando un sistema completamente nuevo (ej: combate), crearías un nuevo archivo como `commands/player/combat.py` y una nueva lista exportada como `COMBAT_COMMANDS`.
+
+## Paso 2: Crear la Clase del Comando
+
+Abre el archivo correspondiente. En nuestro caso, `commands/player/general.py`. Al final del archivo, antes de la línea `GENERAL_COMMANDS = [...]`, añade la nueva clase para tu comando.
+
+Toda clase de comando debe heredar de `Command` y definir, como mínimo, los atributos `names` y `description`, y sobrescribir el método `execute`.
+
+```python
+# En commands/player/general.py
+
+# ... (importaciones y otras clases de comando) ...
+
+class CmdOrar(Command):
+    """
+    Comando que permite al jugador rezar a los dioses.
+    """
+    # Lista de alias. El primero es el nombre principal.
+    names = ["orar", "rezar"]
+
+    # Descripción que aparecerá en la lista de comandos de Telegram.
+    description = "Rezas a los dioses en busca de inspiración."
+
+    # String de permisos. Una cadena vacía significa que no hay restricciones.
+    lock = ""
+
+    async def execute(
+        self,
+        character: Character,
+        session: AsyncSession,
+        message: types.Message,
+        args: list[str]
+    ):
+        """
+        La lógica que se ejecuta cuando un jugador escribe /orar.
+        """
+        try:
+            # Aquí va la lógica de tu comando.
+            # Puedes interactuar con los servicios, la base de datos, etc.
+
+            # Para este ejemplo, solo enviaremos un mensaje al jugador.
+            response_text = "Bajas la cabeza y murmuras una plegaria. Sientes una cálida sensación de esperanza."
+
+            # También podrías notificar a otros en la sala (futura mejora del broadcaster).
+            # await broadcaster_service.send_to_room_from_character(
+            #     character, f"{character.name} baja la cabeza y reza en silencio."
+            # )
+
+            await message.answer(response_text)
+
+        except Exception:
+            # Un bloque try/except es una buena práctica para capturar errores
+            # inesperados y evitar que el bot se caiga.
+            await message.answer("❌ Ocurrió un error al intentar procesar tu plegaria.")
+            logging.exception(f"Fallo al ejecutar /orar para {character.name}")
+
+```
+
+## Paso 3: Añadir el Comando al `CommandSet`
+
+Ahora que la clase está creada, simplemente añade una instancia de ella a la lista del `CommandSet` al final del archivo.
+
+```python
+# En commands/player/general.py
+
+# ... (definición de la clase CmdOrar) ...
+
+# Exportamos la lista de comandos de este módulo.
+GENERAL_COMMANDS = [
+    CmdLook(),
+    CmdSay(),
+    CmdInventory(),
+    CmdHelp(),
+    CmdWho(),
+    CmdOrar(),  # <-- AÑADE LA NUEVA INSTANCIA AQUÍ
+]
+```
+
+## Paso 4: ¡Reiniciar y Probar!
+
+**¡Y eso es todo!** No necesitas modificar el `dispatcher` ni ningún otro servicio del motor.
+
+1.  Reinicia tus contenedores para que los cambios en el código se apliquen.
+    ```bash
+    docker-compose up -d
+    ```
+2.  Entra al juego y envía `/start`. El `command_service` detectará el nuevo comando en el `CommandSet` `general` y lo añadirá automáticamente a tu lista de comandos en Telegram.
+3.  Prueba a ejecutar `/orar`. Deberías recibir el mensaje de respuesta que definiste.
+
+Este flujo de trabajo demuestra el poder del sistema: añadir nuevas funcionalidades se reduce a crear un archivo autocontenido y añadir una sola línea a una lista, manteniendo el resto del motor intacto y estable.
+# === FIN: docs/04_CONTENT_CREATION/01_CREATING_COMMANDS.md ===
+
+
+# === INICIO: docs/04_CONTENT_CREATION/02_BUILDING_THE_WORLD.md ===
+# Guía Práctica: Construyendo el Mundo
+
+Gracias a la arquitectura "Data-Driven" de Runegram, expandir el mundo del juego es una tarea de diseño de contenido, no de programación del motor. Esta guía te mostrará cómo añadir nuevas salas, objetos con `locks`, contenedores y canales, simplemente editando archivos de datos en la carpeta `game_data/`.
+
+## 1. Construyendo Salas y Salidas con Locks
+
+**Archivo a editar:** `game_data/room_prototypes.py`
+
+### Sintaxis de Salidas (Exits)
+
+Para conectar salas, se usa la clave `"exits"`. Tienes dos formas de definir una salida:
+
+#### a) Sintaxis Simple (Bidireccional y sin Lock)
+
+Si solo proporcionas un string con la `key` de la sala de destino, el motor creará una salida bidireccional y sin restricciones.
+
+```python
+"plaza_central": {
+    "exits": { "oeste": "biblioteca_antigua" }
+},
+"biblioteca_antigua": {
+    # No es necesario definir "este": "plaza_central" aquí.
+    # El motor lo creará automáticamente.
+}
+```
+
+#### b) Sintaxis Avanzada (con Locks)
+
+Para añadir un `lock` a una salida, debes usar un diccionario. Esto te permite especificar la sala de destino y el `lock_string`.
+
+**Importante:** Cuando usas la sintaxis avanzada, el `lock` se aplica **solo a la salida de ida**. La salida de vuelta se crea automáticamente sin `lock`.
+
+**Ejemplo:** Vamos a crear una "Armería" a la que solo se puede entrar siendo `ADMIN` y teniendo una llave.
+
+```python
+"plaza_central": {
+    "exits": {
+        "norte": {
+            "to": "armeria",
+            "locks": "rol(ADMIN) and tiene_objeto(llave_armeria)"
+        }
+    }
+},
+"armeria": {
+    "name": "La Armería de Runegard"
+    # El motor creará la salida "sur" de vuelta a la "plaza_central" sin lock.
+}
+```
+**Resultado:** Un jugador podrá salir libremente de la armería hacia el sur, pero para entrar desde la plaza hacia el norte, deberá cumplir las dos condiciones del `lock`.
+
+### Añadiendo Detalles Interactivos
+Puedes añadir elementos a una sala que se pueden `mirar` pero que no son objetos físicos usando la clave `"details"`.
+
+```python
+"plaza_central": {
+    "description": "...Una imponente fuente de mármol domina el centro...",
+    "details": {
+        "fuente": {
+            "keywords": ["fuente", "marmol"],
+            "description": "Es una magnífica fuente esculpida en mármol blanco..."
+        }
+    }
+},
+```
+**Resultado:** El comando `/mirar fuente` funcionará en esta sala.
+
+## 2. Creando Objetos, Locks y Contenedores
+
+**Archivo a editar:** `game_data/item_prototypes.py`
+
+### Objetos con `lock` para Coger
+
+Puedes restringir quién puede coger un objeto usando la clave `"locks"`.
+
+```python
+"espada_sagrada_antigua": {
+    "name": "la Espada Sagrada Antigua",
+    "keywords": ["espada", "sagrada", "antigua"],
+    "description": "Una hoja legendaria que vibra con un poder inmenso.",
+    "locks": "rol(SUPERADMIN)" # Solo un Superadmin puede coger este objeto.
+}
+```
+**Resultado:** Cuando un jugador que no sea `SUPERADMIN` intente usar `/coger espada`, el comando `CmdGet` evaluará el `lock` y denegará la acción.
+
+### Creando Contenedores
+
+Para convertir un objeto en un contenedor, debes añadir dos claves: `"is_container": True` y `"capacity": <número>`.
+
+#### a) Contenedor Portátil (Mochila)
+
+```python
+"mochila_cuero": {
+    "name": "una mochila de cuero",
+    "keywords": ["mochila", "cuero"],
+    "description": "Una mochila simple pero resistente.",
+    "is_container": True,
+    "capacity": 10
+}
+```
+Un jugador puede coger esta mochila y usar `/meter` y `/sacar` para gestionar su contenido.
+
+#### b) Contenedor Fijo y Cerrado (Cofre)
+
+Puedes combinar `locks` y propiedades de contenedor para crear objetos como cofres.
+
+```python
+"cofre_roble": {
+    "name": "un cofre de roble",
+    "keywords": ["cofre", "roble"],
+    "description": "Un pesado cofre de madera con refuerzos de hierro.",
+    "is_container": True,
+    "capacity": 20,
+    // El lock "rol(SUPERADMIN)" evita que nadie pueda coger el cofre del suelo.
+    "locks": "tiene_objeto(llave_roble) or rol(ADMIN)"
+}
+```
+**Resultado:**
+*   Nadie podrá coger el cofre (`/coger cofre`) debido al `lock` `rol(SUPERADMIN)` (una forma de hacerlo inamovible).
+*   Un jugador solo podrá interactuar con el cofre (`/meter`, `/sacar`, `/inv cofre`) si lleva la "llave_roble" o si es un `ADMIN`.
+
+## 3. Añadiendo Canales de Chat
+
+**Archivo a editar:** `game_data/channel_prototypes.py`
+
+Para crear un nuevo canal donde los jugadores puedan hablar, como `/comercio`:
+
+```python
+"comercio": {
+    "name": "Comercio",
+    "icon": "💰",
+    "description": "Para comprar, vender e intercambiar objetos.",
+    "type": "CHAT",
+    "default_on": True,
+    "lock": "" // Sin lock, cualquiera puede hablar.
+}
+```
+Al reiniciar el bot, el comando `/comercio` se creará automáticamente. Si quisieras que solo los administradores pudieran hablar, simplemente añadirías `"lock": "rol(ADMIN)"`.
+# === FIN: docs/04_CONTENT_CREATION/02_BUILDING_THE_WORLD.md ===
+
+
+# === INICIO: docs/04_CONTENT_CREATION/03_WRITING_SCRIPTS.md ===
+# Guía Práctica: Escribiendo Scripts
+
+El Motor de Scripts es lo que permite que el contenido del juego tenga comportamiento. Es el puente que conecta las definiciones de datos con la lógica del motor, dando vida a los objetos y al mundo.
+
+Esta guía se divide en dos partes:
+1.  **Para Diseñadores de Contenido:** Cómo *usar* los scripts existentes en los prototipos.
+2.  **Para Desarrolladores del Motor:** Cómo *crear* nuevas funciones de script.
+
+## 1. Para Diseñadores de Contenido: Usando Scripts
+
+Como diseñador, no necesitas escribir código Python. Solo necesitas saber qué "habilidades" de script existen y cómo invocarlas desde los archivos de `game_data`.
+
+Los scripts se invocan a través de `script strings`, que tienen un formato de llamada de función: `nombre_del_script(argumento=valor)`.
+
+### Usando Scripts de Evento (`on_look`)
+
+Los scripts de evento reaccionan a las acciones de los jugadores. Actualmente, el principal evento es `on_look`.
+
+*   **Uso:** Se añade a la clave `"scripts"` en el prototipo de un objeto.
+*   **Función Disponible:** `script_notificar_brillo_magico(color=...)`
+    *   **Propósito:** Envía un mensaje privado al jugador que mira el objeto, indicando que este emite un brillo.
+    *   **Argumento:** `color` (opcional, string). Define el color del brillo. Si no se especifica, usa un color por defecto.
+
+**Ejemplo:**
+```python
+# En game_data/item_prototypes.py
+"amuleto_antiguo": {
+    "name": "un amuleto antiguo",
+    "description": "Una joya opaca que parece absorber la luz.",
+    "scripts": {
+        "on_look": "script_notificar_brillo_magico(color=púrpura)"
+    }
+}
+```
+**Resultado:** Cuando un jugador escriba `/mirar amuleto`, primero verá la descripción y luego recibirá un mensaje privado que dice: "...notas que emite un suave brillo de color púrpura."
+
+### Usando Scripts Proactivos (`tickers`)
+
+Los tickers hacen que el mundo actúe por sí solo. Se definen en la clave `"tickers"` de un prototipo.
+
+*   **Uso:** Es una lista de diccionarios, donde cada diccionario es una tarea programada.
+*   **Claves:**
+    *   `"schedule"`: Define cuándo se ejecuta. Puede ser un `cron` (ej: `"*/5 * * * *"`) o un intervalo en segundos (ej: `"interval:30"`).
+    *   `"script"`: El `script_string` a ejecutar.
+    *   `"category"`: La categoría. Si es `"ambient"`, solo se ejecutará para jugadores considerados "online", para no enviar spam.
+
+*   **Función Disponible:** `script_espada_susurra_secreto()`
+    *   **Propósito:** Envía un mensaje privado a cada jugador "online" en la misma sala que el objeto, con un "secreto" aleatorio.
+    *   **Argumentos:** Ninguno.
+
+**Ejemplo:**
+```python
+# En game_data/item_prototypes.py
+"craneo_susurrante": {
+    "name": "un cráneo susurrante",
+    "description": "Un cráneo amarillento que parece murmurar cuando no lo miras directamente.",
+    "tickers": [{
+        "schedule": "*/5 * * * *", # Cada 5 minutos
+        "script": "script_espada_susurra_secreto",
+        "category": "ambient"
+    }]
+}
+```
+**Resultado:** Cada 5 minutos, todos los jugadores activos en la misma sala que el cráneo recibirán un mensaje privado con un susurro.
+
+## 2. Para Desarrolladores del Motor: Creando Nuevas Funciones de Script
+
+Para expandir las capacidades del juego, los desarrolladores del motor pueden crear nuevas funciones de script. El proceso es simple y seguro.
+
+**Archivo a editar:** `src/services/script_service.py`
+
+### Paso 1: Escribir la Función de Lógica
+
+Crea una nueva función `async` en la "SECCIÓN 1" del archivo. La función debe aceptar `session` y `**context` como argumentos. El `context` es un diccionario que contiene los objetos relevantes al evento que disparó el script.
+
+**Ejemplo:** Vamos a crear un script que cure ligeramente al personaje que mira un objeto.
+
+```python
+# En src/services/script_service.py
+
+# ... (otras importaciones) ...
+
+async def script_curacion_menor(session: AsyncSession, character: Character, target: Item, **kwargs):
+    """
+    Script de evento: Cura una pequeña cantidad de vida al personaje.
+
+    - Disparador Típico: on_look
+    - Contexto Esperado: character (quien es curado), target (el objeto que cura).
+    - Argumentos: cantidad (int, opcional)
+    """
+    # (Lógica futura: cuando el personaje tenga un atributo de vida)
+    # curacion = int(kwargs.get("cantidad", 5))
+    # character.vida_actual += curacion
+    # await session.commit()
+
+    # Por ahora, solo notificamos al jugador.
+    mensaje = f"Sientes una oleada de energía restauradora emanando de {target.get_name()}."
+    await broadcaster_service.send_message_to_character(character, mensaje)
+```
+
+### Paso 2: Registrar la Nueva Función
+
+Añade la función y su nombre en string al diccionario `SCRIPT_REGISTRY` en la "SECCIÓN 2".
+
+```python
+# En src/services/script_service.py
+
+SCRIPT_REGISTRY = {
+    "script_notificar_brillo_magico": script_notificar_brillo_magico,
+    "script_espada_susurra_secreto": script_espada_susurra_secreto,
+
+    # --- NUEVO SCRIPT REGISTRADO ---
+    "script_curacion_menor": script_curacion_menor,
+}
+```
+
+### Paso 3: Documentar para Diseñadores
+
+¡Listo! La nueva "habilidad" del motor está disponible. Ahora un diseñador de contenido puede crear un objeto como este:
+
+```python
+# En game_data/item_prototypes.py
+"piedra_vital": {
+    "name": "una piedra de vitalidad",
+    "description": "Una piedra suave y cálida al tacto.",
+    "scripts": {
+        "on_look": "script_curacion_menor(cantidad=10)"
+    }
+}
+```
+
+Este ciclo de desarrollo (crear, registrar, usar) permite al motor crecer en capacidades sin mezclar su lógica con la definición del contenido.
+# === FIN: docs/04_CONTENT_CREATION/03_WRITING_SCRIPTS.md ===
+
+
 # === INICIO: game_data/__init__.py ===
 # === FIN: game_data/__init__.py ===
 
@@ -2601,29 +4123,22 @@ Definición de Prototipos de Objetos (Items).
 
 Este archivo es el catálogo central de todos los objetos que pueden existir
 en el mundo de Runegram. Sigue un sistema de prototipos, lo que significa que
-este archivo define las "plantillas" o "planos" de los objetos, mientras que
-la base de datos solo almacena las "instancias" individuales de esos objetos
-(su ubicación, si tienen un nombre personalizado, etc.).
-
-Esta separación es clave para la filosofía de diseño del motor, permitiendo
-añadir cientos de objetos nuevos sin modificar el código fuente ni la
-estructura de la base de datos.
+este archivo define las "plantillas" de los objetos.
 
 Estructura de un Prototipo de Objeto:
-- <clave_unica>: (ej: "espada_viviente")
-    - "name": (str) El nombre que ven los jugadores (ej: "una espada viviente").
-    - "keywords": (list[str]) Palabras clave para que los jugadores puedan interactuar
-                    con el objeto (ej: /mirar espada).
+- <clave_unica>:
+    - "name": (str) El nombre que ven los jugadores.
+    - "keywords": (list[str]) Palabras clave para interactuar con el objeto.
     - "description": (str) El texto que se muestra al mirar el objeto.
-    - "scripts": (dict, opcional) Define scripts reactivos a eventos.
-        - "on_look": (str) El script a ejecutar cuando un jugador mira el objeto.
-    - "tickers": (list[dict], opcional) Define scripts proactivos que se ejecutan
-                 periódicamente.
-        - "schedule": (str) El horario (cron o intervalo).
-        - "script": (str) El script a ejecutar.
-        - "category": (str) La categoría del ticker (ej: "ambient").
-    - "grants_command_sets": (list[str], opcional) Lista de CommandSets que este
-                             objeto otorga al personaje que lo posea.
+    - "scripts": (dict, opcional) Scripts reactivos a eventos.
+    - "tickers": (list[dict], opcional) Scripts proactivos que se ejecutan periódicamente.
+    - "grants_command_sets": (list[str], opcional) CommandSets que este objeto otorga.
+    - "locks": (str, opcional) Restricciones para interactuar. En un objeto normal,
+               se usa para el comando 'coger'. En un contenedor, se usa para 'abrir',
+               'meter' o 'sacar'.
+
+    - "is_container": (bool, opcional) Si es `True`, este objeto puede contener otros.
+    - "capacity": (int, opcional) El número máximo de objetos que puede contener.
 """
 
 ITEM_PROTOTYPES = {
@@ -2633,43 +4148,40 @@ ITEM_PROTOTYPES = {
         "description": "La hoja de acero parece retorcerse y susurrarte secretos.",
         "keywords": ["espada", "viviente"],
         "scripts": {
-            # Cuando se mira, emite un brillo rojo.
             "on_look": "script_notificar_brillo_magico(color=rojo)"
         },
         "tickers": [
             {
-                # Cada 2 minutos, ejecuta el script de susurrar.
                 "schedule": "*/2 * * * *",
                 "script": "script_espada_susurra_secreto",
-                # Se categoriza como "ambient" para no molestar a jugadores inactivos.
                 "category": "ambient"
             }
         ]
     },
 
-    # Un objeto decorativo con un ticker de intervalo.
-    "corazon_sangrante": {
-        "name": "un corazón sangrante",
-        "description": "Late débilmente y gotea un icor oscuro.",
-        "keywords": ["corazon", "sangrante"],
-        "tickers": [
-            {
-                # Cada 30 segundos, ejecuta un script (aún por definir).
-                "schedule": "interval:30",
-                "script": "script_objeto_sangra_en_el_suelo",
-                "category": "ambient"
-            }
-        ]
+    # --- NUEVOS EJEMPLOS DE CONTENEDORES ---
+
+    # Un contenedor simple que se puede llevar en el inventario.
+    "mochila_cuero": {
+        "name": "una mochila de cuero",
+        "keywords": ["mochila", "cuero"],
+        "description": "Una mochila simple pero resistente, hecha de cuero curtido. Parece que tiene espacio para algunas cosas.",
+        "is_container": True,
+        "capacity": 10, # Puede contener hasta 10 objetos.
     },
 
-    # --- Futuros objetos podrían ir aquí ---
-    # "ganzuas_maestras": {
-    #     "name": "unas ganzúas maestras",
-    #     "keywords": ["ganzuas", "herramientas"],
-    #     "description": "Unas herramientas de precisión para el ladrón experto.",
-    #     # Este objeto otorga acceso al CommandSet "thievery" mientras se posea.
-    #     "grants_command_sets": ["thievery"]
-    # },
+    # Un contenedor fijo que no se puede coger y necesita una llave (futuro).
+    "cofre_roble": {
+        "name": "un cofre de roble",
+        "keywords": ["cofre", "roble"],
+        "description": "Un pesado cofre de madera de roble con refuerzos de hierro. Está cerrado.",
+        "is_container": True,
+        "capacity": 20,
+        # Este lock evita que el objeto sea cogido con `/coger`.
+        "locks": "rol(SUPERADMIN)",
+        # Futuro: Podríamos tener un lock específico para abrir/cerrar.
+        # "open_lock": "tiene_objeto(llave_cofre_roble)"
+    },
 }
 # === FIN: game_data/item_prototypes.py ===
 
@@ -2680,43 +4192,48 @@ ITEM_PROTOTYPES = {
 Definición de Prototipos de Salas (Rooms).
 
 Este archivo es el "mapa maestro" del mundo de Runegram. Define todas las
-salas estáticas, sus descripciones y, lo más importante, cómo se conectan
-entre sí.
+salas estáticas, sus descripciones, conexiones y detalles interactivos.
 
 El `world_loader_service` lee este archivo al arrancar el bot para construir
 o sincronizar el mundo en la base de datos.
 
 Estructura de un Prototipo de Sala:
-- <clave_unica>: (ej: "plaza_central") Un identificador único para la sala que
-                 nunca debe cambiar. Se usa para las conexiones.
-    - "name": (str) El nombre de la sala que ven los jugadores.
-    - "description": (str) El texto principal que se muestra al entrar o mirar la sala.
-    - "exits": (dict, opcional) Define las salidas desde esta sala.
+- <clave_unica>: (ej: "plaza_central")
+    - "name": (str) El nombre de la sala.
+    - "description": (str) El texto principal que se muestra al entrar.
+    - "exits": (dict, opcional) Conexiones a otras salas.
         - "<direccion>": (str) La clave única de la sala de destino.
-          (ej: "norte": "camino_del_bosque"). El `world_loader_service` se
-          encarga de crear automáticamente la salida de vuelta (sur).
-    - "grants_command_sets": (list[str], opcional) Lista de CommandSets que esta
-                             sala otorga a cualquier personaje que se encuentre en ella.
+    - "grants_command_sets": (list[str], opcional) CommandSets que la sala otorga.
+    - "details": (dict, opcional) Elementos descriptivos de la sala que se
+                 pueden mirar, pero no son objetos físicos.
+        - "<keyword>": (dict)
+            - "keywords": (list[str]) Palabras clave para mirar el detalle.
+            - "description": (str) El texto que se muestra al mirar el detalle.
 """
 
 ROOM_PROTOTYPES = {
-    # La sala de inicio, donde aparecen todos los nuevos personajes.
+    # La sala de inicio.
     "limbo": {
         "name": "El Limbo",
         "description": "Te encuentras en una habitación vacía, suspendida en la nada. Es el comienzo de tu aventura y un refugio seguro.",
         "exits": {
-            # "dirección": "clave_de_la_sala_destino"
             "norte": "plaza_central"
         }
     },
 
-    # Un nexo central desde el que parten varios caminos.
+    # Un nexo central con un nuevo detalle interactivo.
     "plaza_central": {
         "name": "Plaza Central de Runegard",
-        "description": "Estás en el corazón de la ciudad. El bullicio de mercaderes y aventureros llena el aire. Varios caminos parten desde aquí.",
+        "description": "Estás en el corazón de la ciudad. El bullicio de mercaderes y aventureros llena el aire. Una imponente fuente de mármol domina el centro de la plaza. Varios caminos parten desde aquí.",
         "exits": {
-            # El cargador creará automáticamente la salida 'sur' de vuelta al 'limbo'.
             "este": "calle_mercaderes"
+        },
+        "details": {
+            # Este diccionario permite que el comando `/mirar fuente` funcione en esta sala.
+            "fuente_plaza": {
+                "keywords": ["fuente", "marmol", "fuente de marmol"],
+                "description": "Es una magnífica fuente esculpida en mármol blanco. El agua cristalina fluye desde la boca de tres leones de piedra. En el fondo, puedes ver el brillo de algunas monedas arrojadas por los transeúntes."
+            }
         }
     },
 
@@ -2725,7 +4242,7 @@ ROOM_PROTOTYPES = {
         "name": "Calle de los Mercaderes",
         "description": "Decenas de puestos se alinean en esta calle, ofreciendo todo tipo de mercancías exóticas.",
         "exits": {
-            # El cargador creará automáticamente la salida 'oeste' de vuelta a 'plaza_central'.
+            "oeste": "plaza_central"
         }
     },
 
@@ -3169,6 +4686,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.bot.dispatcher import dp
 from src.db import async_session_factory
 from src.services import player_service, permission_service, online_service, command_service
+
+# Importaciones de CommandSets de Jugador
 from commands.player.general import GENERAL_COMMANDS
 from commands.player.character import CHARACTER_COMMANDS
 from commands.player.interaction import INTERACTION_COMMANDS
@@ -3176,11 +4695,14 @@ from commands.player.movement import MOVEMENT_COMMANDS
 from commands.player.channels import CHANNEL_COMMANDS
 from commands.player.dynamic_channels import DYNAMIC_CHANNEL_COMMANDS
 from commands.player.settings import SETTINGS_COMMANDS
+
+# Importaciones de CommandSets de Administrador
 from commands.admin.building import SPAWN_COMMANDS
 from commands.admin.movement import ADMIN_MOVEMENT_COMMANDS
 from commands.admin.info import INFO_COMMANDS
 from commands.admin.diagnostics import DIAGNOSTICS_COMMANDS
 from commands.admin.management import MANAGEMENT_COMMANDS
+
 from src.utils.presenters import show_current_room
 
 # El diccionario `COMMAND_SETS` es el catálogo maestro que contiene una instancia
@@ -3236,9 +4758,7 @@ async def main_command_dispatcher(message: types.Message):
                 return
 
             # 4. Validar que el jugador tenga un personaje para la mayoría de los comandos.
-            if not character and not input_text.lower().startswith('/crearpersonaje'):
-                await message.answer("Primero debes crear un personaje con /crearpersonaje [nombre].")
-                return
+            # Esta lógica se ha movido dentro del parseo para simplificar.
 
             # 5. Parsear el comando y sus argumentos.
             if not input_text.startswith('/'):
@@ -3262,11 +4782,11 @@ async def main_command_dispatcher(message: types.Message):
                     break
 
             if not found_cmd:
-                await message.answer("No conozco ese comando.")
-                return
-
-            if not character and found_cmd.lock:
-                await message.answer("Primero debes crear un personaje con /crearpersonaje [nombre].")
+                # Si el jugador no tiene personaje y el comando no es de creación, damos un mensaje específico.
+                if not character and cmd_name != "crearpersonaje":
+                     await message.answer("Primero debes crear un personaje con /crearpersonaje [nombre].")
+                else:
+                    await message.answer("No conozco ese comando.")
                 return
 
             can_run, error_message = await permission_service.can_execute(character, found_cmd.lock)
@@ -3404,51 +4924,25 @@ class Character(Base):
     __tablename__ = 'characters'
 
     # --- Atributos Principales ---
-
-    # Identificador único del personaje en nuestra base de datos.
     id = Column(BigInteger, primary_key=True)
-
-    # El nombre del personaje, que debe ser único en todo el juego.
     name = Column(String(50), unique=True, nullable=False)
 
     # --- Claves Foráneas ---
-
-    # Vínculo a la cuenta propietaria de este personaje.
     account_id = Column(BigInteger, ForeignKey('accounts.id'), nullable=False, unique=True)
-
-    # Vínculo a la sala donde se encuentra actualmente el personaje.
     room_id = Column(BigInteger, ForeignKey('rooms.id'), nullable=False)
 
     # --- Atributos de Juego (Datos Estructurados) ---
-
-    # Almacena la lista de CommandSets base que el personaje conoce.
-    # Por ejemplo: ["general", "interaction", "movement", "channels"].
-    # Este campo es la base para el sistema de comandos dinámicos.
     command_sets = Column(
         JSONB,
         nullable=False,
-        server_default='["general", "interaction", "movement", "channels"]',
-        default=["general", "interaction", "movement", "channels"]
+        server_default='["general", "interaction", "movement", "channels", "dynamic_channels", "settings"]',
+        default=["general", "interaction", "movement", "channels", "dynamic_channels", "settings"]
     )
 
     # --- Relaciones de SQLAlchemy ---
-
-    # Relación uno-a-uno con la cuenta.
-    # Permite acceder al objeto `Account` desde el personaje vía `character.account`.
     account = relationship("Account", back_populates="character")
-
-    # Relación muchos-a-uno con la sala.
-    # Permite acceder al objeto `Room` desde el personaje vía `character.room`.
-    room = relationship("Room")
-
-    # Relación uno-a-muchos con los objetos del inventario.
-    # Permite acceder a una lista de objetos `Item` vía `character.items`.
+    room = relationship("Room", back_populates="characters")
     items = relationship("Item", back_populates="character")
-
-    # Relación uno-a-uno con las configuraciones del personaje.
-    # Permite acceder al objeto `CharacterSetting` vía `character.settings`.
-    # `cascade="all, delete-orphan"` asegura que si se borra un personaje,
-    # su fila de configuraciones asociada también se borre automáticamente.
     settings = relationship(
         "CharacterSetting",
         back_populates="character",
@@ -3456,10 +4950,18 @@ class Character(Base):
         cascade="all, delete-orphan"
     )
 
+    def get_description(self) -> str:
+        """
+        Genera la descripción que otros ven al mirar a este personaje.
+
+        Futuro: Esta función podría ser mucho más compleja, mostrando el equipo
+        del personaje, su estado (luchando, durmiendo), etc. Los jugadores
+        también podrían establecer su propia descripción personalizada.
+        """
+        # Por ahora, una descripción genérica.
+        return f"Ves a {self.name}, un aventurero como tú. No parece tener nada de especial por el momento."
+
     def __repr__(self):
-        """
-        Representación en string del objeto, útil para logging y depuración.
-        """
         return f"<Character(id={self.id}, name='{self.name}')>"
 # === FIN: src/models/character.py ===
 
@@ -3589,13 +5091,14 @@ class Exit(Base):
 Módulo que define el Modelo de Datos para una Instancia de Objeto (Item).
 
 Este archivo contiene la clase `Item`, que se mapea a la tabla `items`.
-Es fundamental entender que este modelo NO representa un tipo de objeto, sino
-una INSTANCIA única de un objeto en el mundo.
+Representa una INSTANCIA única de un objeto en el mundo.
 
-Este modelo es deliberadamente "ligero". La mayoría de sus propiedades (nombre,
-descripción, scripts, etc.) no se almacenan en la base de datos, sino que se
+Este modelo es deliberadamente "ligero". La mayoría de sus propiedades se
 obtienen en tiempo de ejecución a través de la columna `key`, que lo vincula
-a su prototipo correspondiente en `game_data/item_prototypes.py`.
+a su prototipo en `game_data/item_prototypes.py`.
+
+Un `Item` también puede actuar como un contenedor para otros `Items` a través
+de una relación de auto-referencia.
 """
 
 from sqlalchemy import BigInteger, Column, String, Text, ForeignKey
@@ -3613,57 +5116,61 @@ class Item(Base):
     # --- Atributos de la Instancia ---
 
     id = Column(BigInteger, primary_key=True)
-
-    # La clave que vincula esta instancia con su prototipo en ITEM_PROTOTYPES.
-    # Por ejemplo: "espada_viviente".
     key = Column(String(50), nullable=False, index=True)
-
-    # Atributos `_override`: Permiten que una instancia específica tenga
-    # un nombre o descripción diferente a la de su prototipo, creando objetos únicos.
-    # Si son `NULL`, se usarán los valores del prototipo.
     name_override = Column(String(100), nullable=True)
     description_override = Column(Text, nullable=True)
 
     # --- Ubicación del Objeto ---
+    # Un objeto solo puede estar en una ubicación a la vez. Por lo tanto,
+    # solo una de las siguientes tres columnas (`room_id`, `character_id`,
+    # `parent_item_id`) debe tener un valor.
 
-    # El ID de la sala donde se encuentra el objeto.
-    # Es `NULL` si el objeto está en el inventario de un personaje.
+    # 1. En el suelo de una sala.
     room_id = Column(BigInteger, ForeignKey('rooms.id'), nullable=True)
 
-    # El ID del personaje que lleva el objeto.
-    # Es `NULL` si el objeto está en el suelo de una sala.
+    # 2. En el inventario de un personaje.
     character_id = Column(BigInteger, ForeignKey('characters.id'), nullable=True)
+
+    # 3. Dentro de otro objeto (contenedor).
+    # Esta es una clave foránea que apunta a la misma tabla `items`.
+    parent_item_id = Column(BigInteger, ForeignKey('items.id'), nullable=True)
 
     # --- Relaciones de SQLAlchemy ---
 
-    # Relación muchos-a-uno con la sala. Permite acceder a `item.room`.
+    # Relación con la sala donde se encuentra el objeto.
     room = relationship("Room", back_populates="items")
 
-    # Relación muchos-a-uno con el personaje. Permite acceder a `item.character`.
+    # Relación con el personaje que lleva el objeto.
     character = relationship("Character", back_populates="items")
+
+    # --- Relaciones de Contenedor (Auto-Referencia) ---
+
+    # Relación para acceder al inventario de este objeto (si es un contenedor).
+    # Es una lista de `Item` que tienen a este objeto como su `parent_item_id`.
+    contained_items = relationship("Item", back_populates="parent_container", cascade="all, delete-orphan")
+
+    # Relación para acceder al contenedor de este objeto (si está dentro de uno).
+    # `remote_side=[id]` es necesario para que SQLAlchemy entienda la dirección
+    # de esta relación de auto-referencia.
+    parent_container = relationship("Item", back_populates="contained_items", remote_side=[id])
+
 
     @property
     def prototype(self) -> dict:
         """
-        Propiedad de conveniencia que devuelve el diccionario del prototipo
-        para este objeto desde `game_data`. Es el puente entre la instancia
-        de la base de datos y su definición de contenido.
+        Devuelve el diccionario del prototipo para este objeto desde `game_data`.
         """
         return ITEM_PROTOTYPES.get(self.key, {})
 
     def get_name(self) -> str:
         """
-        Obtiene el nombre del item.
-        Prioriza el `name_override` si existe; de lo contrario,
-        recurre al nombre definido en el prototipo.
+        Obtiene el nombre del item, priorizando el `override` sobre el prototipo.
         """
         return self.name_override or self.prototype.get("name", "un objeto misterioso")
 
     def get_description(self) -> str:
         """
-        Obtiene la descripción del item.
-        Prioriza el `description_override` si existe; de lo contrario,
-        recurre a la descripción definida en el prototipo.
+        Obtiene la descripción del item, priorizando el `override` sobre el prototipo.
         """
         return self.description_override or self.prototype.get("description", "No tiene nada de especial.")
 
@@ -3709,29 +5216,23 @@ class Room(Base):
     # --- Atributos de la Instancia ---
 
     id = Column(BigInteger, primary_key=True)
-
-    # La clave que vincula esta instancia con su prototipo en ROOM_PROTOTYPES.
-    # Por ejemplo: "plaza_central". Es único y no debería cambiar.
     key = Column(String(50), unique=True, nullable=True, index=True)
-
-    # El nombre y la descripción pueden ser actualizados desde los prototipos
-    # por el `world_loader_service`.
     name = Column(String(100), nullable=False)
     description = Column(Text, nullable=False, default="Esta es una sala sin describir.")
-
-    # String de permisos para la sala en sí (ej: para impedir la entrada).
     locks = Column(String, nullable=False, default="")
 
     # --- Relaciones de SQLAlchemy ---
 
     # Relación uno-a-muchos con los objetos que se encuentran en esta sala.
-    # Permite acceder a una lista de `Item` vía `room.items`.
     items = relationship("Item", back_populates="room")
 
+    # Relación uno-a-muchos con los personajes que se encuentran en esta sala.
+    # Permite acceder a una lista de `Character` vía `room.characters`.
+    # No necesita `back_populates` porque la relación en `Character` (`character.room`)
+    # ya está definida y es suficiente.
+    characters = relationship("Character")
+
     # Relación uno-a-muchos con las salidas QUE PARTEN DESDE ESTA SALA.
-    # Permite acceder a una lista de `Exit` vía `room.exits_from`.
-    # `cascade="all, delete-orphan"` asegura que si se borra una sala,
-    # todas sus salidas asociadas también se eliminen.
     exits_from = relationship(
         "Exit",
         foreign_keys="[Exit.from_room_id]",
@@ -3740,7 +5241,6 @@ class Room(Base):
     )
 
     # Relación uno-a-muchos con las salidas QUE LLEGAN A ESTA SALA.
-    # Es útil para comprobaciones inversas (ej: "¿qué salas conectan aquí?").
     exits_to = relationship(
         "Exit",
         foreign_keys="[Exit.to_room_id]",
@@ -4116,7 +5616,7 @@ modelo `Item`.
 
 Responsabilidades:
 - Crear nuevas instancias de objetos a partir de prototipos (`spawn`).
-- Mover objetos entre salas y los inventarios de los personajes.
+- Mover objetos entre salas, inventarios de personajes y contenedores.
 """
 
 import logging
@@ -4132,47 +5632,31 @@ async def spawn_item_in_room(session: AsyncSession, room_id: int, item_key: str)
     """
     Crea una instancia de un prototipo de objeto, la coloca en una sala
     y registra sus tickers.
-
-    Args:
-        session (AsyncSession): La sesión de base de datos activa.
-        room_id (int): El ID de la sala donde se creará el objeto.
-        item_key (str): La clave del prototipo del objeto a crear.
-
-    Returns:
-        Item: La nueva instancia del objeto `Item` creada.
-
-    Raises:
-        ValueError: Si la `item_key` no corresponde a ningún prototipo definido.
     """
     if item_key not in ITEM_PROTOTYPES:
         raise ValueError(f"No existe un prototipo de objeto con la clave '{item_key}'")
 
     try:
-        # 1. Crear la instancia del modelo Item, vinculándola a la sala.
         new_item = Item(room_id=room_id, key=item_key)
         session.add(new_item)
         await session.commit()
         await session.refresh(new_item)
-
-        # 2. Notificar al ticker_service para que programe los tickers de este nuevo objeto.
         await ticker_service.schedule_tickers_for_entity(new_item)
-
         return new_item
     except Exception:
-        logging.exception(f"Error inesperado al intentar generar el objeto con clave '{item_key}' en la sala {room_id}")
-        # Relanzamos la excepción para que la capa superior (el comando) la maneje.
+        logging.exception(f"Error inesperado al generar el objeto con clave '{item_key}'")
         raise
 
 
 async def move_item_to_character(session: AsyncSession, item_id: int, character_id: int):
     """
-    Mueve un objeto desde una sala (o de ningún sitio) al inventario de un personaje.
-    Actualiza el `room_id` a NULL y establece el `character_id`.
+    Mueve un objeto al inventario de un personaje, quitándolo de cualquier
+    otra ubicación (sala o contenedor).
     """
     query = (
         update(Item)
         .where(Item.id == item_id)
-        .values(room_id=None, character_id=character_id)
+        .values(room_id=None, character_id=character_id, parent_item_id=None)
     )
     await session.execute(query)
     await session.commit()
@@ -4180,13 +5664,27 @@ async def move_item_to_character(session: AsyncSession, item_id: int, character_
 
 async def move_item_to_room(session: AsyncSession, item_id: int, room_id: int):
     """
-    Mueve un objeto desde el inventario de un personaje al suelo de una sala.
-    Actualiza el `character_id` a NULL y establece el `room_id`.
+    Mueve un objeto al suelo de una sala, quitándolo de cualquier
+    otra ubicación (inventario o contenedor).
     """
     query = (
         update(Item)
         .where(Item.id == item_id)
-        .values(room_id=room_id, character_id=None)
+        .values(room_id=room_id, character_id=None, parent_item_id=None)
+    )
+    await session.execute(query)
+    await session.commit()
+
+
+async def move_item_to_container(session: AsyncSession, item_id: int, container_id: int):
+    """
+    Mueve un objeto al interior de otro objeto (contenedor), quitándolo de
+    cualquier otra ubicación (sala o inventario).
+    """
+    query = (
+        update(Item)
+        .where(Item.id == item_id)
+        .values(room_id=None, character_id=None, parent_item_id=container_id)
     )
     await session.execute(query)
     await session.commit()
@@ -5022,60 +6520,65 @@ async def sync_world_from_prototypes(session: AsyncSession):
     idempotente: se puede ejecutar de forma segura en cada arranque.
 
     Su lógica es:
-    1. Crea las salas que no existen y actualiza los datos de las que sí existen.
-    2. Borra por completo todas las salidas existentes.
-    3. Recrea todas las salidas basándose en las definiciones actuales.
+    1. Crea/actualiza las salas.
+    2. Borra todas las salidas existentes.
+    3. Recrea todas las salidas, aplicando los `locks` definidos en los prototipos.
     """
     logging.info("Sincronizando el mundo estático desde los prototipos...")
     try:
         # --- PASO 1: Sincronizar Salas ---
-        # Se asegura de que todas las salas definidas en los prototipos existan en la BD
-        # y actualiza su nombre/descripción. Guarda un mapa de `key` a `id` para el siguiente paso.
         room_key_to_id_map = {}
 
-        # Obtenemos todas las salas existentes de la BD para compararlas.
         existing_rooms_query = await session.execute(select(Room))
         existing_rooms = {room.key: room for room in existing_rooms_query.scalars().all()}
 
         for key, data in ROOM_PROTOTYPES.items():
             room = existing_rooms.get(key)
             if not room:
-                # La sala no existe en la BD, la creamos.
                 logging.info(f"  -> Creando sala '{key}'...")
                 room = Room(key=key, name=data['name'], description=data['description'])
                 session.add(room)
             else:
-                # La sala ya existe, actualizamos sus datos por si cambiaron.
                 room.name = data['name']
                 room.description = data['description']
 
-            # `flush` envía los cambios a la BD sin cerrar la transacción, lo que
-            # nos permite obtener el ID de las nuevas salas antes del commit final.
             await session.flush()
             room_key_to_id_map[key] = room.id
 
         # --- PASO 2: Limpiar Salidas Viejas ---
-        # Es más simple y seguro borrar todas las salidas y recrearlas que intentar
-        # parchear las existentes. Esto asegura que las salidas eliminadas de los
-        # prototipos también se eliminen de la BD.
         logging.info("  -> Limpiando todas las salidas existentes para reconstruir...")
         await session.execute(delete(Exit))
 
-        # --- PASO 3: Crear Salidas Nuevas ---
-        # Itera de nuevo sobre los prototipos y crea las filas en la tabla `exits`.
+        # --- PASO 3: Crear Salidas Nuevas con Locks ---
         for key, data in ROOM_PROTOTYPES.items():
             from_room_id = room_key_to_id_map[key]
-            for direction, to_room_key in data.get("exits", {}).items():
+            for direction, exit_data in data.get("exits", {}).items():
+                # El prototipo ahora puede ser un string simple o un diccionario.
+                if isinstance(exit_data, str):
+                    to_room_key = exit_data
+                    lock_string = ""
+                elif isinstance(exit_data, dict):
+                    to_room_key = exit_data.get("to")
+                    lock_string = exit_data.get("locks", "")
+                else:
+                    continue # Ignorar formato incorrecto
+
                 if to_room_key in room_key_to_id_map:
                     to_room_id = room_key_to_id_map[to_room_key]
 
-                    # Crear la salida principal (ej: A -> B, "norte")
-                    exit_forward = Exit(name=direction.lower(), from_room_id=from_room_id, to_room_id=to_room_id)
+                    # Crear la salida principal, incluyendo su lock.
+                    exit_forward = Exit(
+                        name=direction.lower(),
+                        from_room_id=from_room_id,
+                        to_room_id=to_room_id,
+                        locks=lock_string
+                    )
                     session.add(exit_forward)
 
-                    # Crear la salida de vuelta automáticamente (ej: B -> A, "sur")
+                    # Crear la salida de vuelta automáticamente (sin lock por defecto).
                     opposite = OPPOSITE_DIRECTIONS.get(direction.lower())
                     if opposite:
+                        # La salida de vuelta no hereda el lock, debe definirse explícitamente.
                         exit_backward = Exit(name=opposite, from_room_id=to_room_id, to_room_id=from_room_id)
                         session.add(exit_backward)
                 else:
@@ -5084,9 +6587,7 @@ async def sync_world_from_prototypes(session: AsyncSession):
         await session.commit()
         logging.info("¡Sincronización del mundo completada!")
     except Exception:
-        # Un fallo aquí es crítico para el arranque del bot.
         logging.exception("Error fatal durante la sincronización del mundo.")
-        # Relanzamos la excepción para que la función on_startup la capture y detenga el bot.
         raise
 # === FIN: src/services/world_loader_service.py ===
 

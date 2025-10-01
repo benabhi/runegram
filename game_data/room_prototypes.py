@@ -3,43 +3,48 @@
 Definición de Prototipos de Salas (Rooms).
 
 Este archivo es el "mapa maestro" del mundo de Runegram. Define todas las
-salas estáticas, sus descripciones y, lo más importante, cómo se conectan
-entre sí.
+salas estáticas, sus descripciones, conexiones y detalles interactivos.
 
 El `world_loader_service` lee este archivo al arrancar el bot para construir
 o sincronizar el mundo en la base de datos.
 
 Estructura de un Prototipo de Sala:
-- <clave_unica>: (ej: "plaza_central") Un identificador único para la sala que
-                 nunca debe cambiar. Se usa para las conexiones.
-    - "name": (str) El nombre de la sala que ven los jugadores.
-    - "description": (str) El texto principal que se muestra al entrar o mirar la sala.
-    - "exits": (dict, opcional) Define las salidas desde esta sala.
+- <clave_unica>: (ej: "plaza_central")
+    - "name": (str) El nombre de la sala.
+    - "description": (str) El texto principal que se muestra al entrar.
+    - "exits": (dict, opcional) Conexiones a otras salas.
         - "<direccion>": (str) La clave única de la sala de destino.
-          (ej: "norte": "camino_del_bosque"). El `world_loader_service` se
-          encarga de crear automáticamente la salida de vuelta (sur).
-    - "grants_command_sets": (list[str], opcional) Lista de CommandSets que esta
-                             sala otorga a cualquier personaje que se encuentre en ella.
+    - "grants_command_sets": (list[str], opcional) CommandSets que la sala otorga.
+    - "details": (dict, opcional) Elementos descriptivos de la sala que se
+                 pueden mirar, pero no son objetos físicos.
+        - "<keyword>": (dict)
+            - "keywords": (list[str]) Palabras clave para mirar el detalle.
+            - "description": (str) El texto que se muestra al mirar el detalle.
 """
 
 ROOM_PROTOTYPES = {
-    # La sala de inicio, donde aparecen todos los nuevos personajes.
+    # La sala de inicio.
     "limbo": {
         "name": "El Limbo",
         "description": "Te encuentras en una habitación vacía, suspendida en la nada. Es el comienzo de tu aventura y un refugio seguro.",
         "exits": {
-            # "dirección": "clave_de_la_sala_destino"
             "norte": "plaza_central"
         }
     },
 
-    # Un nexo central desde el que parten varios caminos.
+    # Un nexo central con un nuevo detalle interactivo.
     "plaza_central": {
         "name": "Plaza Central de Runegard",
-        "description": "Estás en el corazón de la ciudad. El bullicio de mercaderes y aventureros llena el aire. Varios caminos parten desde aquí.",
+        "description": "Estás en el corazón de la ciudad. El bullicio de mercaderes y aventureros llena el aire. Una imponente fuente de mármol domina el centro de la plaza. Varios caminos parten desde aquí.",
         "exits": {
-            # El cargador creará automáticamente la salida 'sur' de vuelta al 'limbo'.
             "este": "calle_mercaderes"
+        },
+        "details": {
+            # Este diccionario permite que el comando `/mirar fuente` funcione en esta sala.
+            "fuente_plaza": {
+                "keywords": ["fuente", "marmol", "fuente de marmol"],
+                "description": "Es una magnífica fuente esculpida en mármol blanco. El agua cristalina fluye desde la boca de tres leones de piedra. En el fondo, puedes ver el brillo de algunas monedas arrojadas por los transeúntes."
+            }
         }
     },
 
@@ -48,7 +53,7 @@ ROOM_PROTOTYPES = {
         "name": "Calle de los Mercaderes",
         "description": "Decenas de puestos se alinean en esta calle, ofreciendo todo tipo de mercancías exóticas.",
         "exits": {
-            # El cargador creará automáticamente la salida 'oeste' de vuelta a 'plaza_central'.
+            "oeste": "plaza_central"
         }
     },
 

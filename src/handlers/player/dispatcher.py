@@ -24,6 +24,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.bot.dispatcher import dp
 from src.db import async_session_factory
 from src.services import player_service, permission_service, online_service, command_service
+
+# Importaciones de CommandSets de Jugador
 from commands.player.general import GENERAL_COMMANDS
 from commands.player.character import CHARACTER_COMMANDS
 from commands.player.interaction import INTERACTION_COMMANDS
@@ -31,11 +33,14 @@ from commands.player.movement import MOVEMENT_COMMANDS
 from commands.player.channels import CHANNEL_COMMANDS
 from commands.player.dynamic_channels import DYNAMIC_CHANNEL_COMMANDS
 from commands.player.settings import SETTINGS_COMMANDS
+
+# Importaciones de CommandSets de Administrador
 from commands.admin.building import SPAWN_COMMANDS
 from commands.admin.movement import ADMIN_MOVEMENT_COMMANDS
 from commands.admin.info import INFO_COMMANDS
 from commands.admin.diagnostics import DIAGNOSTICS_COMMANDS
 from commands.admin.management import MANAGEMENT_COMMANDS
+
 from src.utils.presenters import show_current_room
 
 # El diccionario `COMMAND_SETS` es el catálogo maestro que contiene una instancia
@@ -91,9 +96,7 @@ async def main_command_dispatcher(message: types.Message):
                 return
 
             # 4. Validar que el jugador tenga un personaje para la mayoría de los comandos.
-            if not character and not input_text.lower().startswith('/crearpersonaje'):
-                await message.answer("Primero debes crear un personaje con /crearpersonaje [nombre].")
-                return
+            # Esta lógica se ha movido dentro del parseo para simplificar.
 
             # 5. Parsear el comando y sus argumentos.
             if not input_text.startswith('/'):
@@ -117,11 +120,11 @@ async def main_command_dispatcher(message: types.Message):
                     break
 
             if not found_cmd:
-                await message.answer("No conozco ese comando.")
-                return
-
-            if not character and found_cmd.lock:
-                await message.answer("Primero debes crear un personaje con /crearpersonaje [nombre].")
+                # Si el jugador no tiene personaje y el comando no es de creación, damos un mensaje específico.
+                if not character and cmd_name != "crearpersonaje":
+                     await message.answer("Primero debes crear un personaje con /crearpersonaje [nombre].")
+                else:
+                    await message.answer("No conozco ese comando.")
                 return
 
             can_run, error_message = await permission_service.can_execute(character, found_cmd.lock)

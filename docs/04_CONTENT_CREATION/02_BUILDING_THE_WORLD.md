@@ -1,135 +1,137 @@
 # Guía Práctica: Construyendo el Mundo
 
-Gracias a la arquitectura "Data-Driven" de Runegram, expandir el mundo del juego es una tarea de diseño de contenido, no de programación del motor. Esta guía te mostrará cómo añadir nuevas salas, objetos y canales simplemente editando archivos de datos en la carpeta `game_data/`.
+Gracias a la arquitectura "Data-Driven" de Runegram, expandir el mundo del juego es una tarea de diseño de contenido, no de programación del motor. Esta guía te mostrará cómo añadir nuevas salas, objetos con `locks`, contenedores y canales, simplemente editando archivos de datos en la carpeta `game_data/`.
 
-## 1. Añadiendo una Nueva Sala y Conectándola
-
-Vamos a crear una nueva sala, la "Biblioteca Antigua", y la conectaremos a la `plaza_central`.
+## 1. Construyendo Salas y Salidas con Locks
 
 **Archivo a editar:** `game_data/room_prototypes.py`
 
-### Paso 1: Definir la Nueva Sala
+### Sintaxis de Salidas (Exits)
 
-Añade una nueva entrada al diccionario `ROOM_PROTOTYPES`. La clave (`"biblioteca_antigua"`) debe ser única y descriptiva.
+Para conectar salas, se usa la clave `"exits"`. Tienes dos formas de definir una salida:
 
-```python
-# En game_data/room_prototypes.py
+#### a) Sintaxis Simple (Bidireccional y sin Lock)
 
-ROOM_PROTOTYPES = {
-    # ... (salas existentes) ...
-
-    "calle_mercaderes": {
-        # ...
-    },
-
-    # --- NUEVA SALA AÑADIDA ---
-    "biblioteca_antigua": {
-        "name": "La Biblioteca Antigua",
-        "description": "El aire aquí es denso con el olor a papel viejo y polvo. Estanterías altísimas, repletas de tomos encuadernados en cuero, se pierden en la penumbra de las alturas."
-        # Aún no definimos salidas DESDE aquí.
-    }
-}```
-
-### Paso 2: Conectar la Sala Existente a la Nueva
-
-Ahora, modifica el prototipo de la `plaza_central` para que tenga una salida que lleve a nuestra nueva biblioteca.
+Si solo proporcionas un string con la `key` de la sala de destino, el motor creará una salida bidireccional y sin restricciones.
 
 ```python
-# En game_data/room_prototypes.py
-
-    # ...
-    "plaza_central": {
-        "name": "Plaza Central de Runegard",
-        "description": "Estás en el corazón de la ciudad...",
-        "exits": {
-            # El cargador creará automáticamente 'sur' de vuelta al 'limbo'.
-            "este": "calle_mercaderes",
-            # --- NUEVA SALIDA AÑADIDA ---
-            "oeste": "biblioteca_antigua"
-        }
-    },
-    # ...
+"plaza_central": {
+    "exits": { "oeste": "biblioteca_antigua" }
+},
+"biblioteca_antigua": {
+    # No es necesario definir "este": "plaza_central" aquí.
+    # El motor lo creará automáticamente.
+}
 ```
 
-### ¡Y eso es todo!
+#### b) Sintaxis Avanzada (con Locks)
 
-Al reiniciar el bot, el `world_loader_service` detectará los cambios:
-1.  Creará la nueva sala "La Biblioteca Antigua" en la base de datos.
-2.  Creará una salida "oeste" desde la "Plaza Central" hacia la biblioteca.
-3.  Creará automáticamente la salida de vuelta "este" desde la "Biblioteca Antigua" hacia la plaza.
+Para añadir un `lock` a una salida, debes usar un diccionario. Esto te permite especificar la sala de destino y el `lock_string`.
 
-## 2. Añadiendo un Nuevo Objeto
+**Importante:** Cuando usas la sintaxis avanzada, el `lock` se aplica **solo a la salida de ida**. La salida de vuelta se crea automáticamente sin `lock`.
 
-Vamos a crear un "libro polvoriento" y lo haremos aparecer en la nueva biblioteca. Los objetos se crean en dos pasos: definir el prototipo y luego generar una instancia en el mundo.
+**Ejemplo:** Vamos a crear una "Armería" a la que solo se puede entrar siendo `ADMIN` y teniendo una llave.
+
+```python
+"plaza_central": {
+    "exits": {
+        "norte": {
+            "to": "armeria",
+            "locks": "rol(ADMIN) and tiene_objeto(llave_armeria)"
+        }
+    }
+},
+"armeria": {
+    "name": "La Armería de Runegard"
+    # El motor creará la salida "sur" de vuelta a la "plaza_central" sin lock.
+}
+```
+**Resultado:** Un jugador podrá salir libremente de la armería hacia el sur, pero para entrar desde la plaza hacia el norte, deberá cumplir las dos condiciones del `lock`.
+
+### Añadiendo Detalles Interactivos
+Puedes añadir elementos a una sala que se pueden `mirar` pero que no son objetos físicos usando la clave `"details"`.
+
+```python
+"plaza_central": {
+    "description": "...Una imponente fuente de mármol domina el centro...",
+    "details": {
+        "fuente": {
+            "keywords": ["fuente", "marmol"],
+            "description": "Es una magnífica fuente esculpida en mármol blanco..."
+        }
+    }
+},
+```
+**Resultado:** El comando `/mirar fuente` funcionará en esta sala.
+
+## 2. Creando Objetos, Locks y Contenedores
 
 **Archivo a editar:** `game_data/item_prototypes.py`
 
-### Paso 1: Definir el Prototipo del Objeto
+### Objetos con `lock` para Coger
 
-Añade una nueva entrada al diccionario `ITEM_PROTOTYPES`.
+Puedes restringir quién puede coger un objeto usando la clave `"locks"`.
 
 ```python
-# En game_data/item_prototypes.py
-
-ITEM_PROTOTYPES = {
-    # ... (objetos existentes) ...
-
-    # --- NUEVO OBJETO AÑADIDO ---
-    "libro_polvoriento": {
-        "name": "un libro polvoriento",
-        "keywords": ["libro", "polvoriento", "tomo"],
-        "description": "Un pesado tomo encuadernado en cuero agrietado. En su portada, apenas legible, se lee: 'Historias de la Primera Era'."
-    }
+"espada_sagrada_antigua": {
+    "name": "la Espada Sagrada Antigua",
+    "keywords": ["espada", "sagrada", "antigua"],
+    "description": "Una hoja legendaria que vibra con un poder inmenso.",
+    "locks": "rol(SUPERADMIN)" # Solo un Superadmin puede coger este objeto.
 }
 ```
+**Resultado:** Cuando un jugador que no sea `SUPERADMIN` intente usar `/coger espada`, el comando `CmdGet` evaluará el `lock` y denegará la acción.
 
-### Paso 2: Generar el Objeto en el Mundo
+### Creando Contenedores
 
-A diferencia de las salas, que son estáticas, los objetos son dinámicos. Para hacer que un objeto aparezca, un administrador debe generarlo (`spawn`) en la sala deseada.
+Para convertir un objeto en un contenedor, debes añadir dos claves: `"is_container": True` y `"capacity": <número>`.
 
-1.  Reinicia el bot para que cargue la nueva sala.
-2.  Entra al juego como Superadmin.
-3.  Ve a la nueva sala: `/oeste` desde la Plaza Central.
-4.  Usa el comando `/generarobjeto` con la clave del prototipo que acabas de crear:
-    ```
-    /generarobjeto libro_polvoriento
-    ```
-El objeto "un libro polvoriento" aparecerá ahora en el suelo de la biblioteca para que cualquier jugador lo vea y lo coja.
+#### a) Contenedor Portátil (Mochila)
 
-## 3. Añadiendo un Nuevo Canal de Chat
+```python
+"mochila_cuero": {
+    "name": "una mochila de cuero",
+    "keywords": ["mochila", "cuero"],
+    "description": "Una mochila simple pero resistente.",
+    "is_container": True,
+    "capacity": 10
+}
+```
+Un jugador puede coger esta mochila y usar `/meter` y `/sacar` para gestionar su contenido.
 
-Vamos a añadir un canal de "Comercio" para que los jugadores puedan comprar y vender.
+#### b) Contenedor Fijo y Cerrado (Cofre)
+
+Puedes combinar `locks` y propiedades de contenedor para crear objetos como cofres.
+
+```python
+"cofre_roble": {
+    "name": "un cofre de roble",
+    "keywords": ["cofre", "roble"],
+    "description": "Un pesado cofre de madera con refuerzos de hierro.",
+    "is_container": True,
+    "capacity": 20,
+    // El lock "rol(SUPERADMIN)" evita que nadie pueda coger el cofre del suelo.
+    "locks": "tiene_objeto(llave_roble) or rol(ADMIN)"
+}
+```
+**Resultado:**
+*   Nadie podrá coger el cofre (`/coger cofre`) debido al `lock` `rol(SUPERADMIN)` (una forma de hacerlo inamovible).
+*   Un jugador solo podrá interactuar con el cofre (`/meter`, `/sacar`, `/inv cofre`) si lleva la "llave_roble" o si es un `ADMIN`.
+
+## 3. Añadiendo Canales de Chat
 
 **Archivo a editar:** `game_data/channel_prototypes.py`
 
-### Paso 1: Definir el Prototipo del Canal
-
-Añade una nueva entrada al diccionario `CHANNEL_PROTOTYPES`.
+Para crear un nuevo canal donde los jugadores puedan hablar, como `/comercio`:
 
 ```python
-# En game_data/channel_prototypes.py
-
-CHANNEL_PROTOTYPES = {
-    # ... (canales existentes) ...
-
-    # --- NUEVO CANAL AÑADIDO ---
-    "comercio": {
-        "name": "Comercio",
-        "icon": "💰",
-        "description": "Para comprar, vender e intercambiar objetos con otros jugadores.",
-        "type": "CHAT",
-        "default_on": True,
-        "lock": "" # Sin lock, cualquiera puede hablar.
-    }
+"comercio": {
+    "name": "Comercio",
+    "icon": "💰",
+    "description": "Para comprar, vender e intercambiar objetos.",
+    "type": "CHAT",
+    "default_on": True,
+    "lock": "" // Sin lock, cualquiera puede hablar.
 }
 ```
-
-### ¡Y eso es todo!
-
-Al reiniciar el bot, el sistema de comandos dinámicos detectará este nuevo canal:
-1.  La función `generate_channel_commands` creará automáticamente una instancia de `CmdDynamicChannel` para el comando `/comercio`.
-2.  El `dispatcher` lo registrará.
-3.  El `command_service` lo añadirá a la lista de comandos de Telegram de los jugadores.
-4.  El comando `/canales` mostrará el nuevo canal de "Comercio" en la lista.
-
-Este flujo de trabajo demuestra cómo el diseño "Data-Driven" te permite expandir masivamente el contenido de Runegram de una manera rápida, segura y sin necesidad de tocar el motor del juego.
+Al reiniciar el bot, el comando `/comercio` se creará automáticamente. Si quisieras que solo los administradores pudieran hablar, simplemente añadirías `"lock": "rol(ADMIN)"`.

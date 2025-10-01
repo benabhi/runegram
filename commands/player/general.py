@@ -11,73 +11,76 @@ Estos comandos están disponibles para todos los jugadores en todo momento.
 
 import logging
 from aiogram import types
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from collections import Counter
 
 from commands.command import Command
-from src.models.character import Character
+from src.models import Character
 from src.utils.presenters import show_current_room
-from src.services import script_service, online_service
+from src.services import script_service, online_service, permission_service
+
+# Re-importamos `find_item_in_list` aquí ya que CmdInventory lo necesita.
+from .interaction import find_item_in_list
 
 class CmdLook(Command):
     """
-    Comando para observar el entorno actual (la sala) o un objeto o
-    personaje específico dentro de ella.
+    Comando para observar el entorno, objetos, personajes o detalles.
     """
     names = ["mirar", "m", "l"]
     lock = ""
-    description = "Observa tu entorno o un objeto/personaje específico."
+    description = "Observa tu entorno o un objeto/personaje/detalle específico."
 
     async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
         try:
-            # Si no se proporcionan argumentos, el jugador mira la sala.
             if not args:
                 await show_current_room(message)
                 return
 
-            target_name = " ".join(args).lower()
-            found_target = None
+            target_string = " ".join(args).lower()
 
-            # 1. Buscar en los objetos de la sala.
-            if character.room.items:
-                for item in character.room.items:
-                    if target_name in item.get_keywords() or target_name in item.get_name().lower():
-                        found_target = item
-                        break
+            # 1. Buscar en los detalles de la sala.
+            room_details = character.room.prototype.get("details", {})
+            for detail_key, detail_data in room_details.items():
+                if target_string in detail_data.get("keywords", []):
+                    await message.answer(f"<pre>{detail_data['description']}</pre>", parse_mode="HTML")
+                    return
 
-            # 2. Si no se encontró, buscar en el inventario del personaje.
-            if not found_target and character.items:
-                for item in character.items:
-                    if target_name in item.get_keywords() or target_name in item.get_name().lower():
-                        found_target = item
-                        break
+            # 2. Buscar en los objetos de la sala.
+            for item in character.room.items:
+                if target_string in item.get_keywords() or target_string == item.get_name().lower():
+                    await message.answer(f"<pre>{item.get_description()}</pre>", parse_mode="HTML")
+                    if "on_look" in item.prototype.get("scripts", {}):
+                        await script_service.execute_script(
+                            script_string=item.prototype["scripts"]["on_look"],
+                            session=session, character=character, target=item
+                        )
+                    return
 
-            # Futuro: 3. Buscar otros personajes en la sala.
-            # Futuro: 4. Buscar NPCs en la sala.
+            # 3. Buscar en el inventario del personaje.
+            for item in character.items:
+                if target_string in item.get_keywords() or target_string == item.get_name().lower():
+                    await message.answer(f"<pre>{item.get_description()}</pre>", parse_mode="HTML")
+                    if "on_look" in item.prototype.get("scripts", {}):
+                        await script_service.execute_script(
+                            script_string=item.prototype["scripts"]["on_look"],
+                            session=session, character=character, target=item
+                        )
+                    return
 
-            if not found_target:
-                await message.answer("No ves eso por aquí.")
-                return
+            # 4. Buscar otros personajes en la sala.
+            for other_char in character.room.characters:
+                if other_char.id != character.id and target_string == other_char.name.lower():
+                    await message.answer(f"<pre>{other_char.get_description()}</pre>", parse_mode="HTML")
+                    return
 
-            # Mostramos la descripción del objeto encontrado.
-            await message.answer(f"<pre>{found_target.get_description()}</pre>", parse_mode="HTML")
+            await message.answer("No ves eso por aquí.")
 
-            # Finalmente, disparamos el evento on_look si el objeto tiene un script asociado.
-            if "on_look" in found_target.prototype.get("scripts", {}):
-                await script_service.execute_script(
-                    script_string=found_target.prototype["scripts"]["on_look"],
-                    session=session,
-                    character=character,
-                    target=found_target
-                )
         except Exception:
             await message.answer("❌ Ocurrió un error al intentar mirar.")
             logging.exception(f"Fallo al ejecutar /mirar para {character.name}")
 
 class CmdSay(Command):
-    """
-    Comando para que el personaje hable a otros en la misma sala.
-    """
+    """Comando para que el personaje hable a otros en la misma sala."""
     names = ["decir", "'"]
     lock = ""
     description = "Habla con las personas que están en tu misma sala."
@@ -87,37 +90,67 @@ class CmdSay(Command):
             await message.answer("¿Qué quieres decir?")
             return
 
-        # Futuro: Este mensaje debería ser transmitido a otros jugadores en la sala.
         say_text = " ".join(args)
+        # Futuro: Usar broadcaster_service para notificar a la sala.
         await message.answer(f"Dices: {say_text}")
 
 class CmdInventory(Command):
-    """
-    Comando para mostrar al jugador los objetos que lleva en su inventario.
-    """
+    """Comando para mostrar el inventario del jugador o el de un contenedor."""
     names = ["inventario", "inv", "i"]
-    lock = ""
-    description = "Muestra los objetos que llevas en tu inventario."
+    description = "Muestra tu inventario o el de un contenedor. Uso: /inv [contenedor]"
 
     async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
         try:
-            inventory = character.items
+            # CASO 1: Mirar el inventario propio.
+            if not args:
+                inventory = character.items
+                if not inventory:
+                    response = "No llevas nada."
+                else:
+                    items_list = [f" - {item.get_name()}" for item in inventory]
+                    items_str = "\n".join(items_list)
+                    response = f"<b>Llevas lo siguiente:</b>\n{items_str}"
+                await message.answer(f"<pre>{response}</pre>", parse_mode="HTML")
+                return
+
+            # CASO 2: Mirar el inventario de un contenedor.
+            container_name = " ".join(args).lower()
+            container = find_item_in_list(container_name, character.items) or \
+                        find_item_in_list(container_name, character.room.items)
+
+            if not container:
+                await message.answer(f"No ves ningún '{container_name}' por aquí.")
+                return
+            if not container.prototype.get("is_container"):
+                await message.answer(f"{container.get_name().capitalize()} no es un contenedor.")
+                return
+
+            lock_string = container.prototype.get("locks", "")
+            can_pass, _ = await permission_service.can_execute(character, lock_string)
+            if not can_pass:
+                await message.answer(f"No puedes ver el contenido de {container.get_name()}.")
+                return
+
+            await session.refresh(container, attribute_names=['contained_items'])
+            inventory = container.contained_items
             if not inventory:
-                response = "No llevas nada."
+                response = f"{container.get_name().capitalize()} está vacío."
             else:
-                items_list = [f" - {item.get_name()}" for item in inventory]
-                items_str = "\n".join(items_list)
-                response = f"<b>Llevas lo siguiente:</b>\n{items_str}"
+                item_names = [item.get_name() for item in inventory]
+                item_counts = Counter(item_names)
+                formatted_items = [f" - {name}" + (f" ({count})" if count > 1 else "") for name, count in item_counts.items()]
+                items_str = "\n".join(formatted_items)
+                response = f"<b>En {container.get_name()} ves:</b>\n{items_str}"
 
             await message.answer(f"<pre>{response}</pre>", parse_mode="HTML")
+
         except Exception:
-            await message.answer("❌ Ocurrió un error al mostrar tu inventario.")
+            await message.answer("❌ Ocurrió un error al mostrar el inventario.")
             logging.exception(f"Fallo al ejecutar /inventario para {character.name}")
 
+
 class CmdHelp(Command):
-    """
-    Comando para mostrar un mensaje de ayuda básico con los comandos principales.
-    """
+    """Comando para mostrar un mensaje de ayuda básico."""
     names = ["ayuda", "help"]
     lock = ""
     description = "Muestra una lista con los comandos básicos del juego."
@@ -130,7 +163,7 @@ class CmdHelp(Command):
             "/inventario - Muestra los objetos que llevas.\n"
             "/decir [mensaje] - Hablas a la gente en tu misma sala.\n"
             "/coger [objeto] - Recoges un objeto del suelo.\n"
-            "/dejar [objeto] - Dejas un objeto que llevas.\n"
+            "/dejar [objeto] - Dejas un objeto en el suelo.\n"
             "/quien - Muestra quién está conectado.\n"
             "/canales - Gestiona tus suscripciones a canales.\n\n"
             "Para moverte, usa /norte, /sur, etc."
@@ -138,10 +171,7 @@ class CmdHelp(Command):
         await message.answer(f"<pre>{help_text}</pre>", parse_mode="HTML")
 
 class CmdWho(Command):
-    """
-    Comando social que muestra una lista de todos los personajes que
-    están actualmente conectados al juego.
-    """
+    """Comando social que muestra una lista de personajes conectados."""
     names = ["quien", "who"]
     lock = ""
     description = "Muestra una lista de los jugadores conectados."
@@ -150,14 +180,11 @@ class CmdWho(Command):
         try:
             online_characters = await online_service.get_online_characters(session)
 
-            # Si la lista está vacía o solo contiene al jugador actual, se muestra
-            # un mensaje indicando que está solo.
             if not online_characters or (len(online_characters) == 1 and online_characters[0].id == character.id):
                 await message.answer("Eres la única alma aventurera en este mundo ahora mismo.")
                 return
 
             response_lines = [f"<b>Hay {len(online_characters)} aventureros en Runegram:</b>"]
-            # Ordenamos la lista alfabéticamente por nombre para una visualización clara.
             for char in sorted(online_characters, key=lambda c: c.name):
                 response_lines.append(f"- {char.name}")
 
@@ -167,6 +194,21 @@ class CmdWho(Command):
             await message.answer("❌ Ocurrió un error al obtener la lista de jugadores.")
             logging.exception(f"Fallo al ejecutar /quien para {character.name}")
 
+class CmdPray(Command):
+    """Comando que permite al jugador rezar a los dioses."""
+    names = ["orar", "rezar"]
+    description = "Rezas a los dioses en busca de inspiración."
+    lock = ""
+
+    async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
+        try:
+            response_text = "Bajas la cabeza y murmuras una plegaria. Sientes una cálida sensación de esperanza."
+            await message.answer(response_text)
+        except Exception:
+            await message.answer("❌ Ocurrió un error al intentar procesar tu plegaria.")
+            logging.exception(f"Fallo al ejecutar /orar para {character.name}")
+
+
 # Exportamos la lista de comandos de este módulo.
 GENERAL_COMMANDS = [
     CmdLook(),
@@ -174,4 +216,5 @@ GENERAL_COMMANDS = [
     CmdInventory(),
     CmdHelp(),
     CmdWho(),
+    CmdPray(),
 ]

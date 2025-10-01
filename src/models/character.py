@@ -32,22 +32,16 @@ class Character(Base):
     room_id = Column(BigInteger, ForeignKey('rooms.id'), nullable=False)
 
     # --- Atributos de Juego (Datos Estructurados) ---
-
-    # Almacena la lista de CommandSets base que el personaje conoce.
-    # Este campo es la base para el sistema de comandos dinámicos.
     command_sets = Column(
         JSONB,
         nullable=False,
-
-        # Añadimos "dynamic_channels" y "settings" a la lista de sets por defecto
-        # para que todos los jugadores tengan acceso a ellos desde el principio.
         server_default='["general", "interaction", "movement", "channels", "dynamic_channels", "settings"]',
         default=["general", "interaction", "movement", "channels", "dynamic_channels", "settings"]
     )
 
     # --- Relaciones de SQLAlchemy ---
     account = relationship("Account", back_populates="character")
-    room = relationship("Room")
+    room = relationship("Room", back_populates="characters")
     items = relationship("Item", back_populates="character")
     settings = relationship(
         "CharacterSetting",
@@ -56,8 +50,16 @@ class Character(Base):
         cascade="all, delete-orphan"
     )
 
+    def get_description(self) -> str:
+        """
+        Genera la descripción que otros ven al mirar a este personaje.
+
+        Futuro: Esta función podría ser mucho más compleja, mostrando el equipo
+        del personaje, su estado (luchando, durmiendo), etc. Los jugadores
+        también podrían establecer su propia descripción personalizada.
+        """
+        # Por ahora, una descripción genérica.
+        return f"Ves a {self.name}, un aventurero como tú. No parece tener nada de especial por el momento."
+
     def __repr__(self):
-        """
-        Representación en string del objeto, útil para logging y depuración.
-        """
         return f"<Character(id={self.id}, name='{self.name}')>"

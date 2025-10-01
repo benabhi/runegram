@@ -2,13 +2,8 @@
 """
 Módulo de Comandos Administrativos para Diagnóstico e Inspección.
 
-Este archivo contiene herramientas potentes para que los Superadmins puedan
-"mirar bajo el capó" del juego en tiempo real. Permiten inspeccionar el
-estado detallado de cualquier entidad (personajes, objetos, salas) directamente
-desde el juego.
-
-Estos comandos son cruciales para la depuración de bugs, la verificación de
-estados y la administración avanzada del mundo.
+Contiene herramientas para que los administradores puedan inspeccionar el estado
+detallado de las entidades del juego, como personajes, objetos y salas.
 """
 
 import logging
@@ -20,120 +15,109 @@ from sqlalchemy import select
 from commands.command import Command
 from src.models import Character, Item, Room
 
-async def _find_target(session: AsyncSession, target_string: str):
-    """Función de ayuda para encontrar una entidad por su nombre o ID."""
-    # Intentar buscar por ID numérico
-    try:
-        target_id = int(target_string)
-        # Buscar personaje por ID
-        char_by_id = await session.get(Character, target_id, options=[selectinload("*")])
-        if char_by_id: return char_by_id
-
-        # Buscar objeto por ID
-        item_by_id = await session.get(Item, target_id, options=[selectinload("*")])
-        if item_by_id: return item_by_id
-
-        # Buscar sala por ID
-        room_by_id = await session.get(Room, target_id, options=[selectinload("*")])
-        if room_by_id: return room_by_id
-
-    except ValueError:
-        # Si no es un número, buscamos por nombre
-        pass
-
-    # Buscar personaje por nombre (insensible a mayúsculas)
-    char_query = select(Character).where(Character.name.ilike(f"%{target_string}%"))
-    char_res = await session.execute(char_query)
-    character = char_res.scalar_one_or_none()
-    if character: return character
-
-    return None
-
-class CmdExamine(Command):
+class CmdExaminarPersonaje(Command):
     """
-    Comando de Superadmin para obtener información detallada de cualquier entidad.
+    Comando para obtener información detallada sobre un personaje.
     """
-    names = ["examinar", "ex"]
-    lock = "rol(SUPERADMIN)"
-    description = "Muestra información detallada de una entidad (jugador, objeto, sala)."
-
-    def format_output(self, target) -> str:
-        """Formatea la información de la entidad para mostrarla."""
-        lines = []
-
-        # --- Formateo para Personaje ---
-        if isinstance(target, Character):
-            lines.append(f"<b>--- Personaje: {target.name} ---</b>")
-            lines.append(f"<b>ID:</b> {target.id}")
-            lines.append(f"<b>Cuenta ID:</b> {target.account_id}")
-            lines.append(f"<b>Sala Actual:</b> {target.room.name} (ID: {target.room_id})")
-            lines.append(f"<b>CommandSets Base:</b> {', '.join(target.command_sets)}")
-            if target.items:
-                lines.append("<b>Inventario:</b>")
-                for item in target.items:
-                    lines.append(f"  - {item.get_name()} (ID: {item.id}, Key: {item.key})")
-            else:
-                lines.append("<b>Inventario:</b> Vacío")
-
-        # --- Formateo para Objeto ---
-        elif isinstance(target, Item):
-            lines.append(f"<b>--- Objeto: {target.get_name()} ---</b>")
-            lines.append(f"<b>ID de Instancia:</b> {target.id}")
-            lines.append(f"<b>Clave de Prototipo:</b> {target.key}")
-            if target.room:
-                lines.append(f"<b>Ubicación:</b> Sala '{target.room.name}' (ID: {target.room_id})")
-            elif target.character:
-                lines.append(f"<b>Ubicación:</b> Inventario de '{target.character.name}' (ID: {target.character_id})")
-            else:
-                lines.append("<b>Ubicación:</b> En el limbo (ninguna sala/personaje)")
-            lines.append(f"<b>Nombre Overr.:</b> {target.name_override or 'N/A'}")
-            lines.append(f"<b>Desc. Overr.:</b> {target.description_override or 'N/A'}")
-
-        # --- Formateo para Sala ---
-        elif isinstance(target, Room):
-            lines.append(f"<b>--- Sala: {target.name} ---</b>")
-            lines.append(f"<b>ID:</b> {target.id}")
-            lines.append(f"<b>Clave de Prototipo:</b> {target.key}")
-            if target.items:
-                lines.append("<b>Objetos en la sala:</b>")
-                for item in target.items:
-                    lines.append(f"  - {item.get_name()} (ID: {item.id}, Key: {item.key})")
-            else:
-                lines.append("<b>Objetos en la sala:</b> Ninguno")
-
-        else:
-            return "No se cómo examinar este tipo de entidad."
-
-        # Primero unimos las líneas en una variable...
-        body = '\n'.join(lines)
-        # ... y luego usamos esa variable en la f-string.
-        return f"<pre>{body}</pre>"
+    names = ["examinarpersonaje", "exchar"]
+    lock = "rol(ADMIN)"
+    description = "Muestra información detallada de un personaje. Uso: /exchar [nombre o ID]"
 
     async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
         if not args:
-            await message.answer("Uso: /examinar [nombre o ID de entidad]")
+            await message.answer("Uso: /examinarpersonaje [nombre o ID del personaje]")
             return
 
         target_string = " ".join(args)
 
         try:
-            target = await _find_target(session, target_string)
+            target_char = None
+            try:
+                # Buscar por ID
+                char_id = int(target_string)
+                target_char = await session.get(Character, char_id)
+            except ValueError:
+                # Buscar por nombre si no es un ID
+                query = select(Character).where(Character.name.ilike(f"%{target_string}%"))
+                result = await session.execute(query)
+                target_char = result.scalar_one_or_none()
 
-            if not target:
-                await message.answer(f"No se encontró ninguna entidad que coincida con '{target_string}'.")
+            if not target_char:
+                await message.answer(f"No se encontró ningún personaje que coincida con '{target_string}'.")
                 return
 
-            # Cargar todas las relaciones necesarias para el formateo
-            await session.refresh(target, attribute_names=['*'])
+            # Cargar todas las relaciones para mostrar la información completa
+            full_char = await session.get(Character, target_char.id, options=[selectinload("*")])
 
-            response = self.format_output(target)
-            await message.answer(response, parse_mode="HTML")
+            lines = [
+                f"<b>--- Personaje: {full_char.name} ---</b>",
+                f"<b>ID:</b> {full_char.id}",
+                f"<b>Cuenta ID:</b> {full_char.account_id} (Rol: {full_char.account.role})",
+                f"<b>Sala Actual:</b> {full_char.room.name} (ID: {full_char.room_id})",
+                f"<b>CommandSets Base:</b> {', '.join(full_char.command_sets)}",
+            ]
+            if full_char.items:
+                lines.append("<b>Inventario:</b>")
+                for item in full_char.items:
+                    lines.append(f"  - {item.get_name()} (ID: {item.id}, Key: {item.key})")
+            else:
+                lines.append("<b>Inventario:</b> Vacío")
+
+            body = '\n'.join(lines)
+            await message.answer(f"<pre>{body}</pre>", parse_mode="HTML")
 
         except Exception:
-            await message.answer("❌ Ocurrió un error al examinar la entidad.")
-            logging.exception(f"Fallo al ejecutar /examinar para '{target_string}'")
+            await message.answer("❌ Ocurrió un error al examinar el personaje.")
+            logging.exception(f"Fallo al ejecutar /examinarpersonaje para '{target_string}'")
+
+
+class CmdExaminarObjeto(Command):
+    """
+    Comando para obtener información detallada sobre una instancia de objeto.
+    """
+    names = ["examinarobjeto", "exobj"]
+    lock = "rol(ADMIN)"
+    description = "Muestra información detallada de un objeto. Uso: /exobj [ID]"
+
+    async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
+        if not args:
+            await message.answer("Uso: /examinarobjeto [ID del objeto]")
+            return
+
+        try:
+            item_id = int(args[0])
+            target_item = await session.get(Item, item_id, options=[selectinload("*")])
+
+            if not target_item:
+                await message.answer(f"No se encontró ningún objeto con el ID '{item_id}'.")
+                return
+
+            lines = [
+                f"<b>--- Objeto: {target_item.get_name()} ---</b>",
+                f"<b>ID de Instancia:</b> {target_item.id}",
+                f"<b>Clave de Prototipo:</b> {target_item.key}",
+            ]
+            if target_item.room:
+                lines.append(f"<b>Ubicación:</b> Sala '{target_item.room.name}' (ID: {target_item.room_id})")
+            elif target_item.character:
+                lines.append(f"<b>Ubicación:</b> Inventario de '{target_item.character.name}' (ID: {target_item.character_id})")
+            else:
+                lines.append("<b>Ubicación:</b> En el limbo (ninguna sala/personaje)")
+
+            lines.append(f"<b>Nombre Overr.:</b> {target_item.name_override or 'N/A'}")
+            lines.append(f"<b>Desc. Overr.:</b> {target_item.description_override or 'N/A'}")
+
+            body = '\n'.join(lines)
+            await message.answer(f"<pre>{body}</pre>", parse_mode="HTML")
+
+        except ValueError:
+            await message.answer("El ID del objeto debe ser un número.")
+        except Exception:
+            await message.answer("❌ Ocurrió un error al examinar el objeto.")
+            logging.exception(f"Fallo al ejecutar /examinarobjeto para '{args[0]}'")
 
 # Exportamos la lista de comandos de este módulo.
 DIAGNOSTICS_COMMANDS = [
-    CmdExamine(),
+    CmdExaminarPersonaje(),
+    CmdExaminarObjeto(),
 ]

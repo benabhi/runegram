@@ -1,4 +1,3 @@
-# src/services/command_service.py
 """
 Módulo de Servicio para la Gestión de Comandos.
 
@@ -22,7 +21,8 @@ from src.models import Character
 
 def get_command_sets() -> dict:
     """
-    Obtiene el diccionario `COMMAND_SETS` del dispatcher de forma segura.
+    Obtiene el diccionario `COMMAND_SETS` del dispatcher de forma segura para
+    evitar importaciones circulares.
     """
     from src.handlers.player.dispatcher import COMMAND_SETS
     return COMMAND_SETS
@@ -35,18 +35,22 @@ async def get_active_command_sets_for_character(character: Character) -> list[st
     if not character:
         return ["character_creation"]
 
+    # 1. Empezamos con los sets base del personaje desde la BD.
     active_sets = set(character.command_sets)
 
+    # 2. Añadimos sets otorgados por los objetos en el inventario.
     for item in character.items:
         granted_sets = item.prototype.get("grants_command_sets", [])
         active_sets.update(granted_sets)
 
+    # 3. Añadimos sets otorgados por la sala actual.
     if character.room and character.room.prototype:
         granted_sets = character.room.prototype.get("grants_command_sets", [])
         active_sets.update(granted_sets)
 
+    # 4. Añadimos sets de administrador si el rol de la cuenta es el adecuado.
     if character.account and character.account.role in ["ADMIN", "SUPERADMIN"]:
-        active_sets.update(["spawning", "admin_movement", "admin_info", "diagnostics"])
+        active_sets.update(["spawning", "admin_movement", "admin_info", "diagnostics", "management"])
 
     return sorted(list(active_sets))
 
@@ -66,6 +70,7 @@ async def update_telegram_commands(character: Character):
         telegram_commands = []
         seen_commands = set()
 
+        # Construimos la lista de objetos BotCommand que la API de Telegram espera.
         for set_name in active_set_names:
             for command_instance in COMMAND_SETS.get(set_name, []):
                 main_name = command_instance.names[0]
@@ -75,10 +80,13 @@ async def update_telegram_commands(character: Character):
                     )
                     seen_commands.add(main_name)
 
+        # Usamos un `BotCommandScopeChat` para aplicar estos comandos únicamente
+        # al chat con este jugador específico.
         scope = BotCommandScopeChat(chat_id=character.account.telegram_id)
         await bot.set_my_commands(commands=telegram_commands, scope=scope)
 
         logging.info(f"Actualizados {len(telegram_commands)} comandos de Telegram para {character.name}.")
 
     except Exception as e:
+        # Los errores al actualizar comandos no son críticos y no deben detener el juego.
         logging.warning(f"No se pudieron actualizar los comandos de Telegram para {character.name}: {e}")

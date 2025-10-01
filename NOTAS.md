@@ -4,6 +4,9 @@
     - (se puede con el comando /i, pero preferiria talvez con /mirar?)
 * Se pueden meter contenedores en contenedores?
 * Cuanto peso puede llevar un contenedor?
+* Mirar algo que no existe debe decir que no ve eso en lugr de dar error
+* En la sala si hay un contendor tirado debe decir cuantos items tiene dentro ej. (5 items)
+
 
 ## Prompts
 

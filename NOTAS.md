@@ -21,6 +21,7 @@ Implementar por pasos. Respetar el sistema de comentarios del codigo, darme siem
 * Se pueden meter contenedores en contenedores?
 * Sistema de habilidades
 * Sistema de magia (low magic) runas (lo que le da nombre al juego)
+* Comando mapa con los puntos cardinales y las salidas y si existe o no sala
 
 ## Prompts
 

@@ -22,6 +22,8 @@ Implementar por pasos. Respetar el sistema de comentarios del codigo, darme siem
 * Sistema de habilidades
 * Sistema de magia (low magic) runas (lo que le da nombre al juego)
 * Comando mapa con los puntos cardinales y las salidas y si existe o no sala
+* Sistema de tags y categorias como evennia?
+* Sistema de ayuda que parsee docuemtos fiisicos.
 
 ## Prompts
 

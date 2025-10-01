@@ -23,11 +23,6 @@ from src.models import Character
 def get_command_sets() -> dict:
     """
     Obtiene el diccionario `COMMAND_SETS` del dispatcher de forma segura.
-
-    Este es un patrón para evitar una "importación circular", ya que el dispatcher
-    importa este servicio, y este servicio necesita acceso al diccionario que
-    el dispatcher define. La importación se realiza dentro de la función para
-    retrasar su ejecución hasta que todos los módulos estén cargados.
     """
     from src.handlers.player.dispatcher import COMMAND_SETS
     return COMMAND_SETS
@@ -37,27 +32,21 @@ async def get_active_command_sets_for_character(character: Character) -> list[st
     Construye la lista de nombres de CommandSets activos para un personaje
     basándose en su contexto actual (base, equipo, sala, rol).
     """
-    # Si no hay personaje (durante la creación), solo están disponibles los
-    # comandos de creación de personaje.
     if not character:
         return ["character_creation"]
 
-    # 1. Empezamos con los sets base del personaje desde la BD (ej: "general", "movement").
     active_sets = set(character.command_sets)
 
-    # 2. Añadimos sets otorgados por los objetos en el inventario.
     for item in character.items:
         granted_sets = item.prototype.get("grants_command_sets", [])
         active_sets.update(granted_sets)
 
-    # 3. Añadimos sets otorgados por la sala actual.
     if character.room and character.room.prototype:
         granted_sets = character.room.prototype.get("grants_command_sets", [])
         active_sets.update(granted_sets)
 
-    # 4. Añadimos sets de administrador si el rol de la cuenta es el adecuado.
-    if character.account and character.account.role == "ADMINISTRADOR":
-        active_sets.update(["spawning", "admin_movement", "admin_info"])
+    if character.account and character.account.role in ["ADMIN", "SUPERADMIN"]:
+        active_sets.update(["spawning", "admin_movement", "admin_info", "diagnostics"])
 
     return sorted(list(active_sets))
 
@@ -75,12 +64,10 @@ async def update_telegram_commands(character: Character):
         active_set_names = await get_active_command_sets_for_character(character)
 
         telegram_commands = []
-        seen_commands = set() # Para evitar duplicados si un comando está en varios sets.
+        seen_commands = set()
 
-        # Construimos la lista de objetos BotCommand que la API de Telegram espera.
         for set_name in active_set_names:
             for command_instance in COMMAND_SETS.get(set_name, []):
-                # Usamos el primer alias como el comando principal (ej: "norte" de ["norte", "n"]).
                 main_name = command_instance.names[0]
                 if main_name not in seen_commands:
                     telegram_commands.append(
@@ -88,14 +75,10 @@ async def update_telegram_commands(character: Character):
                     )
                     seen_commands.add(main_name)
 
-        # Usamos un `BotCommandScopeChat` para aplicar estos comandos únicamente
-        # al chat con este jugador específico, y no globalmente.
         scope = BotCommandScopeChat(chat_id=character.account.telegram_id)
         await bot.set_my_commands(commands=telegram_commands, scope=scope)
 
         logging.info(f"Actualizados {len(telegram_commands)} comandos de Telegram para {character.name}.")
 
     except Exception as e:
-        # Los errores al actualizar comandos no son críticos y no deben detener el juego.
-        # Por ejemplo, si el usuario ha bloqueado al bot.
         logging.warning(f"No se pudieron actualizar los comandos de Telegram para {character.name}: {e}")

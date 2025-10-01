@@ -3,25 +3,21 @@
 Módulo de Servicio para la Gestión de Permisos y Locks.
 
 Este servicio es el "guardián" de acceso a acciones en el juego. Interpreta
-"lock strings" (cadenas de permisos) que se encuentran en varias entidades
-del juego (comandos, salidas, objetos) y determina si un personaje tiene
-permiso para realizar una acción.
+"lock strings" (cadenas de permisos) para determinar si un personaje tiene
+permiso, utilizando el módulo `ast` de Python para un parseo seguro y potente.
 
-El sistema está inspirado en Evennia y es extensible:
-1. Un `lock_string` contiene una o más llamadas a funciones (ej: "rol(ADMIN) y tiene_objeto(llave)").
-2. `can_execute` parsea este string.
-3. Cada función de lock (ej: `rol()`) está registrada en `LOCK_FUNCTIONS`.
-4. Para añadir un nuevo tipo de chequeo, solo hay que crear la función de
-   chequeo y registrarla.
+El sistema es extensible y soporta lógica booleana compleja:
+1. Un `lock_string` es una expresión similar a Python (ej: "rol(ADMIN) or (tiene_objeto(llave) and not rol(SUPERADMIN))").
+2. `ast.parse` convierte el string en un árbol de sintaxis abstracta (AST) de forma segura.
+3. La clase `LockEvaluator` (un `ast.NodeVisitor`) recorre el árbol y evalúa el resultado.
+4. Las funciones de lock (ej: `rol()`) están registradas en `LOCK_FUNCTIONS`.
 """
 
 import logging
-import re
+import ast # Módulo para parsear la sintaxis de Python de forma segura
 from src.models import Character
 
 # --- Jerarquía de Roles ---
-# Define el "poder" numérico de cada rol. Un rol superior hereda los
-# permisos de todos los roles inferiores.
 ROLE_HIERARCHY = {
     "JUGADOR": 1,
     "ADMIN": 2,
@@ -31,110 +27,124 @@ ROLE_HIERARCHY = {
 # ==============================================================================
 # SECCIÓN DE FUNCIONES DE LOCK
 #
-# Cada función aquí implementa una comprobación de permiso específica.
-# Toman el personaje que intenta la acción y una lista de argumentos del
-# lock string, y devuelven True si el personaje pasa el chequeo, False si no.
+# Estas funciones no cambian. Siguen siendo los bloques de construcción
+# de nuestra lógica de permisos.
 # ==============================================================================
 
 def _lock_rol(character: Character, args: list[str]) -> bool:
-    """
-    Chequea si el rol del personaje es igual o superior al requerido.
-    Ejemplo de uso en lock string: `rol(ADMIN)`
-    """
+    """Chequea si el rol del personaje es igual o superior al requerido."""
     if not character or not character.account or not args:
         return False
 
     required_role = args[0].upper()
     user_role = character.account.role.upper()
 
-    required_level = ROLE_HIERARCHY.get(required_role, 99) # Rol desconocido es muy alto
+    required_level = ROLE_HIERARCHY.get(required_role, 99)
     user_level = ROLE_HIERARCHY.get(user_role, 0)
 
     return user_level >= required_level
 
 def _lock_tiene_objeto(character: Character, args: list[str]) -> bool:
-    """
-    Chequea si el personaje lleva en su inventario un objeto con la clave dada.
-    Ejemplo de uso en lock string: `tiene_objeto(llave_maestra)`
-    """
+    """Chequea si el personaje lleva en su inventario un objeto con la clave dada."""
     if not character or not args:
         return False
 
     item_key = args[0]
-    # `any()` es una forma eficiente de comprobar si al menos un elemento cumple la condición.
     return any(item.key == item_key for item in character.items)
 
 # ==============================================================================
 # REGISTRO DE FUNCIONES DE LOCK
-#
-# Este diccionario mapea el nombre de la función en el lock string (en minúsculas)
-# con la función de Python que implementa la lógica.
 # ==============================================================================
 
 LOCK_FUNCTIONS = {
     "rol": _lock_rol,
     "tiene_objeto": _lock_tiene_objeto,
-    # Futuro: "habilidad": _lock_habilidad,
 }
 
 # ==============================================================================
-# MOTOR DEL SERVICIO DE PERMISOS
+# MOTOR DEL SERVICIO DE PERMISOS (BASADO EN AST)
 # ==============================================================================
 
-def _parse_lock_string(lock_string: str) -> list[tuple[str, list[str]]]:
+class LockEvaluator(ast.NodeVisitor):
     """
-    Parsea un lock string en una lista de tuplas (nombre_funcion, [argumentos]).
-    Ejemplo: "rol(ADMIN) y tiene_objeto(llave)" ->
-             [('rol', ['ADMIN']), ('tiene_objeto', ['llave'])]
+    Un visitante de nodos AST que evalúa un lock string de forma segura.
+    Recorre el árbol de sintaxis y calcula el resultado booleano final.
     """
-    if not lock_string:
-        return []
+    def __init__(self, character: Character):
+        self.character = character
 
-    # Regex para encontrar patrones como `nombre_funcion(argumento1, argumento2, ...)`
-    func_pattern = re.compile(r"(\w+)\((.*?)\)")
+    def visit_BoolOp(self, node: ast.BoolOp) -> bool:
+        """Maneja operadores `and` y `or`."""
+        # Obtenemos los resultados de cada sub-expresión.
+        sub_results = [self.visit(value) for value in node.values]
+        if isinstance(node.op, ast.And):
+            return all(sub_results)
+        elif isinstance(node.op, ast.Or):
+            return any(sub_results)
+        return False
 
-    # Dividimos por ' y ' para manejar la lógica AND. La lógica OR requeriría un parser más complejo.
-    parts = lock_string.lower().split(' y ')
+    def visit_UnaryOp(self, node: ast.UnaryOp) -> bool:
+        """Maneja el operador `not`."""
+        if isinstance(node.op, ast.Not):
+            return not self.visit(node.operand)
+        return False
 
-    parsed_functions = []
-    for part in parts:
-        match = func_pattern.match(part.strip())
-        if match:
-            func_name, args_str = match.groups()
-            # Dividimos los argumentos por coma, eliminando espacios extra.
-            args = [arg.strip() for arg in args_str.split(',')]
-            parsed_functions.append((func_name, args))
-    return parsed_functions
+    def visit_Call(self, node: ast.Call) -> bool:
+        """Maneja las llamadas a funciones de lock (ej: `rol(...)`)."""
+        func_name = node.func.id.lower()
+        if func_name in LOCK_FUNCTIONS:
+            # Evaluamos los argumentos (que también son nodos AST).
+            args = [self.visit(arg) for arg in node.args]
+            lock_func = LOCK_FUNCTIONS[func_name]
+            return lock_func(self.character, args)
+
+        logging.warning(f"Función de lock desconocida llamada: {func_name}")
+        return False # Falla de forma segura si la función no está registrada.
+
+    def visit_Constant(self, node: ast.Constant) -> any:
+        """Maneja valores constantes como strings o números."""
+        return node.value
+
+    def visit_Name(self, node: ast.Name) -> str:
+        """
+        Maneja nombres/identificadores. Los tratamos como strings.
+        Esto permite escribir `rol(ADMIN)` en lugar de `rol('ADMIN')`.
+        """
+        return node.id
+
+    def generic_visit(self, node):
+        """
+        Método de captura para cualquier tipo de nodo no soportado.
+        Esto es una medida de seguridad crucial para prevenir la ejecución
+        de código no deseado (bucles, asignaciones, etc.).
+        """
+        raise TypeError(f"Construcción no soportada en lock string: {type(node).__name__}")
 
 async def can_execute(character: Character, lock_string: str) -> tuple[bool, str]:
     """
     Evalúa un `lock_string` contra un personaje para ver si puede pasar el lock.
     """
-    try:
-        # Un lock vacío significa que no hay restricciones.
-        if not lock_string:
-            return True, ""
-
-        parsed_locks = _parse_lock_string(lock_string)
-        if not parsed_locks and lock_string:
-            logging.warning(f"Lock string mal formado y no parseable: '{lock_string}'")
-            return False, "Error en la definición de permisos de esta acción."
-
-        # Itera sobre cada función de lock parseada. Todas deben ser True.
-        for func_name, args in parsed_locks:
-            if func_name in LOCK_FUNCTIONS:
-                lock_func = LOCK_FUNCTIONS[func_name]
-                if not lock_func(character, args):
-                    # Tan pronto como una función de lock falla, toda la cadena AND falla.
-                    return False, f"Permiso denegado."
-            else:
-                logging.warning(f"Función de lock desconocida: '{func_name}' en el lock string: '{lock_string}'")
-                return False, "Esa acción está bloqueada por una fuerza desconocida."
-
-        # Si todas las funciones de lock devolvieron True, el personaje tiene permiso.
+    if not lock_string:
         return True, ""
 
-    except Exception:
-        logging.exception(f"Error crítico al procesar el lock_string: '{lock_string}'")
-        # En caso de cualquier error inesperado, siempre fallamos de forma segura.
+    try:
+        # 1. Parsear el string a un árbol AST. `mode='eval'` espera una sola expresión.
+        tree = ast.parse(lock_string, mode='eval')
+
+        # 2. Crear una instancia de nuestro evaluador con el contexto del personaje.
+        evaluator = LockEvaluator(character)
+
+        # 3. Visitar el árbol para obtener el resultado booleano.
+        result = evaluator.visit(tree.body)
+
+        if result:
+            return True, ""
+        else:
+            return False, "Permiso denegado."
+
+    except SyntaxError:
+        logging.error(f"Error de sintaxis en el lock string: '{lock_string}'")
+        return False, "Error en la definición de permisos de esta acción."
+    except Exception as e:
+        logging.exception(f"Error inesperado al evaluar el lock string: '{lock_string}'")
         return False, "Error interno al comprobar los permisos."

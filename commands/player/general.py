@@ -17,7 +17,7 @@ from collections import Counter
 from commands.command import Command
 from src.models import Character
 from src.utils.presenters import show_current_room
-from src.services import script_service, online_service, permission_service
+from src.services import script_service, online_service, permission_service, broadcaster_service
 
 # Re-importamos `find_item_in_list` aquí ya que CmdInventory lo necesita.
 from .interaction import find_item_in_list

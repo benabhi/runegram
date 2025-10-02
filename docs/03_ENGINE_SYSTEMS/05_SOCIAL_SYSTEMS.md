@@ -1,6 +1,6 @@
-# Sistemas Sociales: Presencia y Canales
+# Sistemas Sociales: Presencia, Interacción y Canales
 
-Un MUD (Multi-User Dungeon) es, por definición, una experiencia social. Runegram implementa dos sistemas clave que trabajan juntos para crear la sensación de un mundo compartido y vivo: el **Sistema de Presencia** (que gestiona quién está "online") y el **Sistema de Canales** (que gestiona la comunicación global).
+Un MUD (Multi-User Dungeon) es, por definición, una experiencia social. Runegram implementa tres sistemas clave que trabajan juntos para crear la sensación de un mundo compartido y vivo: el **Sistema de Presencia** (que gestiona quién está "online"), el **Sistema de Interacción Social** (que hace visibles las acciones de los jugadores) y el **Sistema de Canales** (que gestiona la comunicación global).
 
 ## 1. Sistema de Presencia (Online / AFK)
 
@@ -33,7 +33,124 @@ Toda esta lógica está encapsulada en `src/services/online_service.py`.
 
 Este sistema dual asegura notificaciones de estado AFK precisas y sin spam.
 
-## 2. Sistema de Canales
+## 2. Sistema de Interacción Social
+
+El Sistema de Interacción Social hace que el mundo se sienta vivo y compartido, permitiendo que los jugadores vean y reaccionen a las acciones de otros en tiempo real.
+
+### 2.1. Visualización de Personajes
+
+**Implementado en:** `src/utils/presenters.py:format_room()`
+
+Cuando un jugador mira una sala (usando `/mirar` sin argumentos), el sistema:
+
+1. Obtiene todos los personajes presentes en la sala desde la relación `room.characters`
+2. Filtra al personaje que está mirando para no mostrarse a sí mismo
+3. Muestra una línea adicional: **"También están aquí:"** con los nombres de otros jugadores
+
+**Ejemplo de salida:**
+```
+El Limbo
+Te encuentras en una habitación vacía...
+
+También están aquí: Juan, María.
+
+Salidas: [ Norte ]
+```
+
+**Beneficios:**
+- Los jugadores saben inmediatamente quién comparte su ubicación
+- Facilita la interacción social espontánea
+- Fomenta el roleplay y la comunicación
+
+### 2.2. Mensajes Sociales (Broadcast de Acciones)
+
+**Implementado en:** `src/services/broadcaster_service.py`
+
+El motor utiliza el `broadcaster_service.send_message_to_room()` para notificar a todos los jugadores en una sala cuando alguien realiza una acción visible.
+
+**Comandos con mensajes sociales:**
+
+| Comando | Mensaje a la Sala |
+|---------|-------------------|
+| `/coger <objeto>` | *"[Jugador] ha cogido [objeto] del suelo."* |
+| `/dejar <objeto>` | *"[Jugador] ha dejado [objeto] en el suelo."* |
+| `/meter <objeto> en <contenedor>` | *"[Jugador] guarda [objeto] en [contenedor]."* |
+| `/sacar <objeto> de <contenedor>` | *"[Jugador] saca [objeto] de [contenedor]."* |
+| `/generarobjeto <key>` (admin) | *"[Objeto] aparece de la nada."* |
+
+**Formato:** Los mensajes se envían en itálicas (`<i>`) para distinguirlos visualmente de mensajes de sistema o diálogos.
+
+**Parámetro `exclude_character_id`:** Permite excluir al jugador que realiza la acción del broadcast, para evitar mensajes redundantes.
+
+**Ejemplo de flujo:**
+1. Juan ejecuta `/coger espada`
+2. Juan recibe: "Has cogido: una espada herrumbrosa"
+3. María (en la misma sala) recibe: *"Juan ha cogido una espada herrumbrosa del suelo."*
+
+### 2.3. Comunicación Local: Comando `/susurrar`
+
+**Implementado en:** `commands/player/general.py:CmdWhisper`
+
+El comando `/susurrar` permite enviar mensajes privados a un jugador específico que se encuentre en la **misma sala**.
+
+**Uso:** `/susurrar <jugador> <mensaje>`
+
+**Ejemplo:**
+```
+> /susurrar María Hola, ¿quieres explorar juntos?
+
+Le susurras a María: "Hola, ¿quieres explorar juntos?"
+```
+
+María recibe:
+```
+Juan te susurra: "Hola, ¿quieres explorar juntos?"
+```
+
+**Validaciones:**
+- El jugador objetivo debe estar presente en la sala
+- Si no se encuentra, se muestra: "No ves a ningún '[nombre]' por aquí."
+
+**Diferencia con `/decir`:**
+- `/decir`: Todos en la sala escuchan
+- `/susurrar`: Solo el jugador objetivo recibe el mensaje
+
+### 2.4. Visualización de Contenedores
+
+**Implementado en:** `src/utils/presenters.py:format_room()` y comandos `/mirar`, `/inventario`
+
+El sistema ahora muestra **cuántos items contiene un contenedor** para mejorar la información al jugador.
+
+**En la sala:**
+```
+Ves aquí: una mochila de cuero (5 items), una espada viviente.
+```
+
+**En el inventario:**
+```
+Llevas lo siguiente:
+ - una mochila de cuero (5 items)
+ - una poción de vida menor
+```
+
+**Al mirar un contenedor:**
+```
+> /mirar mochila
+
+Una mochila simple pero resistente...
+
+Contiene:
+ - una poción de vida menor (3)
+ - una llave oxidada
+```
+
+**Lógica:**
+- El sistema verifica si `item.prototype.get("is_container")` es `True`
+- Carga la relación `item.contained_items` mediante `session.refresh()`
+- Muestra `(X items)` o `(X item)` según la cantidad
+- Si está vacío, muestra: **"Está vacío."**
+
+## 3. Sistema de Canales
 
 El Sistema de Canales proporciona un medio para la comunicación global entre jugadores, así como para anuncios del sistema. Está gestionado por `src/services/channel_service.py`.
 

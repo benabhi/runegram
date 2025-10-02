@@ -48,7 +48,25 @@ class CmdLook(Command):
             # 2. Buscar en los objetos de la sala.
             for item in character.room.items:
                 if target_string in item.get_keywords() or target_string == item.get_name().lower():
-                    await message.answer(f"<pre>{item.get_description()}</pre>", parse_mode="HTML")
+                    # Descripción del objeto
+                    response = f"<pre>{item.get_description()}</pre>"
+
+                    # Si es un contenedor, mostrar su contenido
+                    if item.prototype.get("is_container"):
+                        await session.refresh(item, attribute_names=['contained_items'])
+                        if item.contained_items:
+                            item_names = [inner_item.get_name() for inner_item in item.contained_items]
+                            item_counts = Counter(item_names)
+                            formatted_items = [f" - {name}" + (f" ({count})" if count > 1 else "")
+                                             for name, count in item_counts.items()]
+                            items_str = "\n".join(formatted_items)
+                            response += f"\n\n<b>Contiene:</b>\n{items_str}"
+                        else:
+                            response += f"\n\n<b>Está vacío.</b>"
+
+                    await message.answer(response, parse_mode="HTML")
+
+                    # Ejecutar script on_look si existe
                     if "on_look" in item.prototype.get("scripts", {}):
                         await script_service.execute_script(
                             script_string=item.prototype["scripts"]["on_look"],
@@ -59,7 +77,25 @@ class CmdLook(Command):
             # 3. Buscar en el inventario del personaje.
             for item in character.items:
                 if target_string in item.get_keywords() or target_string == item.get_name().lower():
-                    await message.answer(f"<pre>{item.get_description()}</pre>", parse_mode="HTML")
+                    # Descripción del objeto
+                    response = f"<pre>{item.get_description()}</pre>"
+
+                    # Si es un contenedor, mostrar su contenido
+                    if item.prototype.get("is_container"):
+                        await session.refresh(item, attribute_names=['contained_items'])
+                        if item.contained_items:
+                            item_names = [inner_item.get_name() for inner_item in item.contained_items]
+                            item_counts = Counter(item_names)
+                            formatted_items = [f" - {name}" + (f" ({count})" if count > 1 else "")
+                                             for name, count in item_counts.items()]
+                            items_str = "\n".join(formatted_items)
+                            response += f"\n\n<b>Contiene:</b>\n{items_str}"
+                        else:
+                            response += f"\n\n<b>Está vacío.</b>"
+
+                    await message.answer(response, parse_mode="HTML")
+
+                    # Ejecutar script on_look si existe
                     if "on_look" in item.prototype.get("scripts", {}):
                         await script_service.execute_script(
                             script_string=item.prototype["scripts"]["on_look"],
@@ -73,6 +109,7 @@ class CmdLook(Command):
                     await message.answer(f"<pre>{other_char.get_description()}</pre>", parse_mode="HTML")
                     return
 
+            # Si no se encontró nada, dar un mensaje amigable
             await message.answer("No ves eso por aquí.")
 
         except Exception:
@@ -107,7 +144,20 @@ class CmdInventory(Command):
                 if not inventory:
                     response = "No llevas nada."
                 else:
-                    items_list = [f" - {item.get_name()}" for item in inventory]
+                    # Mostrar cantidad de items en contenedores
+                    items_list = []
+                    for item in inventory:
+                        item_display = f" - {item.get_name()}"
+
+                        # Si es un contenedor, mostrar cuántos items tiene
+                        if item.prototype.get("is_container"):
+                            await session.refresh(item, attribute_names=['contained_items'])
+                            if item.contained_items:
+                                item_count = len(item.contained_items)
+                                item_display += f" ({item_count} {'item' if item_count == 1 else 'items'})"
+
+                        items_list.append(item_display)
+
                     items_str = "\n".join(items_list)
                     response = f"<b>Llevas lo siguiente:</b>\n{items_str}"
                 await message.answer(f"<pre>{response}</pre>", parse_mode="HTML")
@@ -209,6 +259,47 @@ class CmdPray(Command):
             logging.exception(f"Fallo al ejecutar /orar para {character.name}")
 
 
+class CmdWhisper(Command):
+    """Comando para enviar un mensaje privado a un jugador en la misma sala."""
+    names = ["susurrar", "whisper"]
+    description = "Susurra un mensaje privado a un jugador en tu sala. Uso: /susurrar <jugador> <mensaje>"
+    lock = ""
+
+    async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
+        try:
+            if len(args) < 2:
+                await message.answer("Uso: /susurrar <jugador> <mensaje>")
+                return
+
+            target_name = args[0].lower()
+            whisper_text = " ".join(args[1:])
+
+            # Buscar el jugador objetivo en la misma sala
+            target_character = None
+            for other_char in character.room.characters:
+                if other_char.id != character.id and other_char.name.lower() == target_name:
+                    target_character = other_char
+                    break
+
+            if not target_character:
+                await message.answer(f"No ves a ningún '{args[0]}' por aquí.")
+                return
+
+            # Enviar el mensaje privado al jugador objetivo
+            from src.services import broadcaster_service
+            await broadcaster_service.send_message_to_character(
+                target_character,
+                f"<i>{character.name} te susurra: \"{whisper_text}\"</i>"
+            )
+
+            # Confirmar al emisor
+            await message.answer(f"<i>Le susurras a {target_character.name}: \"{whisper_text}\"</i>", parse_mode="HTML")
+
+        except Exception:
+            await message.answer("❌ Ocurrió un error al intentar susurrar.")
+            logging.exception(f"Fallo al ejecutar /susurrar para {character.name}")
+
+
 # Exportamos la lista de comandos de este módulo.
 GENERAL_COMMANDS = [
     CmdLook(),
@@ -217,4 +308,5 @@ GENERAL_COMMANDS = [
     CmdHelp(),
     CmdWho(),
     CmdPray(),
+    CmdWhisper(),
 ]

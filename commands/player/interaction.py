@@ -81,7 +81,17 @@ class CmdGet(Command):
                 refreshed_character = await player_service.get_character_with_relations_by_id(session, character.id)
                 await command_service.update_telegram_commands(refreshed_character)
 
+            # Mensaje al jugador
             await message.answer(f"Has cogido: {item_to_get.get_name()}")
+
+            # Mensaje social a la sala
+            from src.services import broadcaster_service
+            await broadcaster_service.send_message_to_room(
+                session=session,
+                room_id=character.room_id,
+                message_text=f"<i>{character.name} ha cogido {item_to_get.get_name()} del suelo.</i>",
+                exclude_character_id=character.id
+            )
         except Exception:
             await message.answer("❌ Ocurrió un error al intentar coger el objeto.")
             logging.exception(f"Fallo al ejecutar /coger para {character.name}")
@@ -111,7 +121,17 @@ class CmdDrop(Command):
                 refreshed_character = await player_service.get_character_with_relations_by_id(session, character.id)
                 await command_service.update_telegram_commands(refreshed_character)
 
+            # Mensaje al jugador
             await message.answer(f"Has dejado: {item_to_drop.get_name()}")
+
+            # Mensaje social a la sala
+            from src.services import broadcaster_service
+            await broadcaster_service.send_message_to_room(
+                session=session,
+                room_id=character.room_id,
+                message_text=f"<i>{character.name} ha dejado {item_to_drop.get_name()} en el suelo.</i>",
+                exclude_character_id=character.id
+            )
         except Exception:
             await message.answer("❌ Ocurrió un error al intentar dejar el objeto.")
             logging.exception(f"Fallo al ejecutar /dejar para {character.name}")
@@ -159,7 +179,18 @@ class CmdPut(Command):
                 return
 
             await item_service.move_item_to_container(session, item_to_store.id, container.id)
+
+            # Mensaje al jugador
             await message.answer(f"Guardas {item_to_store.get_name()} en {container.get_name()}.")
+
+            # Mensaje social a la sala
+            from src.services import broadcaster_service
+            await broadcaster_service.send_message_to_room(
+                session=session,
+                room_id=character.room_id,
+                message_text=f"<i>{character.name} guarda {item_to_store.get_name()} en {container.get_name()}.</i>",
+                exclude_character_id=character.id
+            )
 
         except Exception:
             await message.answer("❌ Ocurrió un error al intentar guardar el objeto.")
@@ -196,7 +227,18 @@ class CmdTake(Command):
                 return
 
             await item_service.move_item_to_character(session, item_to_take.id, character.id)
+
+            # Mensaje al jugador
             await message.answer(f"Sacas {item_to_take.get_name()} de {container.get_name()}.")
+
+            # Mensaje social a la sala
+            from src.services import broadcaster_service
+            await broadcaster_service.send_message_to_room(
+                session=session,
+                room_id=character.room_id,
+                message_text=f"<i>{character.name} saca {item_to_take.get_name()} de {container.get_name()}.</i>",
+                exclude_character_id=character.id
+            )
 
         except Exception:
             await message.answer("❌ Ocurrió un error al intentar sacar el objeto.")

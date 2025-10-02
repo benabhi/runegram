@@ -44,7 +44,17 @@ class CmdGenerarObjeto(Command):
             # Obtenemos el nombre "bonito" del prototipo para el mensaje de confirmación.
             item_name = ITEM_PROTOTYPES.get(item.key, {}).get("name", "un objeto desconocido")
 
+            # Mensaje al admin
             await message.answer(f"✅ Objeto '{item_name}' generado en la sala actual.")
+
+            # Mensaje social a la sala
+            from src.services import broadcaster_service
+            await broadcaster_service.send_message_to_room(
+                session=session,
+                room_id=character.room_id,
+                message_text=f"<i>{item_name.capitalize()} aparece de la nada.</i>",
+                exclude_character_id=None  # Todos ven esto, incluyendo el admin
+            )
 
         except ValueError as e:
             # Este error se lanza desde `item_service` si la `item_key` no existe.

@@ -58,7 +58,82 @@ class CmdListarSalas(Command):
             await message.answer("❌ Ocurrió un error al intentar listar las salas.")
             logging.exception("Fallo al ejecutar /listarsalas")
 
+class CmdExaminarSala(Command):
+    """
+    Comando para examinar información detallada de una sala por ID o key.
+    """
+    names = ["examinarsala", "exsala"]
+    lock = "rol(ADMIN)"
+    description = "Examina una sala por ID o key. Uso: /examinarsala <id o key>"
+
+    async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
+        """Examina una sala por ID numérico o key de prototipo."""
+        try:
+            if not args:
+                await message.answer("Uso: /examinarsala <id o key>\nEjemplo: /examinarsala 1 o /examinarsala plaza_central")
+                return
+
+            search_term = " ".join(args).lower()
+
+            # Intentar primero como ID numérico
+            room = None
+            if search_term.isdigit():
+                room_id = int(search_term)
+                result = await session.execute(select(Room).where(Room.id == room_id))
+                room = result.scalar_one_or_none()
+
+            # Si no se encontró por ID, buscar por key
+            if not room:
+                result = await session.execute(select(Room).where(Room.key == search_term))
+                room = result.scalar_one_or_none()
+
+            if not room:
+                await message.answer(f"❌ No se encontró ninguna sala con ID o key '{search_term}'.")
+                return
+
+            # Construir información detallada
+            response_lines = [
+                f"<b>╔══ Información de Sala ══╗</b>",
+                f"<b>ID:</b> {room.id}",
+                f"<b>Key:</b> {room.key or 'N/A'}",
+                f"<b>Nombre:</b> {room.name}",
+                f"<b>Descripción:</b> {room.description[:100]}..." if len(room.description) > 100 else f"<b>Descripción:</b> {room.description}",
+                f"<b>Locks:</b> {room.locks or 'Ninguno'}",
+            ]
+
+            # Salidas
+            if room.exits_from:
+                exits_info = []
+                for exit_obj in room.exits_from:
+                    exits_info.append(f"  • {exit_obj.name} → Sala ID {exit_obj.to_room_id}")
+                response_lines.append(f"<b>Salidas:</b>\n" + "\n".join(exits_info))
+            else:
+                response_lines.append(f"<b>Salidas:</b> Ninguna")
+
+            # Objetos en la sala
+            if room.items:
+                items_info = [f"  • {item.get_name()} (ID: {item.id})" for item in room.items]
+                response_lines.append(f"<b>Objetos:</b> ({len(room.items)})\n" + "\n".join(items_info))
+            else:
+                response_lines.append(f"<b>Objetos:</b> Ninguno")
+
+            # Personajes en la sala
+            if room.characters:
+                chars_info = [f"  • {char.name} (ID: {char.id})" for char in room.characters]
+                response_lines.append(f"<b>Personajes:</b> ({len(room.characters)})\n" + "\n".join(chars_info))
+            else:
+                response_lines.append(f"<b>Personajes:</b> Ninguno")
+
+            response_text = f"<pre>{chr(10).join(response_lines)}</pre>"
+            await message.answer(response_text, parse_mode="HTML")
+
+        except Exception:
+            await message.answer("❌ Ocurrió un error al examinar la sala.")
+            logging.exception(f"Fallo al ejecutar /examinarsala")
+
+
 # Exportamos la lista de comandos de este módulo para que el dispatcher pueda importarla.
 INFO_COMMANDS = [
     CmdListarSalas(),
+    CmdExaminarSala(),
 ]

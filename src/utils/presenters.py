@@ -20,14 +20,16 @@ from src.db import async_session_factory
 from src.services import player_service
 
 
-async def format_room(room: Room) -> str:
+async def format_room(room: Room, viewing_character=None) -> str:
     """
     Construye y formatea la descripción completa de una sala para ser
     mostrada al jugador.
 
     Args:
         room (Room): El objeto de la sala a formatear, con sus relaciones
-                     (`items`, `exits_from`) ya cargadas.
+                     (`items`, `exits_from`, `characters`) ya cargadas.
+        viewing_character (Character, optional): El personaje que está mirando,
+                                                  para excluirlo de la lista de personajes.
 
     Returns:
         str: Un string formateado con HTML (`<pre>`, `<b>`) listo para ser enviado.
@@ -46,13 +48,36 @@ async def format_room(room: Room) -> str:
             # Usamos `collections.Counter` para agrupar objetos idénticos.
             # Por ejemplo, tres objetos con `get_name()`="una moneda de oro"
             # se mostrarán como "una moneda de oro (3)".
-            item_names = [item.get_name() for item in room.items]
-            item_counts = Counter(item_names)
-            formatted_items = [f"{name} ({count})" if count > 1 else name for name, count in item_counts.items()]
-            items_str = ", ".join(formatted_items)
+            formatted_items = []
+            for item in room.items:
+                item_display = item.get_name()
+
+                # Si el item es un contenedor, mostrar cuántos items tiene dentro
+                if item.prototype.get("is_container"):
+                    # Asumimos que contained_items ya está cargado
+                    if hasattr(item, 'contained_items') and item.contained_items:
+                        item_count = len(item.contained_items)
+                        item_display = f"{item_display} ({item_count} {'item' if item_count == 1 else 'items'})"
+
+                formatted_items.append(item_display)
+
+            # Agrupar items idénticos
+            item_counts = Counter(formatted_items)
+            final_items = [f"{name} ({count})" if count > 1 else name for name, count in item_counts.items()]
+            items_str = ", ".join(final_items)
             parts.append(f"\n<b>Ves aquí:</b> {items_str}.")
 
-        # 4. Salidas
+        # 4. Personajes en la sala
+        if room.characters:
+            other_characters = [char for char in room.characters
+                              if not viewing_character or char.id != viewing_character.id]
+
+            if other_characters:
+                char_names = [char.name for char in other_characters]
+                chars_str = ", ".join(char_names)
+                parts.append(f"\n<b>También están aquí:</b> {chars_str}.")
+
+        # 5. Salidas
         if room.exits_from:
             # Ordenamos las salidas alfabéticamente para una visualización consistente.
             exits_list = sorted([exit_obj.name.capitalize() for exit_obj in room.exits_from])
@@ -88,8 +113,9 @@ async def show_current_room(message: types.Message):
                 return
 
             room = account.character.room
+            character = account.character
             # Usamos nuestro formateador para construir el texto de la sala.
-            formatted_room = await format_room(room)
+            formatted_room = await format_room(room, viewing_character=character)
 
             await message.answer(formatted_room, parse_mode="HTML")
 

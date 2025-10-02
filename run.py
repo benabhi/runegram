@@ -20,7 +20,7 @@ from aiogram import executor
 from sqlalchemy import select
 
 from src.bot.dispatcher import dp
-from src.services import world_loader_service, ticker_service, online_service
+from src.services import world_loader_service, ticker_service, online_service, validation_service
 from src.db import async_session_factory
 from src.config import settings
 from src.models import Account
@@ -66,6 +66,10 @@ async def on_startup(dispatcher):
     logging.info("Iniciando secuencia de arranque del bot...")
 
     try:
+        # 0. VALIDACIONES CRÍTICAS: Ejecutar antes de cualquier inicialización.
+        #    Si hay errores de configuración, el bot no debe arrancar.
+        validation_service.validate_all()
+
         # 1. Inicia el scheduler. Es importante que se inicie antes de que cualquier
         #    otro servicio intente añadir tareas.
         ticker_service.initialize_scheduler()

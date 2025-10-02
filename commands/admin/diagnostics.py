@@ -14,6 +14,7 @@ from sqlalchemy import select
 
 from commands.command import Command
 from src.models import Character, Item, Room
+from src.services import validation_service
 
 class CmdExaminarPersonaje(Command):
     """
@@ -116,8 +117,27 @@ class CmdExaminarObjeto(Command):
             await message.answer("❌ Ocurrió un error al examinar el objeto.")
             logging.exception(f"Fallo al ejecutar /examinarobjeto para '{args[0]}'")
 
+class CmdReporteValidacion(Command):
+    """
+    Comando que muestra un reporte de validación de integridad del sistema.
+    Útil para diagnosticar conflictos de aliases, keys duplicadas, etc.
+    """
+    names = ["validar", "reportevalidacion"]
+    lock = "rol(ADMIN)"
+    description = "Muestra un reporte de validación de integridad del sistema."
+
+    async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
+        try:
+            report = validation_service.get_validation_report()
+            await message.answer(f"<pre>{report}</pre>", parse_mode="HTML")
+        except Exception:
+            await message.answer("❌ Ocurrió un error al generar el reporte de validación.")
+            logging.exception("Fallo al ejecutar /validar")
+
+
 # Exportamos la lista de comandos de este módulo.
 DIAGNOSTICS_COMMANDS = [
     CmdExaminarPersonaje(),
     CmdExaminarObjeto(),
+    CmdReporteValidacion(),
 ]

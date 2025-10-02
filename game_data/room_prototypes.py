@@ -14,6 +14,9 @@ Estructura de un Prototipo de Sala:
     - "description": (str) El texto principal que se muestra al entrar.
     - "exits": (dict, opcional) Conexiones a otras salas.
         - "<direccion>": (str) La clave única de la sala de destino.
+        - IMPORTANTE: Todas las salidas deben ser BIDIRECCIONALES y EXPLÍCITAS.
+          Si la sala A tiene salida "norte" → sala B, entonces sala B debe tener
+          explícitamente la salida de vuelta (ej: "sur" → sala A).
     - "grants_command_sets": (list[str], opcional) CommandSets que la sala otorga.
     - "details": (dict, opcional) Elementos descriptivos de la sala que se
                  pueden mirar, pero no son objetos físicos.
@@ -37,6 +40,7 @@ ROOM_PROTOTYPES = {
         "name": "Plaza Central de Runegard",
         "description": "Estás en el corazón de la ciudad. El bullicio de mercaderes y aventureros llena el aire. Una imponente fuente de mármol domina el centro de la plaza. Varios caminos parten desde aquí.",
         "exits": {
+            "sur": "limbo",           # Salida de vuelta al Limbo
             "este": "calle_mercaderes"
         },
         "details": {
@@ -53,7 +57,7 @@ ROOM_PROTOTYPES = {
         "name": "Calle de los Mercaderes",
         "description": "Decenas de puestos se alinean en esta calle, ofreciendo todo tipo de mercancías exóticas.",
         "exits": {
-            "oeste": "plaza_central"
+            "oeste": "plaza_central"  # Salida de vuelta a la Plaza Central
         }
     },
 

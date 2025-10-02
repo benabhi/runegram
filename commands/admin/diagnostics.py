@@ -47,8 +47,18 @@ class CmdExaminarPersonaje(Command):
                 await message.answer(f"No se encontró ningún personaje que coincida con '{target_string}'.")
                 return
 
-            # Cargar todas las relaciones para mostrar la información completa
-            full_char = await session.get(Character, target_char.id, options=[selectinload("*")])
+            # Cargar todas las relaciones necesarias para mostrar la información completa
+            query_full = (
+                select(Character)
+                .where(Character.id == target_char.id)
+                .options(
+                    selectinload(Character.account),
+                    selectinload(Character.room),
+                    selectinload(Character.items)
+                )
+            )
+            result_full = await session.execute(query_full)
+            full_char = result_full.scalar_one()
 
             lines = [
                 f"<b>--- Personaje: {full_char.name} ---</b>",

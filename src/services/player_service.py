@@ -67,7 +67,8 @@ async def get_or_create_account(session: AsyncSession, telegram_id: int) -> Acco
             new_account = Account(telegram_id=telegram_id)
             session.add(new_account)
             await session.commit()
-            await session.refresh(new_account)
+            # Recargar la cuenta con la relación character explícitamente
+            await session.refresh(new_account, ["character"])
             return new_account
 
         # 3. Si la cuenta existe pero no tiene personaje, devolverla tal cual.

@@ -128,8 +128,17 @@ class CmdSay(Command):
             return
 
         say_text = " ".join(args)
-        # Futuro: Usar broadcaster_service para notificar a la sala.
+
+        # Confirmar al jugador que habló
         await message.answer(f"Dices: {say_text}")
+
+        # Notificar a todos los demás en la sala
+        await broadcaster_service.send_message_to_room(
+            session=session,
+            room_id=character.room_id,
+            message_text=f"<i>{character.name} dice: {say_text}</i>",
+            exclude_character_id=character.id
+        )
 
 class CmdInventory(Command):
     """Comando para mostrar el inventario del jugador o el de un contenedor."""
@@ -284,6 +293,9 @@ class CmdWhisper(Command):
             if not target_character:
                 await message.answer(f"No ves a ningún '{args[0]}' por aquí.")
                 return
+
+            # Cargar la relación account del target antes de enviar mensaje
+            await session.refresh(target_character, ["account"])
 
             # Enviar el mensaje privado al jugador objetivo
             from src.services import broadcaster_service

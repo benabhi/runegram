@@ -1094,9 +1094,11 @@ except Exception:
 
 ## 🚀 Flujo de Desarrollo
 
-### ⚠️ POLÍTICA DE DOCUMENTACIÓN (CRÍTICO)
+### ⚠️ POLÍTICA DE DOCUMENTACIÓN Y TESTS (CRÍTICO)
 
 **OBLIGATORIO**: Después de **CUALQUIER** cambio en el código (agregar funcionalidad, corregir bug, refactorizar), se debe:
+
+#### 1. Verificar y Actualizar Documentación
 
 1. ✅ **Verificar `README.md`**: ¿Refleja correctamente el estado actual del proyecto?
 2. ✅ **Revisar `docs/`**: ¿Hay documentación que necesita actualización?
@@ -1107,6 +1109,29 @@ except Exception:
    - **Reorganizar**: Si la estructura de docs ya no refleja la arquitectura
 
 **La documentación desactualizada es peor que no tener documentación.**
+
+#### 2. Verificar y Actualizar Tests
+
+**Tests críticos DEBEN pasar siempre antes de commit.**
+
+1. ✅ **Ejecutar tests existentes**: `pytest -m critical`
+2. ✅ **Crear/actualizar tests** para funcionalidad nueva o modificada:
+   - Tests críticos para sistemas de seguridad/permisos
+   - Tests para servicios core modificados
+   - Tests de regresión para bugs corregidos
+3. ✅ **Verificar cobertura**: `pytest --cov=src`
+   - Mantener cobertura >70% en código crítico
+   - No bajar la cobertura existente
+
+**¿Qué requiere tests?**
+- ✅ **SIEMPRE**: Servicios críticos (permisos, validación, player_service)
+- ✅ **SIEMPRE**: Correcciones de bugs (test de regresión)
+- ✅ **FRECUENTEMENTE**: Comandos complejos con lógica de negocio
+- ⚠️ **A VECES**: Comandos simples de contenido
+- ❌ **NUNCA**: Scripts de contenido específico
+- ❌ **NUNCA**: Prototipos de items/salas/canales
+
+Ver: `tests/README.md` para guía completa de testing.
 
 #### Archivos que Típicamente Necesitan Actualización
 

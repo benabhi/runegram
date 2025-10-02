@@ -19,7 +19,9 @@ from sqlalchemy.orm import selectinload
 from src.models import Room, Exit
 from game_data.room_prototypes import ROOM_PROTOTYPES
 
-# Mapa de direcciones opuestas para crear automáticamente las salidas bidireccionales.
+# Mapa de direcciones opuestas (referencia).
+# NOTA: Ya no se usa para crear salidas automáticamente. Todas las salidas deben
+# estar explícitamente definidas en ambas direcciones en los prototipos de sala.
 OPPOSITE_DIRECTIONS = {
     "norte": "sur", "sur": "norte",
     "este": "oeste", "oeste": "este",
@@ -37,7 +39,9 @@ async def sync_world_from_prototypes(session: AsyncSession):
     Su lógica es:
     1. Crea/actualiza las salas.
     2. Borra todas las salidas existentes.
-    3. Recrea todas las salidas, aplicando los `locks` definidos en los prototipos.
+    3. Recrea todas las salidas tal como están definidas en los prototipos,
+       aplicando los `locks` correspondientes. Todas las salidas deben estar
+       explícitamente definidas en ambas direcciones en los prototipos.
     """
     logging.info("Sincronizando el mundo estático desde los prototipos...")
     try:
@@ -81,7 +85,10 @@ async def sync_world_from_prototypes(session: AsyncSession):
                 if to_room_key in room_key_to_id_map:
                     to_room_id = room_key_to_id_map[to_room_key]
 
-                    # Crear la salida principal, incluyendo su lock.
+                    # Crear la salida tal como está definida en el prototipo.
+                    # NOTA: Ya no creamos salidas de vuelta automáticamente.
+                    # Todas las salidas deben estar explícitamente definidas en ambas
+                    # direcciones en los prototipos de sala.
                     exit_forward = Exit(
                         name=direction.lower(),
                         from_room_id=from_room_id,
@@ -89,13 +96,6 @@ async def sync_world_from_prototypes(session: AsyncSession):
                         locks=lock_string
                     )
                     session.add(exit_forward)
-
-                    # Crear la salida de vuelta automáticamente (sin lock por defecto).
-                    opposite = OPPOSITE_DIRECTIONS.get(direction.lower())
-                    if opposite:
-                        # La salida de vuelta no hereda el lock, debe definirse explícitamente.
-                        exit_backward = Exit(name=opposite, from_room_id=to_room_id, to_room_id=from_room_id)
-                        session.add(exit_backward)
                 else:
                     logging.warning(f"  -> La sala de destino '{to_room_key}' definida en la sala '{key}' no existe. Se ignora la salida.")
 

@@ -12,7 +12,7 @@ representa como dos filas separadas en esta tabla:
 2. Una salida desde B hacia A (ej: "sur").
 """
 
-from sqlalchemy import BigInteger, Column, String, ForeignKey
+from sqlalchemy import BigInteger, Column, String, ForeignKey, Integer
 from sqlalchemy.orm import relationship
 
 from .base import Base
@@ -25,7 +25,7 @@ class Exit(Base):
 
     # --- Atributos Principales ---
 
-    id = Column(BigInteger, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
 
     # El nombre que el jugador escribe para usar la salida (ej: "norte", "puerta").
     name = Column(String(50), nullable=False, index=True)
@@ -36,10 +36,10 @@ class Exit(Base):
     # --- Claves Foráneas ---
 
     # El ID de la sala desde la que parte esta salida.
-    from_room_id = Column(BigInteger, ForeignKey('rooms.id'), nullable=False)
+    from_room_id = Column(Integer, ForeignKey('rooms.id'), nullable=False)
 
     # El ID de la sala a la que lleva esta salida.
-    to_room_id = Column(BigInteger, ForeignKey('rooms.id'), nullable=False)
+    to_room_id = Column(Integer, ForeignKey('rooms.id'), nullable=False)
 
     # --- Relaciones de SQLAlchemy ---
 

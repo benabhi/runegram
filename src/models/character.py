@@ -11,11 +11,15 @@ punto central para las relaciones de juego, como su ubicación (`Room`), su
 inventario (`Item`), y sus configuraciones (`CharacterSetting`).
 """
 
-from sqlalchemy import BigInteger, Column, String, ForeignKey
+from sqlalchemy import BigInteger, Column, String, ForeignKey, JSON, Integer
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 
 from .base import Base
+
+# Usar JSONB para PostgreSQL, JSON para otros (ej: SQLite en tests)
+# JSONB es más eficiente en PostgreSQL pero JSON funciona en ambos
+JSONType = JSON
 
 class Character(Base):
     """
@@ -24,16 +28,16 @@ class Character(Base):
     __tablename__ = 'characters'
 
     # --- Atributos Principales ---
-    id = Column(BigInteger, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(50), unique=True, nullable=False)
 
     # --- Claves Foráneas ---
-    account_id = Column(BigInteger, ForeignKey('accounts.id'), nullable=False, unique=True)
-    room_id = Column(BigInteger, ForeignKey('rooms.id'), nullable=False)
+    account_id = Column(Integer, ForeignKey('accounts.id'), nullable=False, unique=True)
+    room_id = Column(Integer, ForeignKey('rooms.id'), nullable=False)
 
     # --- Atributos de Juego (Datos Estructurados) ---
     command_sets = Column(
-        JSONB,
+        JSONType,
         nullable=False,
         server_default='["general", "interaction", "movement", "channels", "dynamic_channels", "settings"]',
         default=["general", "interaction", "movement", "channels", "dynamic_channels", "settings"]

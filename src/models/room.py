@@ -10,7 +10,7 @@ es principalmente una instancia que se corresponde con un prototipo definido en
 `game_data/room_prototypes.py`, vinculado a través de la columna `key`.
 """
 
-from sqlalchemy import BigInteger, Column, String, Text
+from sqlalchemy import BigInteger, Column, String, Text, Integer
 from sqlalchemy.orm import relationship
 
 from .base import Base
@@ -24,7 +24,7 @@ class Room(Base):
 
     # --- Atributos de la Instancia ---
 
-    id = Column(BigInteger, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     key = Column(String(50), unique=True, nullable=True, index=True)
     name = Column(String(100), nullable=False)
     description = Column(Text, nullable=False, default="Esta es una sala sin describir.")

@@ -11,7 +11,7 @@ metadatos sobre el usuario, como su rol (JUGADOR, ADMIN, SUPERADMIN) y su estado
 (ACTIVE, BLOCKED).
 """
 
-from sqlalchemy import BigInteger, Column, String
+from sqlalchemy import BigInteger, Column, String, Integer
 from sqlalchemy.orm import relationship
 
 from .base import Base
@@ -23,7 +23,7 @@ class Account(Base):
     __tablename__ = 'accounts'
 
     # Identificador único de la cuenta en nuestra base de datos.
-    id = Column(BigInteger, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
 
     # El ID de usuario único proporcionado por Telegram.
     # Es crucial para vincular nuestra cuenta interna con el usuario de Telegram.

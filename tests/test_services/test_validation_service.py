@@ -31,7 +31,7 @@ class TestCommandAliasValidation:
             ]
         }
 
-        with patch("src.services.validation_service.COMMAND_SETS", mock_commands):
+        with patch("src.handlers.player.dispatcher.COMMAND_SETS", mock_commands):
             errors = validation_service.validate_command_aliases()
             assert len(errors) == 0, "No debería haber errores cuando no hay duplicados"
 
@@ -49,7 +49,7 @@ class TestCommandAliasValidation:
             ]
         }
 
-        with patch("src.services.validation_service.COMMAND_SETS", mock_commands):
+        with patch("src.handlers.player.dispatcher.COMMAND_SETS", mock_commands):
             errors = validation_service.validate_command_aliases()
             assert len(errors) == 1, "Debería detectar exactamente un error"
             assert "n" in errors[0], "El error debería mencionar el alias 'n' duplicado"
@@ -73,7 +73,7 @@ class TestCommandAliasValidation:
             ]
         }
 
-        with patch("src.services.validation_service.COMMAND_SETS", mock_commands):
+        with patch("src.handlers.player.dispatcher.COMMAND_SETS", mock_commands):
             errors = validation_service.validate_command_aliases()
             assert len(errors) == 2, "Debería detectar dos errores (a y b)"
 
@@ -242,7 +242,7 @@ class TestValidationReport:
         mock_items = {"item1": {}}
         mock_channels = {"channel1": {}}
 
-        with patch("src.services.validation_service.COMMAND_SETS", mock_commands), \
+        with patch("src.handlers.player.dispatcher.COMMAND_SETS", mock_commands), \
              patch("src.services.validation_service.ROOM_PROTOTYPES", mock_rooms), \
              patch("src.services.validation_service.ITEM_PROTOTYPES", mock_items), \
              patch("src.services.validation_service.CHANNEL_PROTOTYPES", mock_channels):

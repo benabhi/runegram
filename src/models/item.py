@@ -13,7 +13,7 @@ Un `Item` también puede actuar como un contenedor para otros `Items` a través
 de una relación de auto-referencia.
 """
 
-from sqlalchemy import BigInteger, Column, String, Text, ForeignKey
+from sqlalchemy import BigInteger, Column, String, Text, ForeignKey, Integer
 from sqlalchemy.orm import relationship
 
 from game_data.item_prototypes import ITEM_PROTOTYPES
@@ -27,7 +27,7 @@ class Item(Base):
 
     # --- Atributos de la Instancia ---
 
-    id = Column(BigInteger, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     key = Column(String(50), nullable=False, index=True)
     name_override = Column(String(100), nullable=True)
     description_override = Column(Text, nullable=True)
@@ -38,14 +38,14 @@ class Item(Base):
     # `parent_item_id`) debe tener un valor.
 
     # 1. En el suelo de una sala.
-    room_id = Column(BigInteger, ForeignKey('rooms.id'), nullable=True)
+    room_id = Column(Integer, ForeignKey('rooms.id'), nullable=True)
 
     # 2. En el inventario de un personaje.
-    character_id = Column(BigInteger, ForeignKey('characters.id'), nullable=True)
+    character_id = Column(Integer, ForeignKey('characters.id'), nullable=True)
 
     # 3. Dentro de otro objeto (contenedor).
     # Esta es una clave foránea que apunta a la misma tabla `items`.
-    parent_item_id = Column(BigInteger, ForeignKey('items.id'), nullable=True)
+    parent_item_id = Column(Integer, ForeignKey('items.id'), nullable=True)
 
     # --- Relaciones de SQLAlchemy ---
 

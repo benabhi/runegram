@@ -7,26 +7,13 @@ los tests del proyecto.
 """
 
 import pytest
-import asyncio
 from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.pool import NullPool
 
 from src.models.base import Base
-from src.models import Account, Character, Room, Exit, Item
+from src.models import Account, Character, Room, Exit, Item, CharacterSetting
 from game_data.room_prototypes import ROOM_PROTOTYPES
-
-
-# Configurar pytest para soportar tests asíncronos
-@pytest.fixture(scope="session")
-def event_loop():
-    """
-    Crea un event loop para toda la sesión de tests.
-    Necesario para tests asíncronos con pytest-asyncio.
-    """
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
 
 
 @pytest.fixture(scope="function")
@@ -46,9 +33,14 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
             await db_session.commit()
     """
     # Crear un motor de BD en memoria para el test
+    # IMPORTANTE: Usar StaticPool en lugar de NullPool para SQLite in-memory
+    # para asegurar que todas las operaciones usan la misma conexión
+    from sqlalchemy.pool import StaticPool
+
     engine = create_async_engine(
         "sqlite+aiosqlite:///:memory:",
-        poolclass=NullPool,
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
         echo=False  # Cambiar a True para ver queries SQL en los tests
     )
 

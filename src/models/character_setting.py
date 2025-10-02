@@ -12,11 +12,14 @@ el esquema de la base de datos, lo que hace que el sistema sea muy flexible
 y extensible.
 """
 
-from sqlalchemy import BigInteger, Column, ForeignKey
+from sqlalchemy import BigInteger, Column, ForeignKey, JSON, Integer
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 
 from .base import Base
+
+# Usar JSON genérico que funciona tanto en PostgreSQL como SQLite
+JSONType = JSON
 
 class CharacterSetting(Base):
     """
@@ -29,14 +32,14 @@ class CharacterSetting(Base):
     # Usamos el ID del personaje como clave primaria (`primary_key=True`).
     # Esto impone una relación estricta de uno-a-uno a nivel de base de datos:
     # no puede haber más de una fila de configuraciones por personaje.
-    character_id = Column(BigInteger, ForeignKey('characters.id'), primary_key=True)
+    character_id = Column(Integer, ForeignKey('characters.id'), primary_key=True)
 
     # --- Atributos de Configuración ---
 
-    # Columna JSONB para guardar una lista de los canales a los que el personaje
-    # está suscrito. Usar JSONB es muy flexible.
+    # Columna JSON para guardar una lista de los canales a los que el personaje
+    # está suscrito. Usar JSON es muy flexible y compatible con SQLite.
     # Ejemplo de contenido: `{"active_channels": ["novato", "comercio"]}`
-    active_channels = Column(JSONB, nullable=False, server_default='{}')
+    active_channels = Column(JSONType, nullable=False, server_default='{}')
 
     # --- Relaciones de SQLAlchemy ---
 

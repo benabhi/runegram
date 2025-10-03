@@ -32,6 +32,9 @@ ROOM_PROTOTYPES = {
         "description": "Te encuentras en una habitación vacía, suspendida en la nada. Es el comienzo de tu aventura y un refugio seguro.",
         "exits": {
             "norte": "plaza_central"
+        },
+        "display": {
+            "icon": "🌫️",  # Icono personalizado para el limbo
         }
     },
 
@@ -49,6 +52,9 @@ ROOM_PROTOTYPES = {
                 "keywords": ["fuente", "marmol", "fuente de marmol"],
                 "description": "Es una magnífica fuente esculpida en mármol blanco. El agua cristalina fluye desde la boca de tres leones de piedra. En el fondo, puedes ver el brillo de algunas monedas arrojadas por los transeúntes."
             }
+        },
+        "display": {
+            "icon": "🏛️",  # Icono de plaza/ciudad
         }
     },
 
@@ -58,6 +64,9 @@ ROOM_PROTOTYPES = {
         "description": "Decenas de puestos se alinean en esta calle, ofreciendo todo tipo de mercancías exóticas.",
         "exits": {
             "oeste": "plaza_central"  # Salida de vuelta a la Plaza Central
+        },
+        "display": {
+            "icon": "🏪",  # Icono de tienda/mercado
         }
     },
 

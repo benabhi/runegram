@@ -1,0 +1,63 @@
+{# src/templates/base/room.html.j2 #}
+{# Template para mostrar la descripción de una sala #}
+{#
+Variables esperadas:
+- room: Objeto Room con las relaciones cargadas
+- character: Objeto Character que está mirando (opcional)
+- display: Dict con configuración de display del prototipo (opcional)
+#}
+<pre>{{ icon('room') }} <b>{{ room.name }}</b>
+{{ room.description|trim }}
+{% if room.items %}
+
+{{ icon('look') }} <b>Cosas a la vista:</b>
+{%- if room.items|length > max_items %}
+{% for item in room.items[:max_items] %}
+{%- set item_icon = item.prototype.get('display', {}).get('icon', icon('item')) %}
+- {{ item_icon }} {{ item.get_name() }}
+{%- if item.prototype.get('is_container') and item.contained_items %}
+ ({{ item.contained_items|length }} {{ item.contained_items|length|pluralize('item', 'items') }})
+{%- endif %}
+{% endfor %}
+... y {{ room.items|length - max_items }} {{ (room.items|length - max_items)|pluralize('item', 'items') }} más.
+{%- else %}
+{% for item in room.items %}
+{%- set item_icon = item.prototype.get('display', {}).get('icon', icon('item')) %}
+- {{ item_icon }} {{ item.get_name() }}
+{%- if item.prototype.get('is_container') and item.contained_items %}
+ ({{ item.contained_items|length }} {{ item.contained_items|length|pluralize('item', 'items') }})
+{%- endif %}
+{% endfor %}
+{%- endif %}
+
+{% endif %}
+{% if room.characters and character %}
+{%- set other_characters = room.characters|reject('equalto', character)|list %}
+{%- if other_characters %}
+
+{{ icon('character') }} <b>Personajes:</b>
+{%- if other_characters|length > max_characters %}
+{% for char in other_characters[:max_characters] %}
+- {{ char.name }}
+{% endfor %}
+... y {{ other_characters|length - max_characters }} {{ (other_characters|length - max_characters)|pluralize('personaje', 'personajes') }} más.
+{%- else %}
+{% for char in other_characters %}
+- {{ char.name }}
+{% endfor %}
+{%- endif %}
+
+{% endif %}
+{% endif %}
+{% if room.exits_from %}
+
+{{ icon('exit') }} <b>Salidas:</b>
+{% for exit in room.exits_from|sort(attribute='name') %}
+{{ get_direction_icon(exit.name) }} {{ exit.name|capitalize }}
+{%- if exit.to_room %} ({{ exit.to_room.name }}){% endif %}
+{%- if exit.lock_string %} <i>[cerrada]</i>{% endif %}
+{% endfor %}
+{%- else %}
+
+{{ icon('exit') }} <b>Salidas:</b> [ Ninguna ]
+{%- endif %}</pre>

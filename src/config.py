@@ -40,6 +40,14 @@ class Settings(BaseSettings):
     redis_port: int
     redis_db: int
 
+    # Display Limits - Límites de visualización para prevenir spam
+    # Estos valores controlan cuántos items se muestran en listas antes de truncar
+    max_room_items_display: int = 10  # Items mostrados en /mirar (sala)
+    max_room_characters_display: int = 10  # Personajes mostrados en /mirar (sala)
+    max_inventory_display: int = 15  # Items mostrados en /inventario
+    max_container_display: int = 15  # Items mostrados al mirar/abrir contenedor
+    max_who_display: int = 20  # Jugadores mostrados en /quien
+
     @property
     def database_url(self) -> str:
         """

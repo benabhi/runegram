@@ -106,6 +106,7 @@ Prefiere múltiples comandos dedicados a un solo comando con subcomandos:
 - **Docker + Docker Compose**: Contenedorización y orquestación
 - **APScheduler**: Sistema de tareas programadas (tickers)
 - **Pydantic**: Validación de configuración
+- **Jinja2**: Motor de templates para outputs consistentes
 
 ### Arquitectura de Servicios
 El proyecto sigue una arquitectura de servicios para mantener la lógica de negocio separada de los handlers:
@@ -152,6 +153,17 @@ runegram/
 │   │   ├── script_service.py
 │   │   ├── online_service.py
 │   │   └── ticker_service.py
+│   ├── templates/               # Sistema de templates
+│   │   ├── __init__.py
+│   │   ├── template_engine.py
+│   │   ├── icons.py
+│   │   └── base/                # Templates base Jinja2
+│   │       ├── room.html.j2
+│   │       ├── inventory.html.j2
+│   │       ├── character.html.j2
+│   │       ├── help.html.j2
+│   │       ├── item_look.html.j2
+│   │       └── who.html.j2
 │   ├── utils/
 │   │   └── presenters.py        # Funciones de presentación
 │   ├── config.py                # Configuración centralizada (Pydantic)
@@ -776,18 +788,120 @@ Los jugadores pueden crear sus propios canales privados:
 
 Ver: `commands/player/dynamic_channels.py`
 
-### 8. Sistema de Presentación
+### 8. Sistema de Templates
 
-Funciones centralizadas para generar texto formateado para el usuario.
+Sistema centralizado de templates con **Jinja2** que separa la presentación del código, permitiendo outputs consistentes y fácilmente personalizables.
+
+#### Beneficios
+- **Consistencia Visual**: Todos los outputs usan el mismo estilo e íconos
+- **Facilidad de Modificación**: Cambiar el formato de un comando sin tocar código Python
+- **Personalización**: Los prototipos pueden definir templates y íconos personalizados
+- **Mantenibilidad**: Separación clara entre lógica de negocio y presentación
+
+#### Estructura
+```
+src/templates/
+├── __init__.py            # Exports principales
+├── template_engine.py     # Motor de renderizado Jinja2
+├── icons.py              # Diccionario de íconos/emojis
+└── base/                 # Templates base
+    ├── room.html.j2
+    ├── inventory.html.j2
+    ├── character.html.j2
+    ├── help.html.j2
+    ├── item_look.html.j2
+    └── who.html.j2
+```
+
+#### Uso Básico
+```python
+from src.templates import render_template, ICONS
+
+# Renderizar un template
+output = render_template('room.html.j2', room=room, character=character)
+await message.answer(output, parse_mode="HTML")
+
+# Usar íconos en código
+message_text = f"{ICONS['room']} {room.name}"
+```
+
+#### Personalización en Prototipos
+Los prototipos pueden definir íconos y templates personalizados mediante el campo `display`:
 
 ```python
-from src.utils.presenters import show_current_room
+# En game_data/room_prototypes.py
+ROOM_PROTOTYPES = {
+    "plaza_central": {
+        "name": "Plaza Central",
+        "description": "...",
+        "display": {
+            "icon": "🏛️",                      # Ícono personalizado
+            "template": "custom_plaza.html.j2"  # Template personalizado (opcional)
+        }
+    }
+}
+
+# En game_data/item_prototypes.py
+ITEM_PROTOTYPES = {
+    "espada_viviente": {
+        "name": "una espada viviente",
+        "description": "...",
+        "display": {
+            "icon": "⚔️",  # Se muestra en inventarios y listados
+        }
+    }
+}
+```
+
+#### Estándares de Formato
+
+**Estructura Visual Consistente**:
+```
+[ÍCONO] [TÍTULO EN NEGRITA]
+[Descripción de 1-3 líneas]
+
+[ÍCONO] [SECCIÓN]:
+- Item 1
+- Item 2
+```
+
+**Reglas de Íconos**:
+- Siempre usar íconos al inicio de cada sección
+- Un ícono por concepto (no reutilizar para cosas diferentes)
+- Usar íconos de dirección (⬆️ ⬇️ ➡️ ⬅️) para salidas
+- Preferir constantes de `ICONS` sobre emojis hardcodeados
+
+**Formato de Texto**:
+- Títulos en `<b>negrita</b>`
+- Narración/ambiente en texto normal
+- Diálogos/emotes en `<i>cursiva</i>`
+- Todo envuelto en `<pre>` para formato monoespaciado
+
+Ver: `docs/04_CONTENT_CREATION/04_OUTPUT_TEMPLATES.md` para guía completa.
+
+### 9. Sistema de Presentación
+
+Funciones centralizadas para generar texto formateado para el usuario usando el sistema de templates.
+
+```python
+from src.utils.presenters import show_current_room, format_item_look
 
 # Muestra la sala actual al jugador
 await show_current_room(message)
+
+# Muestra la descripción de un objeto
+output = format_item_look(item, can_interact=True)
+await message.answer(output, parse_mode="HTML")
 ```
 
 **Beneficio**: Mantiene la lógica de presentación separada de la lógica de negocio.
+
+**Presenters Disponibles**:
+- `format_room()`: Descripción completa de sala
+- `format_inventory()`: Inventario de personaje o contenedor
+- `format_character()`: Hoja de personaje
+- `format_item_look()`: Descripción detallada de item
+- `format_who_list()`: Lista de jugadores online
 
 Ver: `src/utils/presenters.py`
 
@@ -1231,7 +1345,8 @@ Sistemas planificados:
 5. **Sigue las convenciones**: Nombres en inglés (motor) / español (contenido)
 6. **Código robusto**: Manejo de errores, logging, type hints
 7. **Feedback al usuario**: Siempre responde al jugador con mensajes claros
-8. **📚 ACTUALIZA DOCUMENTACIÓN**: Antes de dar por terminada la tarea (ver REGLA #1)
+8. **🎨 USA TEMPLATES**: Para outputs visuales, usa el sistema de templates y presenters, NO hardcodees HTML
+9. **📚 ACTUALIZA DOCUMENTACIÓN**: Antes de dar por terminada la tarea (ver REGLA #1)
 
 ### Cuando el Usuario Pide Corregir un Bug
 
@@ -1261,6 +1376,8 @@ Sistemas planificados:
 - ✅ ¿Proporciono feedback claro al usuario?
 - ✅ ¿Es código async (no bloqueante)?
 - ✅ ¿Necesita migración de BD?
+- ✅ ¿Estoy usando templates/presenters para outputs visuales en lugar de hardcodear HTML?
+- ✅ ¿Los íconos vienen de `ICONS` en lugar de estar hardcodeados?
 
 #### Antes de Finalizar (CRÍTICO)
 - ✅ ¿Verifiqué si `README.md` necesita actualización?
@@ -1278,6 +1395,7 @@ Sistemas planificados:
 - `docs/02_CORE_PHILOSOPHY.md`: Filosofía de diseño
 - `docs/03_ENGINE_SYSTEMS/`: Sistemas del motor en detalle
 - `docs/04_CONTENT_CREATION/`: Guías de creación de contenido
+  - `04_OUTPUT_TEMPLATES.md`: Sistema de templates y outputs consistentes
 - `docs/05_ADMIN_GUIDE.md`: Comandos de administración
 - `docs/06_DATABASE_AND_MIGRATIONS.md`: BD y migraciones
 - `docs/07_ROADMAP.md`: Planes futuros
@@ -1328,7 +1446,9 @@ Después de CUALQUIER cambio:
 
 ---
 
-**Versión**: 1.1
-**Última actualización**: 2025-10-02
-**Changelog**: Agregada política obligatoria de documentación actualizada
+**Versión**: 1.2
+**Última actualización**: 2025-10-03
+**Changelog**:
+- v1.2 (2025-10-03): Agregado sistema de templates (Jinja2) y guías de outputs consistentes
+- v1.1 (2025-10-02): Agregada política obligatoria de documentación actualizada
 **Mantenedor**: Proyecto Runegram

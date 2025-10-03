@@ -1,0 +1,31 @@
+{# src/templates/base/character.html.j2 #}
+{# Template para mostrar la hoja de personaje #}
+{#
+Variables esperadas:
+- character: Objeto Character con relaciones cargadas
+#}
+<pre>{{ icon('player') }} <b>{{ character.name }}</b>
+{%- if character.get_description() %}
+{{ character.get_description() }}
+{%- endif %}
+
+{{ icon('level') }} <b>Nivel:</b> {{ character.level if character.level else 'Aventurero sin clase' }}
+
+{%- if character.room %}
+{{ icon('room') }} <b>Ubicación:</b> {{ character.room.name }}
+{%- endif %}
+
+{%- if character.account %}
+{{ icon('info') }} <b>Cuenta ID:</b> {{ character.account.telegram_id }}
+{%- if character.account.role and character.account.role != 'PLAYER' %}
+ ({{ icon('admin') }} {{ character.account.role }})
+{%- endif %}
+{%- endif %}
+
+{%- if character.command_sets %}
+{{ icon('settings') }} <b>CommandSets:</b> {{ character.command_sets|join(', ') }}
+{%- endif %}
+
+{%- if character.items %}
+{{ icon('inventory') }} <b>Inventario:</b> {{ character.items|length }} {{ character.items|length|pluralize('item', 'items') }}
+{%- endif %}</pre>

@@ -37,7 +37,10 @@ ITEM_PROTOTYPES = {
                 "script": "script_espada_susurra_secreto",
                 "category": "ambient"
             }
-        ]
+        ],
+        "display": {
+            "icon": "⚔️",  # Icono de espada
+        }
     },
 
     # --- NUEVOS EJEMPLOS DE CONTENEDORES ---
@@ -49,6 +52,9 @@ ITEM_PROTOTYPES = {
         "description": "Una mochila simple pero resistente, hecha de cuero curtido. Parece que tiene espacio para algunas cosas.",
         "is_container": True,
         "capacity": 10, # Puede contener hasta 10 objetos.
+        "display": {
+            "icon": "🎒",  # Icono de mochila
+        }
     },
 
     # Un contenedor fijo que no se puede coger y necesita una llave (futuro).
@@ -62,5 +68,8 @@ ITEM_PROTOTYPES = {
         "locks": "rol(SUPERADMIN)",
         # Futuro: Podríamos tener un lock específico para abrir/cerrar.
         # "open_lock": "tiene_objeto(llave_cofre_roble)"
+        "display": {
+            "icon": "📦",  # Icono de cofre/caja
+        }
     },
 }

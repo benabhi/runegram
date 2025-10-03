@@ -16,8 +16,10 @@ from collections import Counter
 
 from commands.command import Command
 from src.models import Character
-from src.utils.presenters import show_current_room
+from src.utils.presenters import show_current_room, format_item_look, format_inventory, format_who_list
 from src.services import script_service, online_service, permission_service, broadcaster_service
+from src.utils.pagination import paginate_list, format_pagination_footer
+from src.templates import ICONS
 
 # Re-importamos `find_item_in_list` aquí ya que CmdInventory lo necesita.
 from .interaction import find_item_in_list
@@ -48,22 +50,12 @@ class CmdLook(Command):
             # 2. Buscar en los objetos de la sala.
             for item in character.room.items:
                 if target_string in item.get_keywords() or target_string == item.get_name().lower():
-                    # Descripción del objeto
-                    response = f"<pre>{item.get_description()}</pre>"
-
-                    # Si es un contenedor, mostrar su contenido
+                    # Cargar contained_items si es contenedor
                     if item.prototype.get("is_container"):
                         await session.refresh(item, attribute_names=['contained_items'])
-                        if item.contained_items:
-                            item_names = [inner_item.get_name() for inner_item in item.contained_items]
-                            item_counts = Counter(item_names)
-                            formatted_items = [f" - {name}" + (f" ({count})" if count > 1 else "")
-                                             for name, count in item_counts.items()]
-                            items_str = "\n".join(formatted_items)
-                            response += f"\n\n<b>Contiene:</b>\n{items_str}"
-                        else:
-                            response += f"\n\n<b>Está vacío.</b>"
 
+                    # Usar el nuevo sistema de templates
+                    response = format_item_look(item, can_interact=True)
                     await message.answer(response, parse_mode="HTML")
 
                     # Ejecutar script on_look si existe
@@ -77,22 +69,12 @@ class CmdLook(Command):
             # 3. Buscar en el inventario del personaje.
             for item in character.items:
                 if target_string in item.get_keywords() or target_string == item.get_name().lower():
-                    # Descripción del objeto
-                    response = f"<pre>{item.get_description()}</pre>"
-
-                    # Si es un contenedor, mostrar su contenido
+                    # Cargar contained_items si es contenedor
                     if item.prototype.get("is_container"):
                         await session.refresh(item, attribute_names=['contained_items'])
-                        if item.contained_items:
-                            item_names = [inner_item.get_name() for inner_item in item.contained_items]
-                            item_counts = Counter(item_names)
-                            formatted_items = [f" - {name}" + (f" ({count})" if count > 1 else "")
-                                             for name, count in item_counts.items()]
-                            items_str = "\n".join(formatted_items)
-                            response += f"\n\n<b>Contiene:</b>\n{items_str}"
-                        else:
-                            response += f"\n\n<b>Está vacío.</b>"
 
+                    # Usar el nuevo sistema de templates
+                    response = format_item_look(item, can_interact=True)
                     await message.answer(response, parse_mode="HTML")
 
                     # Ejecutar script on_look si existe
@@ -143,36 +125,66 @@ class CmdSay(Command):
 class CmdInventory(Command):
     """Comando para mostrar el inventario del jugador o el de un contenedor."""
     names = ["inventario", "inv", "i"]
-    description = "Muestra tu inventario o el de un contenedor. Uso: /inv [contenedor]"
+    description = "Muestra tu inventario o el de un contenedor. Uso: /inv [contenedor|todo [página]]"
 
     async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
         try:
-            # CASO 1: Mirar el inventario propio.
+            # CASO 1: Mirar el inventario propio (sin límites).
             if not args:
-                inventory = character.items
-                if not inventory:
-                    response = "No llevas nada."
-                else:
-                    # Mostrar cantidad de items en contenedores
-                    items_list = []
-                    for item in inventory:
-                        item_display = f" - {item.get_name()}"
+                # Cargar contained_items para todos los contenedores
+                for item in character.items:
+                    if item.prototype.get("is_container"):
+                        await session.refresh(item, attribute_names=['contained_items'])
 
-                        # Si es un contenedor, mostrar cuántos items tiene
-                        if item.prototype.get("is_container"):
-                            await session.refresh(item, attribute_names=['contained_items'])
-                            if item.contained_items:
-                                item_count = len(item.contained_items)
-                                item_display += f" ({item_count} {'item' if item_count == 1 else 'items'})"
-
-                        items_list.append(item_display)
-
-                    items_str = "\n".join(items_list)
-                    response = f"<b>Llevas lo siguiente:</b>\n{items_str}"
-                await message.answer(f"<pre>{response}</pre>", parse_mode="HTML")
+                # Usar el nuevo sistema de templates
+                response = format_inventory(character.items, owner_name=None, is_container=False)
+                await message.answer(response, parse_mode="HTML")
                 return
 
-            # CASO 2: Mirar el inventario de un contenedor.
+            # CASO 2: Modo "todo" con paginación (inventario completo sin límites).
+            if args[0].lower() == "todo":
+                page = 1
+                if len(args) > 1:
+                    try:
+                        page = int(args[1])
+                    except ValueError:
+                        await message.answer("Uso: /inv todo [número de página]")
+                        return
+
+                items = character.items
+
+                if not items:
+                    await message.answer(f"<pre>{ICONS['inventory']} No llevas nada.</pre>", parse_mode="HTML")
+                    return
+
+                # Paginar items
+                pagination = paginate_list(items, page=page, per_page=30)
+
+                # Construir output
+                lines = [
+                    f"{ICONS['inventory']} <b>Tu Inventario Completo</b>",
+                    "─────────────────────────────"
+                ]
+
+                for idx, item in enumerate(pagination['items'], start=pagination['start_index']):
+                    item_icon = item.prototype.get('display', {}).get('icon', ICONS['item'])
+                    item_name = item.get_name()
+                    lines.append(f"{idx}. {item_icon} {item_name}")
+
+                # Agregar footer de paginación
+                if pagination['total_pages'] > 1:
+                    lines.append(format_pagination_footer(
+                        pagination['page'],
+                        pagination['total_pages'],
+                        '/inv todo',
+                        pagination['total_items']
+                    ))
+
+                output = "<pre>" + "\n".join(lines) + "</pre>"
+                await message.answer(output, parse_mode="HTML")
+                return
+
+            # CASO 3: Mirar el inventario de un contenedor.
             container_name = " ".join(args).lower()
             container = find_item_in_list(container_name, character.items) or \
                         find_item_in_list(container_name, character.room.items)
@@ -191,17 +203,14 @@ class CmdInventory(Command):
                 return
 
             await session.refresh(container, attribute_names=['contained_items'])
-            inventory = container.contained_items
-            if not inventory:
-                response = f"{container.get_name().capitalize()} está vacío."
-            else:
-                item_names = [item.get_name() for item in inventory]
-                item_counts = Counter(item_names)
-                formatted_items = [f" - {name}" + (f" ({count})" if count > 1 else "") for name, count in item_counts.items()]
-                items_str = "\n".join(formatted_items)
-                response = f"<b>En {container.get_name()} ves:</b>\n{items_str}"
 
-            await message.answer(f"<pre>{response}</pre>", parse_mode="HTML")
+            # Usar el nuevo sistema de templates
+            response = format_inventory(
+                container.contained_items,
+                owner_name=container.get_name(),
+                is_container=True
+            )
+            await message.answer(response, parse_mode="HTML")
 
         except Exception:
             await message.answer("❌ Ocurrió un error al mostrar el inventario.")
@@ -225,6 +234,11 @@ class CmdHelp(Command):
             "/dejar [objeto] - Dejas un objeto en el suelo.\n"
             "/quien - Muestra quién está conectado.\n"
             "/canales - Gestiona tus suscripciones a canales.\n\n"
+            "<b>Comandos de Listados</b>\n"
+            "/items - Lista todos los items de la sala.\n"
+            "/personajes - Lista todos los personajes aquí.\n"
+            "/inv todo - Inventario completo con paginación.\n"
+            "/quien todo - Lista completa de jugadores.\n\n"
             "Para moverte, usa /norte, /sur, etc."
         )
         await message.answer(f"<pre>{help_text}</pre>", parse_mode="HTML")
@@ -233,22 +247,68 @@ class CmdWho(Command):
     """Comando social que muestra una lista de personajes conectados."""
     names = ["quien", "who"]
     lock = ""
-    description = "Muestra una lista de los jugadores conectados."
+    description = "Muestra una lista de los jugadores conectados. Uso: /quien [todo [página]]"
 
     async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
         try:
             online_characters = await online_service.get_online_characters(session)
 
-            if not online_characters or (len(online_characters) == 1 and online_characters[0].id == character.id):
-                await message.answer("Eres la única alma aventurera en este mundo ahora mismo.")
+            # CASO 1: Mostrar lista normal con límites
+            if not args:
+                # Usar el nuevo sistema de templates
+                response = format_who_list(online_characters, viewer_character=character)
+                await message.answer(response, parse_mode="HTML")
                 return
 
-            response_lines = [f"<b>Hay {len(online_characters)} aventureros en Runegram:</b>"]
-            for char in sorted(online_characters, key=lambda c: c.name):
-                response_lines.append(f"- {char.name}")
+            # CASO 2: Modo "todo" con paginación (lista completa sin límites)
+            if args[0].lower() == "todo":
+                page = 1
+                if len(args) > 1:
+                    try:
+                        page = int(args[1])
+                    except ValueError:
+                        await message.answer("Uso: /quien todo [número de página]")
+                        return
 
-            response_text = "\n".join(response_lines)
-            await message.answer(f"<pre>{response_text}</pre>", parse_mode="HTML")
+                # Filtrar para excluir al viewer
+                filtered_chars = [char for char in online_characters if char.id != character.id]
+
+                if not filtered_chars:
+                    await message.answer(f"<pre>{ICONS['player']} Eres la única alma aventurera en este mundo ahora mismo.</pre>", parse_mode="HTML")
+                    return
+
+                # Ordenar por nombre
+                filtered_chars.sort(key=lambda c: c.name)
+
+                # Paginar personajes
+                pagination = paginate_list(filtered_chars, page=page, per_page=30)
+
+                # Construir output
+                lines = [
+                    f"{ICONS['player']} <b>Jugadores en Runegram ({len(online_characters)} conectados)</b>",
+                    "─────────────────────────────"
+                ]
+
+                for idx, char in enumerate(pagination['items'], start=pagination['start_index']):
+                    location = f" ({ICONS['room']} {char.room.name})" if char.room else ""
+                    lines.append(f"{idx}. {char.name}{location}")
+
+                # Agregar footer de paginación
+                if pagination['total_pages'] > 1:
+                    lines.append(format_pagination_footer(
+                        pagination['page'],
+                        pagination['total_pages'],
+                        '/quien todo',
+                        pagination['total_items']
+                    ))
+
+                output = "<pre>" + "\n".join(lines) + "</pre>"
+                await message.answer(output, parse_mode="HTML")
+                return
+
+            # Si hay args pero no es "todo", mostrar mensaje de uso
+            await message.answer("Uso: /quien [todo [página]]")
+
         except Exception:
             await message.answer("❌ Ocurrió un error al obtener la lista de jugadores.")
             logging.exception(f"Fallo al ejecutar /quien para {character.name}")

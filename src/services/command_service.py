@@ -38,6 +38,9 @@ async def get_active_command_sets_for_character(character: Character) -> list[st
     # 1. Empezamos con los sets base del personaje desde la BD.
     active_sets = set(character.command_sets)
 
+    # 1.1. Añadimos el set "listing" que está disponible para todos.
+    active_sets.add("listing")
+
     # 2. Añadimos sets otorgados por los objetos en el inventario.
     for item in character.items:
         granted_sets = item.prototype.get("grants_command_sets", [])

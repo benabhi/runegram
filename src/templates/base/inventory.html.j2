@@ -1,0 +1,36 @@
+{# src/templates/base/inventory.html.j2 #}
+{# Template para mostrar el inventario de un personaje o contenedor #}
+{#
+Variables esperadas:
+- items: Lista de objetos Item
+- owner_name: Nombre del dueño (personaje o contenedor) (opcional)
+- is_container: Boolean indicando si es un contenedor (opcional)
+#}
+<pre>{{ icon('inventory') }} <b>{% if owner_name %}Inventario de {{ owner_name }}{% else %}Tu Inventario{% endif %}</b>
+{% if not items %}
+{% if is_container %}
+Está vacío.
+{%- else %}
+No llevas nada.
+{%- endif %}
+{%- else %}
+
+{%- if items|length > max_items %}
+{% for item in items[:max_items] %}
+{%- set item_icon = item.prototype.get('display', {}).get('icon', icon('item')) %}
+- {{ item_icon }} {{ item.get_name() }}
+{%- if item.prototype.get('is_container') and item.contained_items %}
+ ({{ item.contained_items|length }} {{ item.contained_items|length|pluralize('item', 'items') }})
+{%- endif %}
+{% endfor %}
+... y {{ items|length - max_items }} {{ (items|length - max_items)|pluralize('item', 'items') }} más.
+{%- else %}
+{% for item in items %}
+{%- set item_icon = item.prototype.get('display', {}).get('icon', icon('item')) %}
+- {{ item_icon }} {{ item.get_name() }}
+{%- if item.prototype.get('is_container') and item.contained_items %}
+ ({{ item.contained_items|length }} {{ item.contained_items|length|pluralize('item', 'items') }})
+{%- endif %}
+{% endfor %}
+{%- endif %}
+{%- endif %}</pre>

@@ -1,0 +1,33 @@
+{# src/templates/base/item_look.html.j2 #}
+{# Template para mostrar la descripción de un objeto al mirarlo #}
+{#
+Variables esperadas:
+- item: Objeto Item
+- can_interact: Boolean indicando si se puede interactuar con el item (opcional)
+#}
+<pre>{{ icon('look') }} <b>Miras {{ item.get_name() }}</b>
+{{ item.get_description() }}
+{% if item.prototype.get('is_container') %}
+
+{%- if item.contained_items %}
+{{ icon('container') }} <b>Contiene:</b>
+{%- if item.contained_items|length > max_contained %}
+{% for inner_item in item.contained_items[:max_contained] %}
+{%- set inner_icon = inner_item.prototype.get('display', {}).get('icon', icon('item')) %}
+- {{ inner_icon }} {{ inner_item.get_name() }}
+{% endfor %}
+... y {{ item.contained_items|length - max_contained }} {{ (item.contained_items|length - max_contained)|pluralize('item', 'items') }} más. Usa /inventario {{ item.get_name() }} para ver todos.
+{%- else %}
+{% for inner_item in item.contained_items %}
+{%- set inner_icon = inner_item.prototype.get('display', {}).get('icon', icon('item')) %}
+- {{ inner_icon }} {{ inner_item.get_name() }}
+{% endfor %}
+{%- endif %}
+{%- else %}
+{{ icon('container') }} <b>Está vacío.</b>
+{%- endif %}
+{%- endif %}
+{% if can_interact %}
+
+<i>(Puedes intentar: /coger {{ item.get_name() }}, /usar {{ item.get_name() }})</i>
+{%- endif %}</pre>

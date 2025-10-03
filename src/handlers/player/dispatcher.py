@@ -34,6 +34,7 @@ from commands.player.movement import MOVEMENT_COMMANDS
 from commands.player.channels import CHANNEL_COMMANDS
 from commands.player.dynamic_channels import DYNAMIC_CHANNEL_COMMANDS
 from commands.player.settings import SETTINGS_COMMANDS
+from commands.player.listing import LISTING_COMMANDS
 
 # Importaciones de CommandSets de Administrador
 from commands.admin.building import SPAWN_COMMANDS
@@ -55,6 +56,7 @@ COMMAND_SETS = {
     "channels": CHANNEL_COMMANDS,
     "dynamic_channels": DYNAMIC_CHANNEL_COMMANDS,
     "settings": SETTINGS_COMMANDS,
+    "listing": LISTING_COMMANDS,
     # Comandos de Administrador
     "spawning": SPAWN_COMMANDS,
     "admin_movement": ADMIN_MOVEMENT_COMMANDS,

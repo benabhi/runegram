@@ -1,0 +1,17 @@
+{# src/templates/base/help.html.j2 #}
+{# Template para mostrar la ayuda de comandos #}
+{#
+Variables esperadas:
+- commands: Dict de categorías con listas de comandos
+  Formato: {'Movimiento': ['/norte', '/sur'], 'General': ['/mirar', '/inventario']}
+#}
+<pre>{{ icon('help') }} <b>Comandos de Runegram</b>
+─────────────────────────────
+{% for category, cmd_list in commands.items() %}
+<b>{{ category }}:</b>
+{% for cmd in cmd_list %}
+  {{ cmd }}
+{% endfor %}
+
+{% endfor %}
+{{ icon('info') }} <i>Para más información sobre un comando específico, úsalo sin argumentos.</i></pre>

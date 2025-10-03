@@ -19,6 +19,7 @@ from src.models.account import Account
 from src.models.character import Character
 from src.models.room import Room
 from src.models.item import Item
+from src.models.exit import Exit
 from src.services import channel_service, command_service
 
 
@@ -36,7 +37,7 @@ async def get_character_with_relations_by_id(session: AsyncSession, character_id
             .where(Character.id == character_id)
             .options(
                 selectinload(Character.room).selectinload(Room.items).selectinload(Item.contained_items),
-                selectinload(Character.room).selectinload(Room.exits_from),
+                selectinload(Character.room).selectinload(Room.exits_from).selectinload(Exit.to_room),
                 selectinload(Character.room).selectinload(Room.characters),
                 selectinload(Character.items).selectinload(Item.contained_items),
                 selectinload(Character.account),

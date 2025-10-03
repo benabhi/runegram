@@ -2,7 +2,7 @@
 
 El Motor de Scripts es el sistema que permite que el **Contenido** del juego (definido en `game_data`) pueda ejecutar **Lógica** del juego (definida en el `src/services`). Es el mecanismo que da comportamiento a los objetos y al mundo.
 
-El motor tiene una arquitectura dual, separando las acciones que son una **reacción** a algo que hace el jugador (Eventos) de las acciones que ocurren de forma **proactiva** con el tiempo (Tickers). Toda la lógica está centralizada en `src/services/script_service.py`.
+El motor tiene una arquitectura dual, separando las acciones que son una **reacción** a algo que hace el jugador (Eventos) de las acciones que ocurren de forma **proactiva** con el tiempo (Tick Scripts). Toda la lógica está centralizada en `src/services/script_service.py`.
 
 ## 1. El `script_service`
 
@@ -36,32 +36,43 @@ Estos scripts se ejecutan como respuesta directa a una acción del jugador.
 
 Actualmente, el único evento implementado es `on_look`, pero la arquitectura permite añadir fácilmente nuevos "triggers" en otros comandos (`on_get`, `on_drop`, `on_enter_room`, etc.).
 
-## 3. Scripts Proactivos (Tickers)
+## 3. Scripts Proactivos (Tick Scripts)
 
-Estos scripts se ejecutan de forma programada, haciendo que el mundo se sienta vivo incluso cuando los jugadores no hacen nada. Están gestionados por el `ticker_service`.
+Estos scripts se ejecutan de forma programada basándose en el sistema de pulse global, haciendo que el mundo se sienta vivo incluso cuando los jugadores no hacen nada. Están gestionados por el `pulse_service`.
 
-*   **Definición:** Se definen como una lista en la clave `"tickers"` de un prototipo. Cada elemento es un diccionario que define una tarea programada.
+*   **Definición:** Se definen como una lista en la clave `"tick_scripts"` de un prototipo. Cada elemento es un diccionario que define cuándo y cómo se ejecuta el script.
 
     ```python
     # En game_data/item_prototypes.py
     "espada_viviente": {
-        "tickers": [{
-            "schedule": "*/2 * * * *",  # Un cronjob: "cada 2 minutos"
+        "tick_scripts": [{
+            "interval_ticks": 60,  # Cada 60 ticks (120 segundos con tick=2s)
             "script": "script_espada_susurra_secreto",
-            "category": "ambient"
+            "category": "ambient",
+            "permanent": True  # Se repite indefinidamente
         }]
     }
     ```
 
 *   **Flujo de Ejecución:**
-    1.  **Arranque del Bot:** El `ticker_service` escanea la base de datos en busca de entidades existentes que tengan tickers y las programa en `APScheduler`.
-    2.  **Creación de Entidad:** Cuando se crea un nuevo objeto (`/generarobjeto`), el `item_service` notifica al `ticker_service` para que programe sus tickers.
-    3.  **Disparo:** Cuando el `schedule` se cumple, `APScheduler` ejecuta la función `execute_ticker_script` del `ticker_service`.
-    4.  **Contextualización y Filtrado (en `ticker_service`):**
+    1.  **Arranque del Bot:** El `pulse_service` inicia un job global que se ejecuta cada 2 segundos (el "pulse").
+    2.  **Cada Pulse:** El sistema procesa TODAS las entidades con `tick_scripts` y determina cuáles deben ejecutarse en el tick actual.
+    3.  **Creación de Entidad:** Cuando se crea un nuevo objeto (`/generarobjeto`), **NO** requiere registro especial - el pulse lo detecta automáticamente en el siguiente tick.
+    4.  **Verificación de Intervalo:** Para cada tick_script, se verifica si han pasado suficientes ticks desde la última ejecución (`current_tick - last_executed_tick >= interval_ticks`).
+    5.  **Contextualización y Filtrado (en `pulse_service`):**
         *   Se recupera la entidad (la espada) y su ubicación (la sala, o la sala del personaje que la lleva).
         *   Se obtienen todos los personajes en esa sala.
-        *   Se itera sobre cada personaje y se comprueba si está "online" (`online_service`). Si el ticker es de categoría `"ambient"` y el jugador está inactivo, se le ignora.
-    5.  **Ejecución Final:** Por cada personaje que pasa el filtro, se llama a `script_service.execute_script()` con el `script_string` y el contexto (`target`, `room`, y el `character` específico que va a recibir el efecto).
+        *   Se itera sobre cada personaje y se comprueba si está "online" (`online_service`). Si el tick_script es de categoría `"ambient"` y el jugador está inactivo, se le ignora.
+    6.  **Ejecución Final:** Por cada personaje que pasa el filtro, se llama a `script_service.execute_script()` con el `script_string` y el contexto (`target`, `room`, y el `character` específico que va a recibir el efecto).
+    7.  **Tracking:** El sistema actualiza `item.tick_data` con el tick actual y marca el script como ejecutado.
+
+**Ventajas sobre el sistema antiguo de tickers:**
+- ✅ Escalable: Un solo job procesa todas las entidades
+- ✅ Sincronizado: Todos los scripts operan en la misma timeline
+- ✅ Simple: "60 ticks" es más claro que `*/2 * * * *`
+- ✅ Flexible: Soporta scripts one-shot (`permanent: False`)
+
+Ver: `docs/03_ENGINE_SYSTEMS/07_PULSE_SYSTEM.md` para más detalles.
 
 ## 4. Cómo Crear una Nueva "Habilidad" de Script
 

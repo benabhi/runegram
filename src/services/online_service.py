@@ -12,7 +12,7 @@ Responsabilidades:
 - Determinar si un jugador está "online" basándose en un umbral de inactividad.
 - Gestionar las notificaciones cuando un jugador pasa a estado AFK o vuelve.
 - Proveer una tarea global (`check_for_newly_afk_players`) para ser ejecutada
-  periódicamente por el `ticker_service`.
+  periódicamente por el scheduler.
 """
 
 import time

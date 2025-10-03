@@ -34,15 +34,16 @@ Los scripts de evento reaccionan a las acciones de los jugadores. Actualmente, e
 ```
 **Resultado:** Cuando un jugador escriba `/mirar amuleto`, primero verá la descripción y luego recibirá un mensaje privado que dice: "...notas que emite un suave brillo de color púrpura."
 
-### Usando Scripts Proactivos (`tickers`)
+### Usando Scripts Proactivos (`tick_scripts`)
 
-Los tickers hacen que el mundo actúe por sí solo. Se definen en la clave `"tickers"` de un prototipo.
+Los tick_scripts hacen que el mundo actúe por sí solo, ejecutándose basándose en el sistema de pulse global. Se definen en la clave `"tick_scripts"` de un prototipo.
 
-*   **Uso:** Es una lista de diccionarios, donde cada diccionario es una tarea programada.
+*   **Uso:** Es una lista de diccionarios, donde cada diccionario define cuándo y cómo se ejecuta el script.
 *   **Claves:**
-    *   `"schedule"`: Define cuándo se ejecuta. Puede ser un `cron` (ej: `"*/5 * * * *"`) o un intervalo en segundos (ej: `"interval:30"`).
+    *   `"interval_ticks"`: Cada cuántos ticks se ejecuta. Con la configuración por defecto (tick=2s), usa la fórmula: `segundos_deseados / 2`.
     *   `"script"`: El `script_string` a ejecutar.
-    *   `"category"`: La categoría. Si es `"ambient"`, solo se ejecutará para jugadores considerados "online", para no enviar spam.
+    *   `"category"`: La categoría. Si es `"ambient"`, solo se ejecutará para jugadores considerados "online".
+    *   `"permanent"`: `True` (se repite indefinidamente) o `False` (se ejecuta una sola vez).
 
 *   **Función Disponible:** `script_espada_susurra_secreto()`
     *   **Propósito:** Envía un mensaje privado a cada jugador "online" en la misma sala que el objeto, con un "secreto" aleatorio.
@@ -54,14 +55,23 @@ Los tickers hacen que el mundo actúe por sí solo. Se definen en la clave `"tic
 "craneo_susurrante": {
     "name": "un cráneo susurrante",
     "description": "Un cráneo amarillento que parece murmurar cuando no lo miras directamente.",
-    "tickers": [{
-        "schedule": "*/5 * * * *", # Cada 5 minutos
+    "tick_scripts": [{
+        "interval_ticks": 150,  # Cada 150 ticks (300 segundos = 5 minutos)
         "script": "script_espada_susurra_secreto",
-        "category": "ambient"
+        "category": "ambient",
+        "permanent": True  # Se repite indefinidamente
     }]
 }
 ```
 **Resultado:** Cada 5 minutos, todos los jugadores activos en la misma sala que el cráneo recibirán un mensaje privado con un susurro.
+
+**Cálculo de `interval_ticks`:**
+- 10 segundos → `10 / 2 = 5 ticks`
+- 1 minuto → `60 / 2 = 30 ticks`
+- 5 minutos → `300 / 2 = 150 ticks`
+- 1 hora → `3600 / 2 = 1800 ticks`
+
+Ver: `docs/03_ENGINE_SYSTEMS/07_PULSE_SYSTEM.md` para más detalles sobre el sistema de pulse.
 
 ## 2. Para Desarrolladores del Motor: Creando Nuevas Funciones de Script
 

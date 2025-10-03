@@ -14,6 +14,7 @@ de una relación de auto-referencia.
 """
 
 from sqlalchemy import BigInteger, Column, String, Text, ForeignKey, Integer
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 
 from game_data.item_prototypes import ITEM_PROTOTYPES
@@ -31,6 +32,10 @@ class Item(Base):
     key = Column(String(50), nullable=False, index=True)
     name_override = Column(String(100), nullable=True)
     description_override = Column(Text, nullable=True)
+
+    # --- Datos de Tick Scripts ---
+    # Almacena el estado de tracking para tick_scripts (cuándo se ejecutaron, etc.)
+    tick_data = Column(JSONB, nullable=True, default=dict)
 
     # --- Ubicación del Objeto ---
     # Un objeto solo puede estar en una ubicación a la vez. Por lo tanto,

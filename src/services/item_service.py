@@ -17,13 +17,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.item import Item
 from game_data.item_prototypes import ITEM_PROTOTYPES
-from src.services import ticker_service
 
 
 async def spawn_item_in_room(session: AsyncSession, room_id: int, item_key: str) -> Item:
     """
-    Crea una instancia de un prototipo de objeto, la coloca en una sala
-    y registra sus tickers.
+    Crea una instancia de un prototipo de objeto y la coloca en una sala.
+
+    Los tick_scripts se procesan automáticamente por el pulse_service global.
     """
     if item_key not in ITEM_PROTOTYPES:
         raise ValueError(f"No existe un prototipo de objeto con la clave '{item_key}'")
@@ -33,7 +33,6 @@ async def spawn_item_in_room(session: AsyncSession, room_id: int, item_key: str)
         session.add(new_item)
         await session.commit()
         await session.refresh(new_item)
-        await ticker_service.schedule_tickers_for_entity(new_item)
         return new_item
     except Exception:
         logging.exception(f"Error inesperado al generar el objeto con clave '{item_key}'")

@@ -20,7 +20,7 @@ from aiogram import executor
 from sqlalchemy import select
 
 from src.bot.dispatcher import dp
-from src.services import world_loader_service, ticker_service, online_service, validation_service
+from src.services import world_loader_service, pulse_service, online_service, validation_service
 from src.db import async_session_factory
 from src.config import settings
 from src.models import Account
@@ -70,9 +70,8 @@ async def on_startup(dispatcher):
         #    Si hay errores de configuración, el bot no debe arrancar.
         validation_service.validate_all()
 
-        # 1. Inicia el scheduler. Es importante que se inicie antes de que cualquier
-        #    otro servicio intente añadir tareas.
-        ticker_service.initialize_scheduler()
+        # 1. Inicia el sistema de pulse global.
+        pulse_service.initialize_pulse_system()
 
         # 2. Crea una sesión de base de datos para las tareas de inicialización.
         async with async_session_factory() as session:
@@ -82,18 +81,15 @@ async def on_startup(dispatcher):
             # Sincroniza el mundo estático (salas, salidas) desde los archivos de prototipos.
             await world_loader_service.sync_world_from_prototypes(session)
 
-            # Carga y programa los tickers de los objetos que ya existen en la base de datos.
-            await ticker_service.load_and_schedule_all_tickers(session)
-
-        # 3. Añade el ticker global para el chequeo de inactividad.
-        ticker_service.scheduler.add_job(
+        # 3. Añade el job para el chequeo de inactividad.
+        pulse_service.scheduler.add_job(
             online_service.check_for_newly_afk_players,
             'interval',
             seconds=60,
             id="global_afk_check",
             replace_existing=True
         )
-        logging.info("Ticker global para chequeo de AFK añadido.")
+        logging.info("Job para chequeo de AFK añadido.")
 
         logging.info("✅ Secuencia de arranque finalizada. El bot está en línea.")
 
@@ -111,9 +107,7 @@ async def on_shutdown(dispatcher):
     Se asegura de que los servicios se apaguen de forma limpia.
     """
     logging.warning("Iniciando secuencia de apagado del bot...")
-    if ticker_service.scheduler.running:
-        ticker_service.scheduler.shutdown()
-        logging.info("Scheduler detenido limpiamente.")
+    pulse_service.shutdown_pulse_system()
     logging.warning("Bot detenido.")
 
 

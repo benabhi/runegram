@@ -12,7 +12,12 @@ Estructura de un Prototipo de Objeto:
     - "keywords": (list[str]) Palabras clave para interactuar con el objeto.
     - "description": (str) El texto que se muestra al mirar el objeto.
     - "scripts": (dict, opcional) Scripts reactivos a eventos.
-    - "tickers": (list[dict], opcional) Scripts proactivos que se ejecutan periódicamente.
+    - "tick_scripts": (list[dict], opcional) Scripts proactivos basados en el sistema de pulse.
+        Cada tick_script tiene:
+        - "interval_ticks": (int) Cada cuántos ticks se ejecuta.
+        - "script": (str) Nombre del script a ejecutar.
+        - "category": (str) Categoría ("ambient", "combat", "system").
+        - "permanent": (bool) True = se repite, False = se ejecuta una sola vez.
     - "grants_command_sets": (list[str], opcional) CommandSets que este objeto otorga.
     - "locks": (str, opcional) Restricciones para interactuar. En un objeto normal,
                se usa para el comando 'coger'. En un contenedor, se usa para 'abrir',
@@ -31,11 +36,12 @@ ITEM_PROTOTYPES = {
         "scripts": {
             "on_look": "script_notificar_brillo_magico(color=rojo)"
         },
-        "tickers": [
+        "tick_scripts": [
             {
-                "schedule": "*/2 * * * *",
+                "interval_ticks": 60,  # Cada 60 ticks (120 segundos con tick=2s)
                 "script": "script_espada_susurra_secreto",
-                "category": "ambient"
+                "category": "ambient",
+                "permanent": True  # Se repite indefinidamente
             }
         ],
         "display": {

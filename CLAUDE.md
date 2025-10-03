@@ -104,7 +104,7 @@ Prefiere múltiples comandos dedicados a un solo comando con subcomandos:
 - **Redis 7**: Cache y almacenamiento de estados de FSM
 - **Alembic**: Migraciones de base de datos
 - **Docker + Docker Compose**: Contenedorización y orquestación
-- **APScheduler**: Sistema de tareas programadas (tickers)
+- **APScheduler**: Sistema de pulse global y tareas programadas
 - **Pydantic**: Validación de configuración
 - **Jinja2**: Motor de templates para outputs consistentes
 
@@ -152,7 +152,7 @@ runegram/
 │   │   ├── channel_service.py
 │   │   ├── script_service.py
 │   │   ├── online_service.py
-│   │   └── ticker_service.py
+│   │   └── pulse_service.py
 │   ├── templates/               # Sistema de templates
 │   │   ├── __init__.py
 │   │   ├── template_engine.py
@@ -693,39 +693,67 @@ await broadcaster_service.msg_channel(
 
 Ver: `src/services/broadcaster_service.py`
 
-### 5. Sistema de Tickers
+### 5. Sistema de Pulse Global
 
-Permite ejecutar código de forma programada (eventos recurrentes).
+El corazón temporal de Runegram. Ejecuta un "tick" cada 2 segundos, permitiendo que todos los sistemas basados en tiempo se sincronicen.
 
-#### Uso Básico
+#### Concepto
+```
+Un solo job global → Procesa todas las entidades → Sincronización perfecta
+```
+
+**Ventajas sobre el enfoque anterior (APScheduler individual)**:
+- ✅ Escalable: O(1) jobs en lugar de O(n) jobs
+- ✅ Sincronizado: Todos los sistemas en la misma timeline
+- ✅ Simple: "60 ticks" es más claro que `*/2 * * * *`
+- ✅ Flexible: Soporta scripts one-shot y permanentes
+
+#### Uso en Prototipos
 ```python
-from src.services import ticker_service
+# En game_data/item_prototypes.py
+"espada_viviente": {
+    "tick_scripts": [
+        {
+            "interval_ticks": 60,  # Cada 60 ticks (120s con tick=2s)
+            "script": "script_espada_susurra",
+            "category": "ambient",
+            "permanent": True  # Se repite indefinidamente
+        },
+        {
+            "interval_ticks": 1,  # Al primer tick
+            "script": "script_despierta",
+            "category": "ambient",
+            "permanent": False  # Una sola vez
+        }
+    ]
+}
+```
 
-# Añadir un ticker global
-ticker_service.scheduler.add_job(
+#### Uso Programático
+```python
+from src.services import pulse_service
+
+# Consultar tick actual
+current_tick = pulse_service.get_current_tick()
+
+# Añadir jobs adicionales al scheduler
+pulse_service.scheduler.add_job(
     func=my_async_function,
     trigger='interval',
     seconds=60,
-    id='unique_ticker_id',
+    id='unique_id',
     replace_existing=True
-)
-
-# Añadir un ticker a un objeto específico
-await ticker_service.add_ticker_to_object(
-    session=session,
-    obj=item,
-    script_string="print('Tick!')",
-    interval_seconds=30
 )
 ```
 
-Ver: `src/services/ticker_service.py`
+Ver: `docs/03_ENGINE_SYSTEMS/07_PULSE_SYSTEM.md` para detalles completos.
 
 **Casos de Uso**:
-- Chequeo de jugadores AFK cada minuto
-- Regeneración de vida cada 10 segundos
-- Spawning de mobs cada 5 minutos
-- Eventos del mundo (día/noche, clima)
+- ✅ Sistema de combate por turnos (futuro)
+- ✅ Clima dinámico sincronizado (futuro)
+- ✅ Monstruos errantes coordinados (futuro)
+- ✅ Efectos ambientales de items (actual)
+- ✅ Chequeo de jugadores AFK (actual)
 
 ### 6. Sistema de Scripts
 
@@ -1292,7 +1320,7 @@ Ver: `docs/07_ROADMAP.md`
 Sistemas planificados:
 - ✅ Sistema de comandos dinámicos
 - ✅ Sistema de canales y broadcasting
-- ✅ Sistema de tickers
+- ✅ Sistema de pulse global
 - ✅ Sistema de online/AFK
 - 🚧 Sistema de combate (en diseño)
 - 🚧 Sistema de habilidades
@@ -1446,9 +1474,10 @@ Después de CUALQUIER cambio:
 
 ---
 
-**Versión**: 1.2
+**Versión**: 1.3
 **Última actualización**: 2025-10-03
 **Changelog**:
+- v1.3 (2025-10-03): Implementado sistema de pulse global, reemplazando ticker_service
 - v1.2 (2025-10-03): Agregado sistema de templates (Jinja2) y guías de outputs consistentes
 - v1.1 (2025-10-02): Agregada política obligatoria de documentación actualizada
 **Mantenedor**: Proyecto Runegram

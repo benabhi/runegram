@@ -8,48 +8,48 @@ Variables esperadas:
 #}
 <pre>{{ icon('room') }} <b>{{ room.name }}</b>
 {{ room.description|trim }}
-{% if room.items %}
+{%- if room.items %}
 
 {{ icon('look') }} <b>Cosas a la vista:</b>
-{% if room.items|length > max_items %}
-{% for item in room.items[:max_items] %}
-{% set item_icon = item.prototype.get('display', {}).get('icon', icon('item')) %}
+{%- if room.items|length > max_items %}
+{%- for item in room.items[:max_items] %}
+{%- set item_icon = item.prototype.get('display', {}).get('icon', icon('item')) %}
 - {{ item_icon }} {{ item.get_name() }}{% if item.prototype.get('is_container') and item.contained_items %} ({{ item.contained_items|length }} {{ item.contained_items|length|pluralize('item', 'items') }}){% endif %}
-{% endfor %}
+{%- endfor %}
 ... y {{ room.items|length - max_items }} {{ (room.items|length - max_items)|pluralize('item', 'items') }} más.
-{% else %}
-{% for item in room.items %}
-{% set item_icon = item.prototype.get('display', {}).get('icon', icon('item')) %}
+{%- else %}
+{%- for item in room.items %}
+{%- set item_icon = item.prototype.get('display', {}).get('icon', icon('item')) %}
 - {{ item_icon }} {{ item.get_name() }}{% if item.prototype.get('is_container') and item.contained_items %} ({{ item.contained_items|length }} {{ item.contained_items|length|pluralize('item', 'items') }}){% endif %}
-{% endfor %}
-{% endif %}
+{%- endfor %}
+{%- endif %}
 
-{% endif %}
-{% if room.characters and character %}
-{% set other_characters = room.characters|reject('equalto', character)|list %}
-{% if other_characters %}
+{%- endif %}
+{%- if room.characters and character %}
+{%- set other_characters = room.characters|reject('equalto', character)|list %}
+{%- if other_characters %}
 
 {{ icon('character') }} <b>Personajes:</b>
-{% if other_characters|length > max_characters %}
-{% for char in other_characters[:max_characters] %}
+{%- if other_characters|length > max_characters %}
+{%- for char in other_characters[:max_characters] %}
 - {{ char.name }}
-{% endfor %}
+{%- endfor %}
 ... y {{ other_characters|length - max_characters }} {{ (other_characters|length - max_characters)|pluralize('personaje', 'personajes') }} más.
-{% else %}
-{% for char in other_characters %}
+{%- else %}
+{%- for char in other_characters %}
 - {{ char.name }}
-{% endfor %}
-{% endif %}
+{%- endfor %}
+{%- endif %}
 
-{% endif %}
-{% endif %}
-{% if room.exits_from %}
+{%- endif %}
+{%- endif %}
+{%- if room.exits_from %}
 
 {{ icon('exit') }} <b>Salidas:</b>
-{% for exit in room.exits_from|sort(attribute='name') %}
+{%- for exit in room.exits_from|sort(attribute='name') %}
 {{ get_direction_icon(exit.name) }} {{ exit.name|capitalize }}{% if exit.to_room %} ({{ exit.to_room.name }}){% endif %}{% if exit.lock_string %} <i>[cerrada]</i>{% endif %}
-{% endfor %}
-{% else %}
+{%- endfor %}
+{%- else %}
 
 {{ icon('exit') }} <b>Salidas:</b> [ Ninguna ]
-{% endif %}</pre>
+{%- endif %}</pre>

@@ -17,20 +17,14 @@ No llevas nada.
 
 {%- if items|length > max_items %}
 {% for item in items[:max_items] %}
-{%- set item_icon = item.prototype.get('display', {}).get('icon', icon('item')) %}
-- {{ item_icon }} {{ item.get_name() }}
-{%- if item.prototype.get('is_container') and item.contained_items %}
- ({{ item.contained_items|length }} {{ item.contained_items|length|pluralize('item', 'items') }})
-{%- endif %}
+{%- set item_icon = item.prototype.get('display', {}).get('icon', icon('item')) -%}
+- {{ item_icon }} {{ item.get_name() }}{% if item.prototype.get('is_container') and item.contained_items %} ({{ item.contained_items|length }} {{ item.contained_items|length|pluralize('item', 'items') }}){% endif %}
 {% endfor %}
 ... y {{ items|length - max_items }} {{ (items|length - max_items)|pluralize('item', 'items') }} más.
 {%- else %}
 {% for item in items %}
-{%- set item_icon = item.prototype.get('display', {}).get('icon', icon('item')) %}
-- {{ item_icon }} {{ item.get_name() }}
-{%- if item.prototype.get('is_container') and item.contained_items %}
- ({{ item.contained_items|length }} {{ item.contained_items|length|pluralize('item', 'items') }})
-{%- endif %}
+{%- set item_icon = item.prototype.get('display', {}).get('icon', icon('item')) -%}
+- {{ item_icon }} {{ item.get_name() }}{% if item.prototype.get('is_container') and item.contained_items %} ({{ item.contained_items|length }} {{ item.contained_items|length|pluralize('item', 'items') }}){% endif %}
 {% endfor %}
 {%- endif %}
 {%- endif %}</pre>

@@ -38,8 +38,8 @@ class TemplateEngine:
         self.env = Environment(
             loader=FileSystemLoader(TEMPLATES_DIR),
             autoescape=select_autoescape(['html', 'xml']),
-            trim_blocks=True,
-            lstrip_blocks=True
+            trim_blocks=False,
+            lstrip_blocks=False
         )
 
         # Registrar funciones helper globales

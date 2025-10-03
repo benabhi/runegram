@@ -9,22 +9,22 @@ Variables esperadas:
 ─────────────────────────────
 {% if not characters or (characters|length == 1 and viewer_character and characters[0].id == viewer_character.id) %}
 Eres la única alma aventurera en este mundo ahora mismo.
-{%- else %}
-{%- set displayed_chars = characters|sort(attribute='name') %}
-{%- set filtered_chars = [] %}
-{% for char in displayed_chars -%}
-{%- if not viewer_character or char.id != viewer_character.id %}
-{%- set _ = filtered_chars.append(char) %}
-{%- endif %}
-{%- endfor %}
-{% if filtered_chars|length > max_characters -%}
-{% for char in filtered_chars[:max_characters] -%}
-- {{ char.name }}{% if char.room %} ({{ icon('room') }} {{ char.room.name }}){% endif %}
-{% endfor -%}
-... y {{ filtered_chars|length - max_characters }} {{ (filtered_chars|length - max_characters)|pluralize('jugador', 'jugadores') }} más conectados.
-{% else -%}
-{% for char in filtered_chars -%}
-- {{ char.name }}{% if char.room %} ({{ icon('room') }} {{ char.room.name }}){% endif %}
-{% endfor -%}
+{% else %}
+{% set displayed_chars = characters|sort(attribute='name') %}
+{% set filtered_chars = [] %}
+{% for char in displayed_chars %}
+{% if not viewer_character or char.id != viewer_character.id %}
+{% set _ = filtered_chars.append(char) %}
 {% endif %}
-{%- endif %}</pre>
+{% endfor %}
+{% if filtered_chars|length > max_characters %}
+{% for char in filtered_chars[:max_characters] %}
+- {{ char.name }}{% if char.room %} ({{ icon('room') }} {{ char.room.name }}){% endif %}
+{% endfor %}
+... y {{ filtered_chars|length - max_characters }} {{ (filtered_chars|length - max_characters)|pluralize('jugador', 'jugadores') }} más conectados.
+{% else %}
+{% for char in filtered_chars %}
+- {{ char.name }}{% if char.room %} ({{ icon('room') }} {{ char.room.name }}){% endif %}
+{% endfor %}
+{% endif %}
+{% endif %}</pre>

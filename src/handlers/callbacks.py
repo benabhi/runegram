@@ -144,7 +144,7 @@ async def handle_movement(
     # Notificar a la sala de origen
     await broadcaster_service.send_message_to_room(
         session=session,
-        room=old_room,
+        room_id=old_room.id,
         message_text=f"<i>{character.name} se ha ido hacia {direction}.</i>",
         exclude_character_id=character.id
     )
@@ -165,7 +165,7 @@ async def handle_movement(
 
     await broadcaster_service.send_message_to_room(
         session=session,
-        room=new_room,
+        room_id=new_room.id,
         message_text=f"<i>{character.name} ha llegado desde {opposite_direction}.</i>",
         exclude_character_id=character.id
     )

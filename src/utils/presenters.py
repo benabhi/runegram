@@ -235,7 +235,8 @@ async def show_current_room(
     message: types.Message,
     with_navigation_buttons: bool = True,
     edit: bool = False,
-    session: AsyncSession = None
+    session: AsyncSession = None,
+    character: Character = None
 ):
     """
     Obtiene la sala actual del jugador y le muestra la descripción formateada.
@@ -248,40 +249,55 @@ async def show_current_room(
               (útil para callbacks de botones inline)
         session: Sesión de BD opcional. Si no se proporciona, crea una nueva.
                  IMPORTANTE: Pasar la sesión activa desde callbacks para ver cambios recientes.
+        character: Character opcional. Si se proporciona, lo usa directamente sin buscarlo.
+                   IMPORTANTE: Pasar desde callbacks para evitar usar telegram_id incorrecto.
     """
     # Si se pasa sesión, usarla directamente; si no, crear una nueva
     if session:
-        await _show_current_room_impl(message, with_navigation_buttons, edit, session)
+        await _show_current_room_impl(message, with_navigation_buttons, edit, session, character)
     else:
         async with async_session_factory() as new_session:
-            await _show_current_room_impl(message, with_navigation_buttons, edit, new_session)
+            await _show_current_room_impl(message, with_navigation_buttons, edit, new_session, character)
 
 
 async def _show_current_room_impl(
     message: types.Message,
     with_navigation_buttons: bool,
     edit: bool,
-    session: AsyncSession
+    session: AsyncSession,
+    character: Character = None
 ):
     """
     Implementación interna de show_current_room.
     Separada para permitir reutilización con sesión existente o nueva.
     """
     try:
-        # Usamos el servicio para obtener la cuenta y sus relaciones precargadas.
-        account = await player_service.get_or_create_account(session, message.from_user.id)
+        # Si se pasó un character, usarlo directamente (evita buscar por telegram_id incorrecto)
+        if character:
+            # Refrescar el character para asegurar que tiene todas las relaciones cargadas
+            await session.refresh(character, ['room', 'items', 'account'])
+            if not character.room:
+                if edit:
+                    await message.edit_text("Parece que estás perdido en el vacío. Te hemos llevado a un lugar seguro.")
+                else:
+                    await message.answer("Parece que estás perdido en el vacío. Te hemos llevado a un lugar seguro.")
+                return
+        else:
+            # Si no se pasó character, buscarlo por telegram_id (comandos normales)
+            account = await player_service.get_or_create_account(session, message.from_user.id)
 
-        if not account or not account.character or not account.character.room:
-            # Esta es una salvaguarda. No debería ocurrir en un flujo normal.
-            if edit:
-                await message.edit_text("Parece que estás perdido en el vacío. Te hemos llevado a un lugar seguro.")
-            else:
-                await message.answer("Parece que estás perdido en el vacío. Te hemos llevado a un lugar seguro.")
-            # Futuro: Aquí podríamos teletransportar al jugador a la sala de inicio.
-            return
+            if not account or not account.character or not account.character.room:
+                # Esta es una salvaguarda. No debería ocurrir en un flujo normal.
+                if edit:
+                    await message.edit_text("Parece que estás perdido en el vacío. Te hemos llevado a un lugar seguro.")
+                else:
+                    await message.answer("Parece que estás perdido en el vacío. Te hemos llevado a un lugar seguro.")
+                # Futuro: Aquí podríamos teletransportar al jugador a la sala de inicio.
+                return
 
-        room = account.character.room
-        character = account.character
+            character = account.character
+
+        room = character.room
         # Usamos nuestro formateador para construir el texto de la sala.
         formatted_room = await format_room(room, viewing_character=character)
 

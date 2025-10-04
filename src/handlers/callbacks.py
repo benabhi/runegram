@@ -174,8 +174,8 @@ async def handle_movement(
         await command_service.update_telegram_commands(refreshed_character)
 
     # Mostrar nueva sala al jugador (con botones)
-    # IMPORTANTE: Pasamos la sesión activa para que vea los cambios recientes del movimiento
-    await show_current_room(callback.message, edit=True, session=session)
+    # IMPORTANTE: Pasamos session Y character para evitar usar telegram_id incorrecto del mensaje
+    await show_current_room(callback.message, edit=True, session=session, character=refreshed_character)
     await callback.answer()
 
 
@@ -195,8 +195,14 @@ async def handle_refresh(
     context = params.get("context")
 
     if context == "room":
-        # Refrescar vista de sala
-        await show_current_room(callback.message, edit=True)
+        # Obtener el character correcto usando callback.from_user.id (no message.from_user.id)
+        account = await player_service.get_or_create_account(session, callback.from_user.id)
+        if not account or not account.character:
+            await callback.answer("Primero debes crear un personaje.", show_alert=True)
+            return
+
+        # Refrescar vista de sala pasando session y character
+        await show_current_room(callback.message, edit=True, session=session, character=account.character)
         await callback.answer("Sala actualizada.")
     else:
         await callback.answer("Contexto de actualización desconocido.", show_alert=True)

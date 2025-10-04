@@ -17,6 +17,7 @@ formatos consistentes y permitir personalización desde los prototipos.
 import logging
 from aiogram import types
 from collections import Counter
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.room import Room
 from src.models.character import Character
@@ -230,7 +231,12 @@ def format_who_list(
         return "<pre>❌ Error al mostrar la lista de jugadores.</pre>"
 
 
-async def show_current_room(message: types.Message, with_navigation_buttons: bool = True, edit: bool = False):
+async def show_current_room(
+    message: types.Message,
+    with_navigation_buttons: bool = True,
+    edit: bool = False,
+    session: AsyncSession = None
+):
     """
     Obtiene la sala actual del jugador y le muestra la descripción formateada.
     Esta función centraliza la lógica común de "mirar" el entorno.
@@ -240,37 +246,56 @@ async def show_current_room(message: types.Message, with_navigation_buttons: boo
         with_navigation_buttons: Si True, agrega botones inline para las salidas de la sala
         edit: Si True, edita el mensaje existente en lugar de enviar uno nuevo
               (útil para callbacks de botones inline)
+        session: Sesión de BD opcional. Si no se proporciona, crea una nueva.
+                 IMPORTANTE: Pasar la sesión activa desde callbacks para ver cambios recientes.
+    """
+    # Si se pasa sesión, usarla directamente; si no, crear una nueva
+    if session:
+        await _show_current_room_impl(message, with_navigation_buttons, edit, session)
+    else:
+        async with async_session_factory() as new_session:
+            await _show_current_room_impl(message, with_navigation_buttons, edit, new_session)
+
+
+async def _show_current_room_impl(
+    message: types.Message,
+    with_navigation_buttons: bool,
+    edit: bool,
+    session: AsyncSession
+):
+    """
+    Implementación interna de show_current_room.
+    Separada para permitir reutilización con sesión existente o nueva.
     """
     try:
-        async with async_session_factory() as session:
-            # Usamos el servicio para obtener la cuenta y sus relaciones precargadas.
-            account = await player_service.get_or_create_account(session, message.from_user.id)
+        # Usamos el servicio para obtener la cuenta y sus relaciones precargadas.
+        account = await player_service.get_or_create_account(session, message.from_user.id)
 
-            if not account or not account.character or not account.character.room:
-                # Esta es una salvaguarda. No debería ocurrir en un flujo normal.
-                if edit:
-                    await message.edit_text("Parece que estás perdido en el vacío. Te hemos llevado a un lugar seguro.")
-                else:
-                    await message.answer("Parece que estás perdido en el vacío. Te hemos llevado a un lugar seguro.")
-                # Futuro: Aquí podríamos teletransportar al jugador a la sala de inicio.
-                return
-
-            room = account.character.room
-            character = account.character
-            # Usamos nuestro formateador para construir el texto de la sala.
-            formatted_room = await format_room(room, viewing_character=character)
-
-            # Crear teclado de navegación si está habilitado
-            keyboard = None
-            if with_navigation_buttons:
-                from src.utils.inline_keyboards import create_room_navigation_keyboard
-                keyboard = create_room_navigation_keyboard(room)
-
-            # Enviar o editar mensaje
+        if not account or not account.character or not account.character.room:
+            # Esta es una salvaguarda. No debería ocurrir en un flujo normal.
             if edit:
-                await message.edit_text(formatted_room, parse_mode="HTML", reply_markup=keyboard)
+                await message.edit_text("Parece que estás perdido en el vacío. Te hemos llevado a un lugar seguro.")
             else:
-                await message.answer(formatted_room, parse_mode="HTML", reply_markup=keyboard)
+                await message.answer("Parece que estás perdido en el vacío. Te hemos llevado a un lugar seguro.")
+            # Futuro: Aquí podríamos teletransportar al jugador a la sala de inicio.
+            return
+
+        room = account.character.room
+        character = account.character
+        # Usamos nuestro formateador para construir el texto de la sala.
+        formatted_room = await format_room(room, viewing_character=character)
+
+        # Crear teclado de navegación si está habilitado
+        keyboard = None
+        if with_navigation_buttons:
+            from src.utils.inline_keyboards import create_room_navigation_keyboard
+            keyboard = create_room_navigation_keyboard(room)
+
+        # Enviar o editar mensaje
+        if edit:
+            await message.edit_text(formatted_room, parse_mode="HTML", reply_markup=keyboard)
+        else:
+            await message.answer(formatted_room, parse_mode="HTML", reply_markup=keyboard)
 
     except Exception:
         error_msg = "❌ Ocurrió un error al mostrar tu ubicación actual."

@@ -174,7 +174,8 @@ async def handle_movement(
         await command_service.update_telegram_commands(refreshed_character)
 
     # Mostrar nueva sala al jugador (con botones)
-    await show_current_room(callback.message, edit=True)
+    # IMPORTANTE: Pasamos la sesión activa para que vea los cambios recientes del movimiento
+    await show_current_room(callback.message, edit=True, session=session)
     await callback.answer()
 
 

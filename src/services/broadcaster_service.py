@@ -72,8 +72,8 @@ async def send_message_to_room(
     """
     Envía un mensaje a todos los personajes presentes en una sala específica.
 
-    IMPORTANTE: Solo envía mensajes a jugadores que están activamente jugando (no AFK).
-    Los jugadores AFK no están realmente presentes en el juego según la mecánica del MUD.
+    IMPORTANTE: Solo envía mensajes a jugadores que están activamente jugando (online).
+    Los jugadores desconectados no están realmente presentes en el juego según la mecánica del MUD.
 
     Args:
         session (AsyncSession): La sesión de base de datos activa.
@@ -105,9 +105,9 @@ async def send_message_to_room(
         if char.id == exclude_character_id:
             continue
 
-        # Verificar que el personaje esté activamente jugando (no AFK)
+        # Verificar que el personaje esté activamente jugando (online)
         if not await online_service.is_character_online(char.id):
-            logging.debug(f"BROADCASTER: Saltando mensaje a {char.name} porque está AFK")
+            logging.debug(f"BROADCASTER: Saltando mensaje a {char.name} porque está desconectado")
             continue
 
         # Reutilizamos nuestra propia función para mantener la lógica de envío en un solo lugar.

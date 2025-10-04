@@ -39,8 +39,8 @@ async def format_room(
 
     Ahora utiliza el sistema de templates para mantener consistencia visual.
 
-    IMPORTANTE: Solo muestra personajes que están activamente jugando (no AFK).
-    Los jugadores AFK no están realmente presentes en el juego según la mecánica del MUD.
+    IMPORTANTE: Solo muestra personajes que están activamente jugando (online).
+    Los jugadores desconectados no están realmente presentes en el juego según la mecánica del MUD.
 
     Args:
         room (Room): El objeto de la sala a formatear, con sus relaciones
@@ -63,7 +63,7 @@ async def format_room(
         if max_characters is None:
             max_characters = settings.max_room_characters_display
 
-        # Filtrar personajes AFK (solo mostrar jugadores activos)
+        # Filtrar personajes desconectados (solo mostrar jugadores online)
         active_characters = []
         for char in room.characters:
             if await online_service.is_character_online(char.id):

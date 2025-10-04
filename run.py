@@ -83,13 +83,13 @@ async def on_startup(dispatcher):
 
         # 3. Añade el job para el chequeo de inactividad.
         pulse_service.scheduler.add_job(
-            online_service.check_for_newly_afk_players,
+            online_service.check_for_newly_offline_players,
             'interval',
             seconds=60,
-            id="global_afk_check",
+            id="global_offline_check",
             replace_existing=True
         )
-        logging.info("Job para chequeo de AFK añadido.")
+        logging.info("Job para chequeo de desconexiones añadido.")
 
         logging.info("✅ Secuencia de arranque finalizada. El bot está en línea.")
 

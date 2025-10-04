@@ -92,7 +92,7 @@ class CmdPersonajes(Command):
 
             room = character.room
 
-            # Filtrar para excluir al personaje que está mirando y jugadores AFK
+            # Filtrar para excluir al personaje que está mirando y jugadores desconectados
             active_characters = []
             for char in room.characters:
                 if char.id != character.id and await online_service.is_character_online(char.id):

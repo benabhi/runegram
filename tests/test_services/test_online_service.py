@@ -2,7 +2,7 @@
 """
 Tests para el Online Service.
 
-Este servicio maneja el estado de online/AFK de los personajes usando Redis.
+Este servicio maneja el estado de online/offline de los personajes usando Redis.
 """
 
 import pytest
@@ -23,12 +23,12 @@ class TestHelperFunctions:
         key = online_service._get_last_seen_key(123)
         assert key == "last_seen:123"
 
-    def test_get_afk_notified_key(self):
+    def test_get_offline_notified_key(self):
         """
-        Test: Debe generar la clave correcta para el flag AFK.
+        Test: Debe generar la clave correcta para el flag offline.
         """
-        key = online_service._get_afk_notified_key(456)
-        assert key == "afk_notified:456"
+        key = online_service._get_offline_notified_key(456)
+        assert key == "offline_notified:456"
 
 
 @pytest.mark.critical
@@ -59,17 +59,17 @@ class TestUpdateLastSeen:
             # Verificar que se configuró expiración
             mock_redis.expire.assert_called_once()
 
-    async def test_update_last_seen_notifies_return_from_afk(self, db_session, sample_character):
+    async def test_update_last_seen_notifies_return_from_offline(self, db_session, sample_character):
         """
-        Test: Debe notificar al personaje cuando vuelve de estar AFK.
+        Test: Debe notificar al personaje cuando vuelve de estar desconectado.
         """
-        # Mock del cliente de Redis indicando que estaba AFK
+        # Mock del cliente de Redis indicando que estaba desconectado
         with patch.object(online_service, 'redis_client') as mock_redis, \
              patch('src.services.broadcaster_service') as mock_broadcaster:
 
             mock_redis.set = AsyncMock()
             mock_redis.expire = AsyncMock()
-            mock_redis.getdel = AsyncMock(return_value="1")  # Estaba AFK
+            mock_redis.getdel = AsyncMock(return_value="1")  # Estaba desconectado
             mock_broadcaster.send_message_to_character = AsyncMock()
 
             await online_service.update_last_seen(db_session, sample_character)
@@ -78,19 +78,19 @@ class TestUpdateLastSeen:
             mock_broadcaster.send_message_to_character.assert_called_once()
             call_args = mock_broadcaster.send_message_to_character.call_args
             assert call_args[0][0] == sample_character
-            assert "inactividad" in call_args[0][1].lower()
+            assert "reconectado" in call_args[0][1].lower()
 
-    async def test_update_last_seen_no_notification_when_not_afk(self, db_session, sample_character):
+    async def test_update_last_seen_no_notification_when_not_offline(self, db_session, sample_character):
         """
-        Test: No debe notificar cuando el personaje no estaba AFK.
+        Test: No debe notificar cuando el personaje no estaba desconectado.
         """
-        # Mock del cliente de Redis indicando que NO estaba AFK
+        # Mock del cliente de Redis indicando que NO estaba desconectado
         with patch.object(online_service, 'redis_client') as mock_redis, \
              patch('src.services.broadcaster_service') as mock_broadcaster:
 
             mock_redis.set = AsyncMock()
             mock_redis.expire = AsyncMock()
-            mock_redis.getdel = AsyncMock(return_value=None)  # NO estaba AFK
+            mock_redis.getdel = AsyncMock(return_value=None)  # NO estaba desconectado
             mock_broadcaster.send_message_to_character = AsyncMock()
 
             await online_service.update_last_seen(db_session, sample_character)
@@ -184,14 +184,14 @@ class TestGetOnlineCharacters:
 
 
 @pytest.mark.asyncio
-class TestCheckForNewlyAfkPlayers:
-    """Tests para la función check_for_newly_afk_players().
+class TestCheckForNewlyOfflinePlayers:
+    """Tests para la función check_for_newly_offline_players().
 
     Nota: Esta función tiene dependencias complejas con broadcaster y player services,
     por lo que los tests se enfocan en el manejo básico de flujo y excepciones.
     """
 
-    async def test_check_for_newly_afk_handles_exceptions(self):
+    async def test_check_for_newly_offline_handles_exceptions(self):
         """
         Test: Debe manejar excepciones y registrarlas sin fallar completamente.
         """
@@ -204,7 +204,7 @@ class TestCheckForNewlyAfkPlayers:
             # La función captura la excepción y no la propaga
             # Solo registra el error en el log
             try:
-                await online_service.check_for_newly_afk_players()
+                await online_service.check_for_newly_offline_players()
                 # Si llegamos aquí, la función manejó la excepción correctamente
             except Exception as e:
                 # Si la excepción sale hasta aquí, es porque la función no la captura

@@ -85,10 +85,10 @@ class CmdLook(Command):
                         )
                     return
 
-            # 4. Buscar otros personajes en la sala (solo jugadores activos, no AFK).
+            # 4. Buscar otros personajes en la sala (solo jugadores online).
             for other_char in character.room.characters:
                 if other_char.id != character.id and target_string == other_char.name.lower():
-                    # Verificar que el personaje esté activamente jugando (no AFK)
+                    # Verificar que el personaje esté activamente jugando (online)
                     if not await online_service.is_character_online(other_char.id):
                         await message.answer("No ves a nadie con ese nombre por aquí.")
                         return
@@ -333,6 +333,32 @@ class CmdPray(Command):
             logging.exception(f"Fallo al ejecutar /orar para {character.name}")
 
 
+class CmdDisconnect(Command):
+    """Comando para desconectarse inmediatamente del juego."""
+    names = ["desconectar", "logout", "salir"]
+    description = "Te desconecta inmediatamente del juego."
+    lock = ""
+
+    async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
+        try:
+            from src.services.online_service import redis_client, _get_last_seen_key, _get_offline_notified_key
+
+            # Eliminar las claves Redis del jugador
+            await redis_client.delete(_get_last_seen_key(character.id))
+            await redis_client.delete(_get_offline_notified_key(character.id))
+
+            await message.answer(
+                "Te has desconectado del juego.\n\n"
+                "Vuelve cuando quieras con cualquier comando. ¡Hasta pronto!"
+            )
+
+            logging.info(f"Personaje {character.name} se ha desconectado manualmente usando /desconectar")
+
+        except Exception:
+            await message.answer("❌ Ocurrió un error al intentar desconectar.")
+            logging.exception(f"Fallo al ejecutar /desconectar para {character.name}")
+
+
 class CmdWhisper(Command):
     """Comando para enviar un mensaje privado a un jugador en la misma sala."""
     names = ["susurrar", "whisper"]
@@ -359,7 +385,7 @@ class CmdWhisper(Command):
                 await message.answer(f"No ves a ningún '{args[0]}' por aquí.")
                 return
 
-            # Verificar que el jugador objetivo esté activamente jugando (no AFK)
+            # Verificar que el jugador objetivo esté activamente jugando (online)
             if not await online_service.is_character_online(target_character.id):
                 await message.answer(f"No ves a ningún '{args[0]}' por aquí.")
                 return
@@ -390,5 +416,6 @@ GENERAL_COMMANDS = [
     CmdHelp(),
     CmdWho(),
     CmdPray(),
+    CmdDisconnect(),
     CmdWhisper(),
 ]

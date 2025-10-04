@@ -2,7 +2,7 @@
 """
 Módulo de Servicio para el Seguimiento de Actividad (Presencia).
 
-Este servicio gestiona el estado de "online" o "AFK" (Away From Keyboard) de los
+Este servicio gestiona el estado de "online" u "offline" (desconectado) de los
 personajes. Utiliza Redis para un almacenamiento y recuperación de datos de alta
 velocidad, lo cual es ideal para datos volátiles como el timestamp de la última
 actividad.
@@ -10,8 +10,8 @@ actividad.
 Responsabilidades:
 - Registrar la última vez que un jugador envía un comando.
 - Determinar si un jugador está "online" basándose en un umbral de inactividad.
-- Gestionar las notificaciones cuando un jugador pasa a estado AFK o vuelve.
-- Proveer una tarea global (`check_for_newly_afk_players`) para ser ejecutada
+- Gestionar las notificaciones cuando un jugador se desconecta por inactividad o vuelve.
+- Proveer una tarea global (`check_for_newly_offline_players`) para ser ejecutada
   periódicamente por el scheduler.
 """
 
@@ -50,16 +50,16 @@ def _get_last_seen_key(character_id: int) -> str:
     """Genera la clave de Redis estandarizada para el timestamp de un personaje."""
     return f"last_seen:{character_id}"
 
-def _get_afk_notified_key(character_id: int) -> str:
-    """Genera la clave de Redis para el flag que indica si ya se notificó el estado AFK."""
-    return f"afk_notified:{character_id}"
+def _get_offline_notified_key(character_id: int) -> str:
+    """Genera la clave de Redis para el flag que indica si ya se notificó la desconexión."""
+    return f"offline_notified:{character_id}"
 
 
 # --- Funciones Principales del Servicio ---
 
 async def update_last_seen(session: AsyncSession, character: Character):
     """
-    Actualiza la última actividad de un personaje y le notifica si vuelve de estar AFK.
+    Actualiza la última actividad de un personaje y le notifica si vuelve de estar desconectado.
     Esta función es llamada por el dispatcher en cada mensaje.
     """
     # Importamos aquí para evitar importaciones circulares.
@@ -72,17 +72,17 @@ async def update_last_seen(session: AsyncSession, character: Character):
     await redis_client.set(key, time.time())
     await redis_client.expire(key, timedelta(days=7))
 
-    # 2. Comprobar si el personaje estaba marcado como AFK.
-    afk_notified_key = _get_afk_notified_key(char_id)
+    # 2. Comprobar si el personaje estaba marcado como desconectado.
+    offline_notified_key = _get_offline_notified_key(char_id)
     # `getdel` obtiene y borra la clave atómicamente si existe.
-    was_afk = await redis_client.getdel(afk_notified_key)
+    was_offline = await redis_client.getdel(offline_notified_key)
 
-    if was_afk:
-        # El personaje estaba AFK y acaba de volver. Se le notifica directamente.
-        logging.info(f"Personaje {character.name} ha vuelto de su inactividad (AFK).")
+    if was_offline:
+        # El personaje estaba desconectado y acaba de volver. Se le notifica directamente.
+        logging.info(f"Personaje {character.name} se ha reconectado al juego.")
         await broadcaster_service.send_message_to_character(
             character,
-            "<i>Has vuelto de tu inactividad.</i>"
+            "<i>Te has reconectado al juego.</i>"
         )
 
 
@@ -115,15 +115,15 @@ async def get_online_characters(session: AsyncSession) -> list[Character]:
 
     return online_characters
 
-async def check_for_newly_afk_players():
+async def check_for_newly_offline_players():
     """
     Tarea global periódica para detectar y notificar sobre personajes que se
-    han vuelto inactivos (AFK).
+    han desconectado por inactividad.
     """
     # Importamos aquí para evitar importaciones circulares.
     from src.services import broadcaster_service, player_service
     global PREVIOUSLY_ONLINE_IDS
-    logging.info("[AFK CHECK] Ejecutando chequeo de jugadores inactivos...")
+    logging.info("[OFFLINE CHECK] Ejecutando chequeo de jugadores inactivos...")
 
     async with async_session_factory() as session:
         try:
@@ -136,24 +136,24 @@ async def check_for_newly_afk_players():
                     currently_online_ids.add(char_id)
 
             # Compara la lista de jugadores online de ahora con la de la última vez.
-            newly_afk_ids = PREVIOUSLY_ONLINE_IDS - currently_online_ids
+            newly_offline_ids = PREVIOUSLY_ONLINE_IDS - currently_online_ids
 
-            for char_id in newly_afk_ids:
-                afk_notified_key = _get_afk_notified_key(char_id)
+            for char_id in newly_offline_ids:
+                offline_notified_key = _get_offline_notified_key(char_id)
                 # Solo notificamos si no se ha notificado ya.
-                if not await redis_client.exists(afk_notified_key):
+                if not await redis_client.exists(offline_notified_key):
                     character = await player_service.get_character_with_relations_by_id(session, char_id)
                     if character:
-                        logging.info(f"Personaje {character.name} ha entrado en inactividad (AFK).")
+                        logging.info(f"Personaje {character.name} se ha desconectado por inactividad.")
                         await broadcaster_service.send_message_to_character(
                             character,
-                            "<i>Has entrado en modo de inactividad (AFK).</i>"
+                            "<i>Te has desconectado del juego por inactividad.</i>"
                         )
                         # Marcamos que ya fue notificado para no spamear.
-                        await redis_client.set(afk_notified_key, "1", ex=timedelta(days=1))
+                        await redis_client.set(offline_notified_key, "1", ex=timedelta(days=1))
         except Exception:
-            logging.exception("[AFK CHECK] Ocurrió un error durante el chequeo de AFK.")
+            logging.exception("[OFFLINE CHECK] Ocurrió un error durante el chequeo de desconexiones.")
 
     # Actualizamos el estado global para la próxima comprobación.
     PREVIOUSLY_ONLINE_IDS = currently_online_ids
-    logging.info(f"[AFK CHECK] Chequeo finalizado. {len(PREVIOUSLY_ONLINE_IDS)} jugadores online.")
+    logging.info(f"[OFFLINE CHECK] Chequeo finalizado. {len(PREVIOUSLY_ONLINE_IDS)} jugadores online.")

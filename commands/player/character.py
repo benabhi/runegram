@@ -46,6 +46,10 @@ class CmdCreateCharacter(Command):
             # 3. Llamar al servicio que contiene la lógica de negocio para la creación.
             new_char = await player_service.create_character(session, message.from_user.id, character_name)
 
+            # 3.1. Marcar el personaje como online inmediatamente
+            from src.services import online_service
+            await online_service.update_last_seen(session, new_char)
+
             # 4. Enviar un mensaje de éxito al jugador.
             await message.answer(
                 f"¡Tu personaje, {new_char.name}, ha sido creado con éxito!\n"

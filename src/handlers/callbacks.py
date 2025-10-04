@@ -312,6 +312,9 @@ async def process_character_name(message: types.Message, state: FSMContext):
             # Crear personaje
             character = await player_service.create_character(session, message.from_user.id, name)
 
+            # IMPORTANTE: Marcar el personaje como online inmediatamente
+            await online_service.update_last_seen(session, character)
+
             # Finalizar FSM
             await state.finish()
 

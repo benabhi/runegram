@@ -136,23 +136,21 @@ async def handle_movement(
         return
 
     # Notificaciones sociales
-    from src.services import broadcaster_service
+    from src.services import broadcaster_service, command_service
 
-    old_room = character.room
-    new_room = exit_found.to_room
+    old_room_id = character.room_id
+    new_room_id = exit_found.to_room_id
 
     # Notificar a la sala de origen
     await broadcaster_service.send_message_to_room(
         session=session,
-        room_id=old_room.id,
+        room_id=old_room_id,
         message_text=f"<i>{character.name} se ha ido hacia {direction}.</i>",
         exclude_character_id=character.id
     )
 
-    # Mover al personaje
-    character.room_id = new_room.id
-    await session.refresh(character, attribute_names=['room'])
-    await session.commit()
+    # Mover al personaje usando el servicio
+    await player_service.teleport_character(session, character.id, new_room_id)
 
     # Notificar a la sala de destino
     opposite_direction = {
@@ -165,10 +163,15 @@ async def handle_movement(
 
     await broadcaster_service.send_message_to_room(
         session=session,
-        room_id=new_room.id,
+        room_id=new_room_id,
         message_text=f"<i>{character.name} ha llegado desde {opposite_direction}.</i>",
         exclude_character_id=character.id
     )
+
+    # Actualizar comandos de Telegram (por si la sala otorga nuevos command sets)
+    refreshed_character = await player_service.get_character_with_relations_by_id(session, character.id)
+    if refreshed_character:
+        await command_service.update_telegram_commands(refreshed_character)
 
     # Mostrar nueva sala al jugador (con botones)
     await show_current_room(callback.message, edit=True)

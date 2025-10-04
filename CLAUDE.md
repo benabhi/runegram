@@ -40,6 +40,7 @@ Telegram tiene características y limitaciones únicas que deben guiar todas las
 - **Comandos sugeridos**: El menú `/` de Telegram muestra comandos disponibles dinámicamente
 - **Formato enriquecido**: HTML básico (`<b>`, `<i>`, `<pre>`, `<code>`)
 - **Multimedia**: Envío de imágenes, documentos, stickers
+- **Botones inline**: Interacción mediante botones táctiles para mejor UX móvil
 - **Bot API robusta**: Aiogram proporciona una excelente abstracción
 
 #### Mejores Prácticas UX
@@ -950,6 +951,89 @@ await message.answer(output, parse_mode="HTML")
 
 Ver: `src/utils/presenters.py`
 
+### 10. Sistema de Botones Inline
+
+Sistema de interacción mediante botones de Telegram para mejorar la UX móvil.
+
+#### Características Implementadas
+- ✅ **Botón de creación de personaje** con flujo FSM
+- ✅ **Botones de navegación** en salas (direcciones)
+- ✅ **Sistema de callback routing** extensible
+- ✅ **Soporte para FSM** (conversaciones multi-paso)
+
+#### Componentes Principales
+
+```python
+from src.utils.inline_keyboards import (
+    create_callback_data,           # Genera callback_data estructurado
+    parse_callback_data,            # Parsea callback_data
+    create_room_navigation_keyboard,  # Botones de salidas
+    create_character_creation_keyboard,  # Botón de crear personaje
+    create_confirmation_keyboard,   # Botones Sí/No
+)
+
+# Ejemplo: Crear botones de navegación
+keyboard = create_room_navigation_keyboard(room)
+await message.answer(formatted_room, reply_markup=keyboard)
+
+# Ejemplo: Crear callback data personalizado
+callback_data = create_callback_data("use_item", item_id=5, action="consume")
+# Resultado: "use_item:item_id=5:action=consume"
+```
+
+#### Callback Handlers
+
+Los callbacks se procesan en `src/handlers/callbacks.py`:
+
+```python
+# Router principal
+@dp.callback_query_handler(lambda c: True)
+async def callback_query_router(callback: types.CallbackQuery):
+    callback_info = parse_callback_data(callback.data)
+    action = callback_info["action"]
+    params = callback_info["params"]
+
+    handler_func = CALLBACK_HANDLERS.get(action)
+    if handler_func:
+        await handler_func(callback, params, session)
+
+# Handlers específicos
+CALLBACK_HANDLERS = {
+    "create_char": handle_character_creation,  # Inicia FSM
+    "move": handle_movement,                   # Navegación
+    "refresh": handle_refresh,                 # Actualizar
+    # ... agregar nuevos handlers aquí
+}
+```
+
+#### FSM para Flujos Multi-paso
+
+```python
+from aiogram.dispatcher.filters.state import State, StatesGroup
+
+class CharacterCreationStates(StatesGroup):
+    waiting_for_name = State()
+
+# Iniciar FSM desde callback
+state = dp.current_state(user=callback.from_user.id)
+await state.set_state(CharacterCreationStates.waiting_for_name)
+
+# Handler de estado FSM
+@dp.message_handler(state=CharacterCreationStates.waiting_for_name)
+async def process_character_name(message, state: FSMContext):
+    # Validar y procesar input
+    # await state.finish() cuando termine
+```
+
+#### Roadmap Futuro
+- 🚧 **Teclado dinámico completo** para jugar sin comandos
+- 🚧 **Teclado contextual de sala** con acciones rápidas
+- 🚧 **Teclado de inventario** con interacción por botones
+- 🚧 **Teclado de combate** (cuando se implemente sistema de combate)
+- 🚧 **Configuración de settings** mediante menús
+
+Ver: `docs/11_INLINE_BUTTONS.md` para guía completa y ejemplos.
+
 ---
 
 ## 🎮 Creación de Contenido
@@ -1508,6 +1592,8 @@ Ver `docs/03_ENGINE_SYSTEMS/05_SOCIAL_SYSTEMS.md` para más detalles.
 - `docs/07_ROADMAP.md`: Planes futuros
 - `docs/08_COMBAT_SYSTEM.md`: Diseño del sistema de combate
 - `docs/09_SKILL_SYSTEM.md`: Diseño del sistema de habilidades
+- `docs/10_CONFIGURATION.md`: Sistema de configuración centralizada con TOML
+- `docs/11_INLINE_BUTTONS.md`: Sistema de botones inline de Telegram
 - `docs/COMMAND_REFERENCE.md`: **Referencia completa de todos los comandos** (jugador y admin)
 
 ### Documentación Externa

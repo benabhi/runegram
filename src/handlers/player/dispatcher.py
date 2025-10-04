@@ -25,6 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.bot.dispatcher import dp
 from src.db import async_session_factory
 from src.services import player_service, permission_service, online_service, command_service
+from src.utils.inline_keyboards import create_character_creation_keyboard
 
 # Importaciones de CommandSets de Jugador
 from commands.player.general import GENERAL_COMMANDS
@@ -105,11 +106,14 @@ async def main_command_dispatcher(message: types.Message):
                         # Captura otros posibles errores de la API de Telegram.
                         logging.exception("Error al enviar la foto de portada.")
 
-                    # El mensaje de texto se envía después de la imagen.
+                    # El mensaje de texto se envía después de la imagen con botón inline.
+                    keyboard = create_character_creation_keyboard()
                     await message.answer(
                         "¡Bienvenido a Runegram! Veo que eres nuevo por aquí.\n"
                         "Para empezar, necesitas crear tu personaje. Usa el comando:\n"
-                        "/crearpersonaje [nombre]"
+                        "/crearpersonaje [nombre]\n\n"
+                        "O toca el botón de abajo:",
+                        reply_markup=keyboard
                     )
                 else:
                     await command_service.update_telegram_commands(character)
@@ -143,7 +147,12 @@ async def main_command_dispatcher(message: types.Message):
             if not found_cmd:
                 # Si el jugador no tiene personaje y el comando no es de creación, damos un mensaje específico.
                 if not character and cmd_name != "crearpersonaje":
-                     await message.answer("Primero debes crear un personaje con /crearpersonaje [nombre].")
+                     keyboard = create_character_creation_keyboard()
+                     await message.answer(
+                         "Primero debes crear un personaje con /crearpersonaje [nombre].\n\n"
+                         "O toca el botón de abajo:",
+                         reply_markup=keyboard
+                     )
                 else:
                     await message.answer("No conozco ese comando.")
                 return

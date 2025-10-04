@@ -143,7 +143,8 @@ async def check_for_newly_offline_players():
                         logging.info(f"Personaje {character.name} se ha desconectado por inactividad.")
                         await broadcaster_service.send_message_to_character(
                             character,
-                            "<i>Te has desconectado del juego por inactividad.</i>"
+                            "<i>Te has desconectado del juego por inactividad.\n\n"
+                            "Vuelve cuando quieras con cualquier comando. ¡Hasta pronto!</i>"
                         )
                         # Marcamos que ya fue notificado para no spamear.
                         await redis_client.set(offline_notified_key, "1", ex=settings.offline_notified_ttl)

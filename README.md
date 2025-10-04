@@ -80,4 +80,9 @@ items_per_page = 30  # Items por página en listados
 
 Toda la documentación exhaustiva sobre la arquitectura, los sistemas del motor, las guías para crear contenido y la visión a futuro del proyecto se encuentra en la carpeta `docs/`.
 
+**Documentos Destacados:**
+- **[Guía de Inicio](./docs/01_GETTING_STARTED.md)** - Primeros pasos para desarrolladores
+- **[Referencia Completa de Comandos](./docs/COMMAND_REFERENCE.md)** - Lista de todos los comandos de jugador y admin con ejemplos
+- **[Guía de Administración](./docs/05_ADMIN_GUIDE.md)** - Comandos y herramientas para administradores
+
 **[➡️ Acceder a la Documentación Completa](./docs/01_GETTING_STARTED.md)**

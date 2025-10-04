@@ -50,6 +50,16 @@ Estos comandos son herramientas de solo lectura para inspeccionar el estado del 
 *   **Permiso:** `ADMIN`
 *   **Descripción:** Muestra una lista de todas las salas que existen en el mundo, incluyendo su `ID`, su `key` de prototipo y su `nombre`. Esencial para usar `/teleport`.
 
+### `/examinarsala <id_o_key>`
+*   **Alias:** `/exsala`
+*   **Permiso:** `ADMIN`
+*   **Descripción:** Examina información detallada de una sala por ID numérico o key de prototipo. Muestra ID, key, nombre, descripción, locks, salidas, objetos y personajes presentes.
+*   **Uso:**
+    ```
+    /exsala 1
+    /exsala plaza_central
+    ```
+
 ### `/examinarpersonaje <nombre_o_id>`
 *   **Alias:** `/exchar`
 *   **Permiso:** `ADMIN`
@@ -68,6 +78,12 @@ Estos comandos son herramientas de solo lectura para inspeccionar el estado del 
     ```
     /exobj 12
     ```
+
+### `/validar`
+*   **Alias:** `/reportevalidacion`
+*   **Permiso:** `ADMIN`
+*   **Descripción:** Muestra un reporte de validación de integridad del sistema. Detecta conflictos de aliases entre comandos, keys duplicadas, y advertencias de configuración.
+*   **Notas:** Útil para diagnosticar problemas después de modificar prototipos o comandos.
 
 ---
 

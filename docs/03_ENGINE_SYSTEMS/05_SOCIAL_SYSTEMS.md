@@ -28,7 +28,7 @@ Toda esta lógica está encapsulada en `src/services/online_service.py`.
     *   La tarea mantiene una lista en memoria (`PREVIOUSLY_ONLINE_IDS`) de quién estaba online en el chequeo anterior.
     *   Compara esa lista con quién está online *ahora*.
     *   Cualquier jugador que estuviera en la lista anterior pero no en la actual se ha desconectado por inactividad.
-    *   A estos jugadores recién desconectados, les envía un mensaje privado ("Te has desconectado del juego por inactividad.") y establece su `flag` `offline_notified` en Redis para no volver a notificarles.
+    *   A estos jugadores recién desconectados, les envía un mensaje privado ("Te has desconectado del juego por inactividad. Vuelve cuando quieras con cualquier comando.") y establece su `flag` `offline_notified` en Redis para no volver a notificarles.
     *   Finalmente, actualiza `PREVIOUSLY_ONLINE_IDS` para el siguiente ciclo.
 
 Este sistema dual asegura notificaciones de estado online/offline precisas y sin spam.

@@ -142,3 +142,37 @@ async def teleport_character(session: AsyncSession, character_id: int, to_room_i
     query = update(Character).where(Character.id == character_id).values(room_id=to_room_id)
     await session.execute(query)
     await session.commit()
+
+
+async def delete_character(session: AsyncSession, character: Character) -> None:
+    """
+    Elimina completamente un personaje de la base de datos.
+
+    Esta función elimina el personaje y todas sus relaciones asociadas
+    (items, settings, etc.) gracias al cascade configurado en los modelos.
+
+    Después de eliminar el personaje, la cuenta quedará sin personaje asociado,
+    lo que activará el flujo de creación de personaje al ejecutar cualquier comando.
+
+    Args:
+        session: Sesión de BD activa
+        character: El personaje a eliminar
+
+    Raises:
+        RuntimeError: Si ocurre un error durante la eliminación
+    """
+    try:
+        character_name = character.name
+        telegram_id = character.account.telegram_id
+
+        logging.info(f"Eliminando personaje {character_name} (ID: {character.id}) de la cuenta {telegram_id}")
+
+        # Eliminar el personaje (cascade eliminará items, settings, etc.)
+        await session.delete(character)
+        await session.commit()
+
+        logging.info(f"Personaje {character_name} eliminado exitosamente")
+    except Exception:
+        await session.rollback()
+        logging.exception(f"Error al eliminar el personaje {character.name}")
+        raise RuntimeError("Error crítico al eliminar el personaje.")

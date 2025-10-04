@@ -1410,15 +1410,20 @@ if not is_active:
     return
 ```
 
-#### Desconexión Manual
+#### Desconexión Manual y Automática
 
-Los jugadores pueden desconectarse manualmente usando `/desconectar` (también `/salir` o `/logout`).
+Los jugadores pueden desconectarse de dos formas:
 
-**Comportamiento del comando:**
-- Elimina `last_seen` → el jugador se marca como offline inmediatamente
-- Establece `offline_notified` → cuando vuelva, recibirá notificación de reconexión
-- Mensaje de confirmación: "Te has desconectado del juego. Vuelve cuando quieras..."
-- Al volver: El jugador recibe "Te has reconectado al juego."
+1. **Desconexión Manual**: Usando `/desconectar` (también `/salir` o `/logout`)
+2. **Desconexión Automática**: Por inactividad (5 minutos sin enviar comandos)
+
+**Comportamiento en ambos casos:**
+- Se elimina `last_seen` → el jugador se marca como offline inmediatamente
+- Se establece `offline_notified` → cuando vuelva, recibirá notificación de reconexión
+- **Mensaje de confirmación**: "Te has desconectado del juego. Vuelve cuando quieras con cualquier comando. ¡Hasta pronto!"
+- **Al volver**: El jugador recibe "Te has reconectado al juego."
+
+**Nota**: Ambos tipos de desconexión ahora informan explícitamente que con cualquier comando se vuelve a estar online.
 
 #### Consideraciones Futuras
 
@@ -1496,6 +1501,7 @@ Ver `docs/03_ENGINE_SYSTEMS/05_SOCIAL_SYSTEMS.md` para más detalles.
 - `docs/07_ROADMAP.md`: Planes futuros
 - `docs/08_COMBAT_SYSTEM.md`: Diseño del sistema de combate
 - `docs/09_SKILL_SYSTEM.md`: Diseño del sistema de habilidades
+- `docs/COMMAND_REFERENCE.md`: **Referencia completa de todos los comandos** (jugador y admin)
 
 ### Documentación Externa
 - [Aiogram 2.x Docs](https://docs.aiogram.dev/en/v2.25.1/)
@@ -1541,9 +1547,11 @@ Después de CUALQUIER cambio:
 
 ---
 
-**Versión**: 1.3
-**Última actualización**: 2025-10-03
+**Versión**: 1.5
+**Última actualización**: 2025-10-04
 **Changelog**:
+- v1.5 (2025-10-04): Mejorado mensaje de desconexión automática para incluir instrucción de reconexión
+- v1.4 (2025-10-04): Agregado comando /suicidio y documentación completa de comandos (COMMAND_REFERENCE.md)
 - v1.3 (2025-10-03): Implementado sistema de pulse global, reemplazando ticker_service
 - v1.2 (2025-10-03): Agregado sistema de templates (Jinja2) y guías de outputs consistentes
 - v1.1 (2025-10-02): Agregada política obligatoria de documentación actualizada

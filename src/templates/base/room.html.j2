@@ -26,8 +26,8 @@ Variables esperadas:
 {%- endif %}
 
 {%- endif %}
-{%- if room.characters and character %}
-{%- set other_characters = room.characters|reject('equalto', character)|list %}
+{%- if active_characters and character %}
+{%- set other_characters = active_characters|reject('equalto', character)|list %}
 {%- if other_characters %}
 
 {{ icon('character') }} <b>Personajes:</b>

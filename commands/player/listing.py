@@ -15,6 +15,7 @@ from commands.command import Command
 from src.models import Character
 from src.utils.pagination import paginate_list, format_pagination_footer
 from src.templates import ICONS
+from src.services import online_service
 
 
 class CmdItems(Command):
@@ -90,18 +91,22 @@ class CmdPersonajes(Command):
                     return
 
             room = character.room
-            # Filtrar para excluir al personaje que está mirando
-            all_characters = [char for char in room.characters if char.id != character.id]
 
-            if not all_characters:
+            # Filtrar para excluir al personaje que está mirando y jugadores AFK
+            active_characters = []
+            for char in room.characters:
+                if char.id != character.id and await online_service.is_character_online(char.id):
+                    active_characters.append(char)
+
+            if not active_characters:
                 await message.answer(f"<pre>{ICONS['character']} Estás solo aquí.</pre>", parse_mode="HTML")
                 return
 
             # Ordenar por nombre
-            all_characters.sort(key=lambda c: c.name)
+            active_characters.sort(key=lambda c: c.name)
 
             # Paginar personajes
-            pagination = paginate_list(all_characters, page=page, per_page=30)
+            pagination = paginate_list(active_characters, page=page, per_page=30)
 
             # Construir output
             lines = [

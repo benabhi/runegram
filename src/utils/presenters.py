@@ -39,6 +39,9 @@ async def format_room(
 
     Ahora utiliza el sistema de templates para mantener consistencia visual.
 
+    IMPORTANTE: Solo muestra personajes que están activamente jugando (no AFK).
+    Los jugadores AFK no están realmente presentes en el juego según la mecánica del MUD.
+
     Args:
         room (Room): El objeto de la sala a formatear, con sus relaciones
                      (`items`, `exits_from`, `characters`) ya cargadas.
@@ -51,11 +54,20 @@ async def format_room(
         str: Un string formateado con HTML listo para ser enviado.
     """
     try:
+        # Importar el servicio de online para verificar estado AFK
+        from src.services import online_service
+
         # Usar valores por defecto de config si no se especifican
         if max_items is None:
             max_items = settings.max_room_items_display
         if max_characters is None:
             max_characters = settings.max_room_characters_display
+
+        # Filtrar personajes AFK (solo mostrar jugadores activos)
+        active_characters = []
+        for char in room.characters:
+            if await online_service.is_character_online(char.id):
+                active_characters.append(char)
 
         # Preparar contexto para el template
         context = {
@@ -64,6 +76,7 @@ async def format_room(
             'display': room.prototype.get('display', {}) if room.prototype else {},
             'max_items': max_items,
             'max_characters': max_characters,
+            'active_characters': active_characters,  # Usar lista filtrada
             'icon': lambda key: ICONS.get(key, ''),
             'get_direction_icon': get_direction_icon,
         }

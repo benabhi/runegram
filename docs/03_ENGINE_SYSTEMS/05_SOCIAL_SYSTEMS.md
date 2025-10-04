@@ -33,6 +33,59 @@ Toda esta lógica está encapsulada en `src/services/online_service.py`.
 
 Este sistema dual asegura notificaciones de estado AFK precisas y sin spam.
 
+### Política de Jugadores AFK en el Juego
+
+**IMPORTANTE:** Los jugadores AFK son tratados como **ausentes del mundo del juego**. Esto es fundamental para mantener la coherencia de la experiencia de juego en un MUD.
+
+#### Principio Fundamental
+
+Cuando un jugador está AFK (inactivo por más de 5 minutos), **desde el punto de vista del juego, ese jugador no está presente**, aunque técnicamente su personaje permanezca en la base de datos en una sala específica.
+
+#### Comportamiento del Sistema
+
+Todos los comandos y sistemas del motor **deben ignorar** a los jugadores AFK:
+
+**✅ Sistemas que filtran jugadores AFK:**
+
+1. **Visualización de Salas (`/mirar`)**: No muestra personajes AFK en la lista de "Personajes"
+2. **Listado de Personajes (`/personajes`)**: Solo muestra jugadores activos
+3. **Mirar Personajes (`/mirar <jugador>`)**: No permite ver la descripción de un jugador AFK
+4. **Susurrar (`/susurrar`)**: No permite enviar mensajes a jugadores AFK
+5. **Decir (`/decir`)**: No envía mensajes a jugadores AFK en la sala
+6. **Broadcasting de Sala**: `broadcaster_service.send_message_to_room()` excluye automáticamente jugadores AFK
+7. **Comandos de Admin**: Deberían respetar esta regla en comandos de interacción
+
+**⚠️ Excepciones (sistemas que SÍ incluyen AFK):**
+
+- **Lista de Jugadores Globales (`/quien`)**: Muestra solo jugadores online (usa `online_service.get_online_characters()`)
+- **Scripts del sistema**: Pueden necesitar acceder a personajes AFK para limpieza o mantenimiento
+- **Comandos de diagnóstico de admin**: Pueden mostrar todos los personajes sin filtrar para debugging
+
+#### Implementación Técnica
+
+Para verificar si un personaje está activo (no AFK), usar:
+
+```python
+from src.services import online_service
+
+# En un comando o servicio
+is_active = await online_service.is_character_online(character.id)
+if not is_active:
+    # El jugador está AFK, no interactuar con él
+    await message.answer("No ves a nadie con ese nombre por aquí.")
+    return
+```
+
+#### Consideraciones Futuras
+
+En sistemas futuros (como combate), será importante definir reglas adicionales:
+
+- ¿Puede un jugador entrar en AFK durante un combate?
+- ¿Debe el sistema cancelar combates si un jugador se vuelve AFK?
+- ¿Cómo afecta el AFK a efectos temporales (buffs, debuffs)?
+
+Estas reglas deberán definirse en la documentación de cada sistema específico.
+
 ## 2. Sistema de Interacción Social
 
 El Sistema de Interacción Social hace que el mundo se sienta vivo y compartido, permitiendo que los jugadores vean y reaccionen a las acciones de otros en tiempo real.
@@ -44,8 +97,9 @@ El Sistema de Interacción Social hace que el mundo se sienta vivo y compartido,
 Cuando un jugador mira una sala (usando `/mirar` sin argumentos), el sistema:
 
 1. Obtiene todos los personajes presentes en la sala desde la relación `room.characters`
-2. Filtra al personaje que está mirando para no mostrarse a sí mismo
-3. Muestra una línea adicional: **"También están aquí:"** con los nombres de otros jugadores
+2. **Filtra jugadores AFK** usando `online_service.is_character_online()` (solo muestra jugadores activos)
+3. Filtra al personaje que está mirando para no mostrarse a sí mismo
+4. Muestra una línea adicional: **"Personajes:"** con los nombres de otros jugadores activos
 
 **Ejemplo de salida:**
 ```
@@ -66,7 +120,9 @@ Salidas: [ Norte ]
 
 **Implementado en:** `src/services/broadcaster_service.py`
 
-El motor utiliza el `broadcaster_service.send_message_to_room()` para notificar a todos los jugadores en una sala cuando alguien realiza una acción visible.
+El motor utiliza el `broadcaster_service.send_message_to_room()` para notificar a todos los jugadores **activos** en una sala cuando alguien realiza una acción visible.
+
+**IMPORTANTE:** El sistema automáticamente **excluye jugadores AFK** del broadcasting. Solo los jugadores activamente jugando reciben estos mensajes.
 
 **Comandos con mensajes sociales:**
 
@@ -91,7 +147,7 @@ El motor utiliza el `broadcaster_service.send_message_to_room()` para notificar 
 
 **Implementado en:** `commands/player/general.py:CmdWhisper`
 
-El comando `/susurrar` permite enviar mensajes privados a un jugador específico que se encuentre en la **misma sala**.
+El comando `/susurrar` permite enviar mensajes privados a un jugador específico que se encuentre en la **misma sala** y esté **activamente jugando**.
 
 **Uso:** `/susurrar <jugador> <mensaje>`
 
@@ -109,7 +165,8 @@ Juan te susurra: "Hola, ¿quieres explorar juntos?"
 
 **Validaciones:**
 - El jugador objetivo debe estar presente en la sala
-- Si no se encuentra, se muestra: "No ves a ningún '[nombre]' por aquí."
+- **El jugador objetivo NO debe estar AFK** (inactivo)
+- Si no se encuentra o está AFK, se muestra: "No ves a ningún '[nombre]' por aquí."
 
 **Diferencia con `/decir`:**
 - `/decir`: Todos en la sala escuchan

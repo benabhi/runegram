@@ -1364,6 +1364,51 @@ Sistemas planificados:
 - Cambiaste modelo de BD → Actualizar `docs/06_DATABASE_AND_MIGRATIONS.md`
 - Nuevo servicio → Crear `docs/03_ENGINE_SYSTEMS/XX_NUEVO_SERVICIO.md`
 
+### Política de Jugadores AFK (CRÍTICO)
+
+**IMPORTANTE:** Los jugadores AFK son tratados como **ausentes del mundo del juego**. Esta es una regla fundamental de diseño del MUD.
+
+#### Principio Fundamental
+
+Cuando un jugador está AFK (inactivo por más de 5 minutos), **ese jugador NO está presente en el juego**, aunque su personaje permanezca técnicamente en la base de datos.
+
+#### Reglas de Implementación
+
+**✅ SIEMPRE filtrar jugadores AFK en:**
+
+1. **Visualización de salas** (`/mirar`): No mostrar personajes AFK
+2. **Listados de personajes** (`/personajes`): Solo jugadores activos
+3. **Interacción con personajes** (`/mirar <jugador>`, `/susurrar`): Rechazar si el objetivo está AFK
+4. **Broadcasting de sala** (`broadcaster_service.send_message_to_room()`): Automáticamente excluye AFK
+5. **Comandos sociales** (`/decir`): Solo enviar a jugadores activos
+
+**❌ NUNCA:**
+- Permitir interacción con jugadores AFK
+- Mostrar jugadores AFK en listas de "presencia"
+- Enviar mensajes de eventos de sala a jugadores AFK
+
+#### Código de Verificación
+
+```python
+from src.services import online_service
+
+# Verificar si un personaje está activo
+is_active = await online_service.is_character_online(character.id)
+if not is_active:
+    # El jugador está AFK, tratarlo como ausente
+    await message.answer("No ves a nadie con ese nombre por aquí.")
+    return
+```
+
+#### Consideraciones Futuras
+
+Al implementar nuevos sistemas (combate, comercio, etc.), **SIEMPRE** define cómo afecta el estado AFK:
+- ¿Puede un jugador entrar en AFK durante un combate?
+- ¿Debe cancelarse la interacción si alguien se vuelve AFK?
+- ¿Los efectos temporales continúan mientras el jugador está AFK?
+
+Ver `docs/03_ENGINE_SYSTEMS/05_SOCIAL_SYSTEMS.md` para más detalles.
+
 ### Cuando el Usuario Pide Agregar Funcionalidad
 
 1. **Pregunta primero**: "¿Esto es parte del motor (genérico) o del contenido (específico del juego)?"
@@ -1374,7 +1419,8 @@ Sistemas planificados:
 6. **Código robusto**: Manejo de errores, logging, type hints
 7. **Feedback al usuario**: Siempre responde al jugador con mensajes claros
 8. **🎨 USA TEMPLATES**: Para outputs visuales, usa el sistema de templates y presenters, NO hardcodees HTML
-9. **📚 ACTUALIZA DOCUMENTACIÓN**: Antes de dar por terminada la tarea (ver REGLA #1)
+9. **⚠️ VERIFICA JUGADORES AFK**: Si el comando interactúa con otros jugadores, filtra los AFK
+10. **📚 ACTUALIZA DOCUMENTACIÓN**: Antes de dar por terminada la tarea (ver REGLA #1)
 
 ### Cuando el Usuario Pide Corregir un Bug
 
@@ -1406,6 +1452,7 @@ Sistemas planificados:
 - ✅ ¿Necesita migración de BD?
 - ✅ ¿Estoy usando templates/presenters para outputs visuales en lugar de hardcodear HTML?
 - ✅ ¿Los íconos vienen de `ICONS` en lugar de estar hardcodeados?
+- ✅ **¿Si interactúa con otros jugadores, estoy filtrando jugadores AFK correctamente?**
 
 #### Antes de Finalizar (CRÍTICO)
 - ✅ ¿Verifiqué si `README.md` necesita actualización?
@@ -1481,3 +1528,5 @@ Después de CUALQUIER cambio:
 - v1.2 (2025-10-03): Agregado sistema de templates (Jinja2) y guías de outputs consistentes
 - v1.1 (2025-10-02): Agregada política obligatoria de documentación actualizada
 **Mantenedor**: Proyecto Runegram
+- Si hay que reiniciar servicios utilizar "scripts/full_reset.bat" que hace un reinicio general de todos los contenedores.
+- Si se crean comandos nuevos para runegram, el mud que estamos desarrollando, siempre verificar si es necesario en el contexto del juego anoticiar a los demas jugadores de la sala, como por ejemplo el comando /coger <item> que avisa al resto de la sala que el usuario cogio un item del suelo.

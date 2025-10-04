@@ -72,6 +72,9 @@ async def send_message_to_room(
     """
     Envía un mensaje a todos los personajes presentes en una sala específica.
 
+    IMPORTANTE: Solo envía mensajes a jugadores que están activamente jugando (no AFK).
+    Los jugadores AFK no están realmente presentes en el juego según la mecánica del MUD.
+
     Args:
         session (AsyncSession): La sesión de base de datos activa.
         room_id (int): El ID de la sala a la que se enviará el mensaje.
@@ -79,6 +82,9 @@ async def send_message_to_room(
         exclude_character_id (int, optional): El ID de un personaje a excluir de la transmisión.
         parse_mode (str): El modo de parseo de Telegram.
     """
+    # Importar aquí para evitar importaciones circulares
+    from src.services import online_service
+
     if not room_id:
         logging.warning("BROADCASTER: Se intentó enviar un mensaje a un room_id nulo.")
         return
@@ -94,9 +100,14 @@ async def send_message_to_room(
     result = await session.execute(query)
     characters_in_room = result.scalars().all()
 
-    # 2. Iteramos y enviamos el mensaje a cada personaje.
+    # 2. Iteramos y enviamos el mensaje a cada personaje activo (no AFK).
     for char in characters_in_room:
         if char.id == exclude_character_id:
+            continue
+
+        # Verificar que el personaje esté activamente jugando (no AFK)
+        if not await online_service.is_character_online(char.id):
+            logging.debug(f"BROADCASTER: Saltando mensaje a {char.name} porque está AFK")
             continue
 
         # Reutilizamos nuestra propia función para mantener la lógica de envío en un solo lugar.

@@ -85,9 +85,14 @@ class CmdLook(Command):
                         )
                     return
 
-            # 4. Buscar otros personajes en la sala.
+            # 4. Buscar otros personajes en la sala (solo jugadores activos, no AFK).
             for other_char in character.room.characters:
                 if other_char.id != character.id and target_string == other_char.name.lower():
+                    # Verificar que el personaje esté activamente jugando (no AFK)
+                    if not await online_service.is_character_online(other_char.id):
+                        await message.answer("No ves a nadie con ese nombre por aquí.")
+                        return
+
                     await message.answer(f"<pre>{other_char.get_description()}</pre>", parse_mode="HTML")
                     return
 
@@ -351,6 +356,11 @@ class CmdWhisper(Command):
                     break
 
             if not target_character:
+                await message.answer(f"No ves a ningún '{args[0]}' por aquí.")
+                return
+
+            # Verificar que el jugador objetivo esté activamente jugando (no AFK)
+            if not await online_service.is_character_online(target_character.id):
                 await message.answer(f"No ves a ningún '{args[0]}' por aquí.")
                 return
 

@@ -138,6 +138,7 @@ El motor utiliza el `broadcaster_service.send_message_to_room()` para notificar 
 
 | Comando | Mensaje a la Sala |
 |---------|-------------------|
+| `/norte`, `/sur`, etc. (movimiento) | **Sala de origen:** *"[Jugador] se ha ido hacia el [dirección]."*<br>**Sala de destino:** *"[Jugador] ha llegado desde el [dirección_opuesta]."* |
 | `/coger <objeto>` | *"[Jugador] ha cogido [objeto] del suelo."* |
 | `/dejar <objeto>` | *"[Jugador] ha dejado [objeto] en el suelo."* |
 | `/meter <objeto> en <contenedor>` | *"[Jugador] guarda [objeto] en [contenedor]."* |
@@ -148,10 +149,18 @@ El motor utiliza el `broadcaster_service.send_message_to_room()` para notificar 
 
 **Parámetro `exclude_character_id`:** Permite excluir al jugador que realiza la acción del broadcast, para evitar mensajes redundantes.
 
-**Ejemplo de flujo:**
-1. Juan ejecuta `/coger espada`
-2. Juan recibe: "Has cogido: una espada herrumbrosa"
-3. María (en la misma sala) recibe: *"Juan ha cogido una espada herrumbrosa del suelo."*
+**Ejemplos de flujo:**
+
+*Movimiento:*
+1. Juan ejecuta `/norte` desde la Plaza Central
+2. Juan recibe: Descripción de la nueva sala
+3. Otros en Plaza Central reciben: *"Juan se ha ido hacia el norte."*
+4. Otros en la nueva sala reciben: *"Juan ha llegado desde el sur."*
+
+*Interacción con objetos:*
+1. María ejecuta `/coger espada`
+2. María recibe: "Has cogido: una espada herrumbrosa"
+3. Otros en la misma sala reciben: *"María ha cogido una espada herrumbrosa del suelo."*
 
 ### 2.3. Comunicación Local: Comando `/susurrar`
 

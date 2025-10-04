@@ -17,8 +17,22 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from commands.command import Command
 from src.models.character import Character
-from src.services import player_service, command_service, permission_service
+from src.services import player_service, command_service, permission_service, broadcaster_service
 from src.utils.presenters import show_current_room
+
+# Mapeo de direcciones opuestas para los mensajes de llegada
+OPPOSITE_DIRECTIONS = {
+    "norte": "sur",
+    "sur": "norte",
+    "este": "oeste",
+    "oeste": "este",
+    "arriba": "abajo",
+    "abajo": "arriba",
+    "noreste": "suroeste",
+    "suroeste": "noreste",
+    "noroeste": "sureste",
+    "sureste": "noroeste",
+}
 
 class CmdMove(Command):
     """
@@ -56,15 +70,36 @@ class CmdMove(Command):
                 await message.answer(error_message or "Esa salida está bloqueada.")
                 return
 
-            # 4. Mover al personaje a la nueva sala.
+            # 4. Guardar la sala de origen para notificar la salida.
+            old_room_id = character.room_id
+
+            # 5. Notificar a la sala de origen que el personaje se fue.
+            await broadcaster_service.send_message_to_room(
+                session=session,
+                room_id=old_room_id,
+                message_text=f"<i>{character.name} se ha ido hacia el {direction}.</i>",
+                exclude_character_id=character.id
+            )
+
+            # 6. Mover al personaje a la nueva sala.
             await player_service.teleport_character(session, character.id, target_exit.to_room_id)
 
-            # 5. Actualizar la lista de comandos del jugador en Telegram.
+            # 7. Notificar a la sala de destino que el personaje llegó.
+            #    Usamos la dirección opuesta para el mensaje de llegada.
+            opposite_direction = OPPOSITE_DIRECTIONS.get(direction, "alguna parte")
+            await broadcaster_service.send_message_to_room(
+                session=session,
+                room_id=target_exit.to_room_id,
+                message_text=f"<i>{character.name} ha llegado desde el {opposite_direction}.</i>",
+                exclude_character_id=character.id
+            )
+
+            # 8. Actualizar la lista de comandos del jugador en Telegram.
             refreshed_character = await player_service.get_character_with_relations_by_id(session, character.id)
             if refreshed_character:
                 await command_service.update_telegram_commands(refreshed_character)
 
-            # 6. Mostrar al jugador la descripción de su nueva ubicación.
+            # 9. Mostrar al jugador la descripción de su nueva ubicación.
             await show_current_room(message)
 
         except Exception:

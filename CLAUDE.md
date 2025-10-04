@@ -1539,4 +1539,8 @@ Después de CUALQUIER cambio:
 - v1.1 (2025-10-02): Agregada política obligatoria de documentación actualizada
 **Mantenedor**: Proyecto Runegram
 - Si hay que reiniciar servicios utilizar "scripts/full_reset.bat" que hace un reinicio general de todos los contenedores.
-- Si se crean comandos nuevos para runegram, el mud que estamos desarrollando, siempre verificar si es necesario en el contexto del juego anoticiar a los demas jugadores de la sala, como por ejemplo el comando /coger <item> que avisa al resto de la sala que el usuario cogio un item del suelo.
+- **Notificaciones Sociales en Comandos**: Al crear comandos nuevos para Runegram, **SIEMPRE** verificar si es necesario notificar a otros jugadores en la sala usando `broadcaster_service.send_message_to_room()`. Ejemplos:
+  - **Movimiento** (`/norte`, `/sur`, etc.): Notifica a la sala de origen que el jugador se fue y a la sala de destino que llegó
+  - **Objetos** (`/coger`, `/dejar`): Notifica a la sala que el jugador cogió/dejó un item
+  - **Contenedores** (`/meter`, `/sacar`): Notifica la interacción con contenedores
+  - **Regla**: Si una acción es visible, debe notificarse a los jugadores presentes (online)

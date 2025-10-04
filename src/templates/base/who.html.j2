@@ -19,12 +19,12 @@ Eres la única alma aventurera en este mundo ahora mismo.
 {%- endfor %}
 {%- if filtered_chars|length > max_characters %}
 {%- for char in filtered_chars[:max_characters] %}
-- {{ char.name }}{% if char.room %} ({{ icon('room') }} {{ char.room.name }}){% endif %}
+    - {{ char.name }}{% if char.room %} ({{ icon('room') }} {{ char.room.name }}){% endif %}
 {%- endfor %}
 ... y {{ filtered_chars|length - max_characters }} {{ (filtered_chars|length - max_characters)|pluralize('jugador', 'jugadores') }} más conectados.
 {%- else %}
 {%- for char in filtered_chars %}
-- {{ char.name }}{% if char.room %} ({{ icon('room') }} {{ char.room.name }}){% endif %}
+    - {{ char.name }}{% if char.room %} ({{ icon('room') }} {{ char.room.name }}){% endif %}
 {%- endfor %}
 {%- endif %}
 {%- endif %}</pre>

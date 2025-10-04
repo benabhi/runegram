@@ -437,9 +437,35 @@ Para mantener consistencia, todos los templates deben seguir estos principios:
 
 ### 4. Listas
 
-- Usar guiones (`-`) para listas
+**Regla de Indentación (Filosofía de Diseño):**
+- **TODOS** los ítems en listas **DEBEN** estar indentados con **4 espacios** + guion
+- Esta es una regla universal que aplica a todos los templates
+- Los 4 espacios simulan un tab y mejoran la legibilidad en Telegram
+
+**Formato estándar de listas:**
+```
+[ÍCONO] [TÍTULO]:
+    - Item 1
+    - Item 2
+    - Item 3
+```
+
+**Ejemplo real:**
+```
+👁️ Cosas a la vista:
+    - 🎒 una mochila de cuero
+    - ⚔️ una espada viviente
+
+🚪 Salidas:
+    - ⬆️ Norte (Plaza Central)
+    - ⬇️ Sur (El Limbo)
+```
+
+**Reglas adicionales:**
+- Usar guiones (`-`) obligatoriamente para cada ítem
 - Máximo 3 líneas de descripción antes de listas
 - Números en formato `X/Y` (ej: `32/40` vida)
+- La indentación de 4 espacios es consistente en TODOS los templates
 
 ## Sintaxis Jinja2 Útil
 

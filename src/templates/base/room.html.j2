@@ -6,8 +6,7 @@ Variables esperadas:
 - character: Objeto Character que está mirando (opcional)
 - display: Dict con configuración de display del prototipo (opcional)
 #}
-<pre>{{ icon('room') }} <b>{{ room.name }}</b>
-─────────────────────────────
+<pre>{{ icon('room') }} <b>{{ room.name|upper }}</b>
 {{ room.description|trim }}
 {%- if room.items %}
 
@@ -15,13 +14,13 @@ Variables esperadas:
 {%- if room.items|length > max_items %}
 {%- for item in room.items[:max_items] %}
 {%- set item_icon = item.prototype.get('display', {}).get('icon', icon('item')) %}
-- {{ item_icon }} {{ item.get_name() }}{% if item.prototype.get('is_container') and item.contained_items %} ({{ item.contained_items|length }} {{ item.contained_items|length|pluralize('item', 'items') }}){% endif %}
+    - {{ item_icon }} {{ item.get_name() }}{% if item.prototype.get('is_container') and item.contained_items %} ({{ item.contained_items|length }} {{ item.contained_items|length|pluralize('item', 'items') }}){% endif %}
 {%- endfor %}
 ... y {{ room.items|length - max_items }} {{ (room.items|length - max_items)|pluralize('item', 'items') }} más.
 {%- else %}
 {%- for item in room.items %}
 {%- set item_icon = item.prototype.get('display', {}).get('icon', icon('item')) %}
-- {{ item_icon }} {{ item.get_name() }}{% if item.prototype.get('is_container') and item.contained_items %} ({{ item.contained_items|length }} {{ item.contained_items|length|pluralize('item', 'items') }}){% endif %}
+    - {{ item_icon }} {{ item.get_name() }}{% if item.prototype.get('is_container') and item.contained_items %} ({{ item.contained_items|length }} {{ item.contained_items|length|pluralize('item', 'items') }}){% endif %}
 {%- endfor %}
 {%- endif %}
 
@@ -33,12 +32,12 @@ Variables esperadas:
 {{ icon('character') }} <b>Personajes:</b>
 {%- if other_characters|length > max_characters %}
 {%- for char in other_characters[:max_characters] %}
-- {{ char.name }}
+    - {{ char.name }}
 {%- endfor %}
 ... y {{ other_characters|length - max_characters }} {{ (other_characters|length - max_characters)|pluralize('personaje', 'personajes') }} más.
 {%- else %}
 {%- for char in other_characters %}
-- {{ char.name }}
+    - {{ char.name }}
 {%- endfor %}
 {%- endif %}
 
@@ -48,7 +47,7 @@ Variables esperadas:
 
 {{ icon('exit') }} <b>Salidas:</b>
 {%- for exit in room.exits_from|sort(attribute='name') %}
-{{ get_direction_icon(exit.name) }} {{ exit.name|capitalize }}{% if exit.to_room %} ({{ exit.to_room.name }}){% endif %}{% if exit.lock_string %} <i>[cerrada]</i>{% endif %}
+    - {{ get_direction_icon(exit.name) }} {{ exit.name|capitalize }}{% if exit.to_room %} ({{ exit.to_room.name }}){% endif %}{% if exit.lock_string %} <i>[cerrada]</i>{% endif %}
 {%- endfor %}
 {%- else %}
 

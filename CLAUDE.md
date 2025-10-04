@@ -895,13 +895,20 @@ ITEM_PROTOTYPES = {
 
 **Estructura Visual Consistente**:
 ```
-[ÍCONO] [TÍTULO EN NEGRITA]
+[ÍCONO] [TÍTULO EN NEGRITA EN MAYÚSCULAS]
 [Descripción de 1-3 líneas]
 
 [ÍCONO] [SECCIÓN]:
-- Item 1
-- Item 2
+    - Item 1
+    - Item 2
 ```
+
+**Regla de Indentación (CRÍTICA - Filosofía de Diseño)**:
+- **TODOS** los ítems en listas **DEBEN** estar indentados con **4 espacios** + guion
+- Esta es una regla universal que aplica a todos los templates
+- Los 4 espacios simulan un tab y mejoran la legibilidad en Telegram
+- NO usar tabs literales (se renderizan como 1 espacio)
+- Ejemplo correcto: `    - ⬆️ Norte` (4 espacios + guion + espacio)
 
 **Reglas de Íconos**:
 - Siempre usar íconos al inicio de cada sección
@@ -1547,9 +1554,10 @@ Después de CUALQUIER cambio:
 
 ---
 
-**Versión**: 1.5
+**Versión**: 1.6
 **Última actualización**: 2025-10-04
 **Changelog**:
+- v1.6 (2025-10-04): Filosofía de diseño de indentación: 4 espacios + guion para listas, títulos en mayúsculas
 - v1.5 (2025-10-04): Mejorado mensaje de desconexión automática para incluir instrucción de reconexión
 - v1.4 (2025-10-04): Agregado comando /suicidio y documentación completa de comandos (COMMAND_REFERENCE.md)
 - v1.3 (2025-10-03): Implementado sistema de pulse global, reemplazando ticker_service

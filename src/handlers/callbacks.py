@@ -175,7 +175,8 @@ async def handle_movement(
 
     # Mostrar nueva sala al jugador (con botones)
     # IMPORTANTE: Pasamos session Y character para evitar usar telegram_id incorrecto del mensaje
-    await show_current_room(callback.message, edit=True, session=session, character=refreshed_character)
+    # edit=False para enviar mensaje nuevo y mantener historial de movimientos
+    await show_current_room(callback.message, edit=False, session=session, character=refreshed_character)
     await callback.answer()
 
 

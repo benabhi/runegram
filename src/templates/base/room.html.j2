@@ -29,15 +29,15 @@ Variables esperadas:
 {%- set other_characters = active_characters|reject('equalto', character)|list %}
 {%- if other_characters %}
 
-{{ icon('character') }} <b>Personajes:</b>
+{{ icon('friend') }} <b>Personajes:</b>
 {%- if other_characters|length > max_characters %}
 {%- for char in other_characters[:max_characters] %}
-    - {{ char.name }}
+    - {{ icon('character') }} {{ char.name }}
 {%- endfor %}
 ... y {{ other_characters|length - max_characters }} {{ (other_characters|length - max_characters)|pluralize('personaje', 'personajes') }} más.
 {%- else %}
 {%- for char in other_characters %}
-    - {{ char.name }}
+    - {{ icon('character') }} {{ char.name }}
 {%- endfor %}
 {%- endif %}
 

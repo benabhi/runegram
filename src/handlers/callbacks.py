@@ -123,9 +123,9 @@ async def handle_movement(
         return
 
     # Verificar permisos de la salida (si tiene lock)
-    if exit_found.lock_string:
+    if exit_found.locks:
         from src.services import permission_service
-        can_use, error_msg = await permission_service.can_execute(character, exit_found.lock_string)
+        can_use, error_msg = await permission_service.can_execute(character, exit_found.locks)
         if not can_use:
             await callback.answer(error_msg or "No puedes usar esa salida.", show_alert=True)
             return

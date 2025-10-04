@@ -38,9 +38,6 @@ from src.models import Item, Character
 # CONFIGURACIÓN GLOBAL
 # ==============================================================================
 
-# Intervalo del pulse en segundos (configurable)
-PULSE_INTERVAL_SECONDS = 2
-
 # Contador global de ticks (persiste en memoria durante la ejecución del bot)
 _global_tick_counter = 0
 
@@ -65,13 +62,13 @@ def initialize_pulse_system():
     scheduler.add_job(
         _execute_global_pulse,
         trigger='interval',
-        seconds=PULSE_INTERVAL_SECONDS,
+        seconds=settings.pulse_interval_seconds,
         id='global_pulse',
         replace_existing=True
     )
 
     scheduler.start()
-    logging.info(f"⏰ Pulse System iniciado. Tick cada {PULSE_INTERVAL_SECONDS}s.")
+    logging.info(f"⏰ Pulse System iniciado. Tick cada {settings.pulse_interval_seconds}s.")
 
 
 def shutdown_pulse_system():

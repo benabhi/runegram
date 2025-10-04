@@ -20,6 +20,7 @@ from src.utils.presenters import show_current_room, format_item_look, format_inv
 from src.services import script_service, online_service, permission_service, broadcaster_service
 from src.utils.pagination import paginate_list, format_pagination_footer
 from src.templates import ICONS
+from src.config import settings
 
 # Re-importamos `find_item_in_list` aquí ya que CmdInventory lo necesita.
 from .interaction import find_item_in_list
@@ -163,7 +164,7 @@ class CmdInventory(Command):
                     return
 
                 # Paginar items
-                pagination = paginate_list(items, page=page, per_page=30)
+                pagination = paginate_list(items, page=page, per_page=settings.pagination_items_per_page)
 
                 # Construir output
                 lines = [
@@ -286,7 +287,7 @@ class CmdWho(Command):
                 filtered_chars.sort(key=lambda c: c.name)
 
                 # Paginar personajes
-                pagination = paginate_list(filtered_chars, page=page, per_page=30)
+                pagination = paginate_list(filtered_chars, page=page, per_page=settings.pagination_items_per_page)
 
                 # Construir output
                 lines = [
@@ -342,7 +343,6 @@ class CmdDisconnect(Command):
     async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
         try:
             from src.services.online_service import redis_client, _get_last_seen_key, _get_offline_notified_key
-            from datetime import timedelta
 
             # Eliminar last_seen para marcar como offline
             await redis_client.delete(_get_last_seen_key(character.id))
@@ -351,7 +351,7 @@ class CmdDisconnect(Command):
             await redis_client.set(
                 _get_offline_notified_key(character.id),
                 "1",
-                ex=timedelta(days=1)
+                ex=settings.offline_notified_ttl
             )
 
             await message.answer(

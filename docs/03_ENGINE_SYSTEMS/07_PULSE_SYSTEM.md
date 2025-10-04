@@ -164,7 +164,9 @@ Los tick_scripts pueden tener diferentes categorías que afectan su comportamien
 
 ### Calcular interval_ticks
 
-Con la configuración por defecto (`PULSE_INTERVAL_SECONDS = 2`):
+El intervalo del pulse se configura en `gameconfig.toml` bajo `[pulse] interval_seconds` (por defecto: 2 segundos).
+
+Con la configuración por defecto (`interval_seconds = 2`):
 
 | Tiempo Deseado | Cálculo | interval_ticks |
 |----------------|---------|----------------|
@@ -174,7 +176,9 @@ Con la configuración por defecto (`PULSE_INTERVAL_SECONDS = 2`):
 | 5 minutos | 300 / 2 | 150 |
 | 1 hora | 3600 / 2 | 1800 |
 
-**Fórmula**: `interval_ticks = segundos_deseados / PULSE_INTERVAL_SECONDS`
+**Fórmula**: `interval_ticks = segundos_deseados / interval_seconds`
+
+**⚠️ IMPORTANTE:** Si modificas `interval_seconds` en `gameconfig.toml`, debes recalcular todos los `interval_ticks` en los prototipos para mantener el mismo timing.
 
 ## Uso para Desarrolladores del Motor
 
@@ -213,17 +217,25 @@ logging.info(f"Tick actual: {current_tick}")
 
 ### Configurar el Intervalo del Pulse
 
-En `src/services/pulse_service.py`:
+En `gameconfig.toml`:
 
-```python
-# Cambiar esta constante
-PULSE_INTERVAL_SECONDS = 2  # Por defecto: 2 segundos
+```toml
+[pulse]
+interval_seconds = 2  # Por defecto: 2 segundos
+```
+
+Después de modificar, reiniciar el bot para aplicar cambios:
+```bash
+docker-compose restart bot
 ```
 
 **Consideraciones al cambiar el intervalo:**
 - ⚠️ Intervalos más cortos (1s) = más carga en BD y CPU
 - ⚠️ Intervalos más largos (5s) = menos precisión temporal
+- ⚠️ Cambiar este valor afecta todos los `interval_ticks` en prototipos
 - ✅ 2 segundos es un buen balance entre precisión y performance
+
+**Ver:** `docs/10_CONFIGURATION.md` para más detalles sobre configuración.
 
 ## Casos de Uso Futuros
 

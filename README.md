@@ -41,6 +41,41 @@ Además, el motor del juego genera dinámicamente comandos de comunicación a pa
 
 ---
 
+## Configuración
+
+Runegram utiliza un **sistema de configuración híbrido** que separa:
+
+- **`.env`** - Credenciales sensibles (tokens, passwords) - **NO subir a Git**
+- **`gameconfig.toml`** - Configuración del juego (tiempos, límites, comportamiento) - **SÍ en Git**
+
+### Archivos de Configuración
+
+#### `.env` (Credenciales)
+Contiene tokens y passwords que nunca deben subirse a Git:
+```bash
+BOT_TOKEN=tu_token_de_telegram
+SUPERADMIN_TELEGRAM_ID=tu_telegram_id
+POSTGRES_PASSWORD=runegram
+# ... más credenciales
+```
+
+#### `gameconfig.toml` (Configuración del Juego)
+Contiene configuración modificable del comportamiento del juego:
+```toml
+[online]
+threshold_minutes = 5  # Tiempo de inactividad antes de marcar offline
+
+[pulse]
+interval_seconds = 2  # Intervalo del pulse global
+
+[pagination]
+items_per_page = 30  # Items por página en listados
+```
+
+**Ver:** [Documentación Completa de Configuración](./docs/10_CONFIGURATION.md)
+
+---
+
 ## Documentación Detallada
 
 Toda la documentación exhaustiva sobre la arquitectura, los sistemas del motor, las guías para crear contenido y la visión a futuro del proyecto se encuentra en la carpeta `docs/`.

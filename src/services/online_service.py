@@ -18,7 +18,6 @@ Responsabilidades:
 import time
 import logging
 import redis.asyncio as redis
-from datetime import timedelta
 
 from src.config import settings
 from src.models import Character
@@ -28,9 +27,6 @@ from src.db import async_session_factory
 
 
 # --- Configuración del Servicio ---
-
-# Si un jugador no ha enviado un comando en este tiempo, se considera "offline".
-ONLINE_THRESHOLD = timedelta(minutes=5)
 
 # Cliente de Redis dedicado para este servicio.
 redis_client = redis.Redis(
@@ -70,7 +66,7 @@ async def update_last_seen(session: AsyncSession, character: Character):
     # 1. Actualizar el timestamp de "última vez visto" en Redis.
     key = _get_last_seen_key(char_id)
     await redis_client.set(key, time.time())
-    await redis_client.expire(key, timedelta(days=7))
+    await redis_client.expire(key, settings.last_seen_ttl)
 
     # 2. Comprobar si el personaje estaba marcado como desconectado.
     offline_notified_key = _get_offline_notified_key(char_id)
@@ -97,7 +93,7 @@ async def is_character_online(character_id: int) -> bool:
 
     try:
         elapsed_time = time.time() - float(last_seen_timestamp_str)
-        return elapsed_time < ONLINE_THRESHOLD.total_seconds()
+        return elapsed_time < settings.online_threshold.total_seconds()
     except (ValueError, TypeError):
         return False
 
@@ -150,7 +146,7 @@ async def check_for_newly_offline_players():
                             "<i>Te has desconectado del juego por inactividad.</i>"
                         )
                         # Marcamos que ya fue notificado para no spamear.
-                        await redis_client.set(offline_notified_key, "1", ex=timedelta(days=1))
+                        await redis_client.set(offline_notified_key, "1", ex=settings.offline_notified_ttl)
         except Exception:
             logging.exception("[OFFLINE CHECK] Ocurrió un error durante el chequeo de desconexiones.")
 

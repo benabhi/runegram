@@ -16,6 +16,7 @@ from src.models import Character
 from src.utils.pagination import paginate_list, format_pagination_footer
 from src.templates import ICONS
 from src.services import online_service
+from src.config import settings
 
 
 class CmdItems(Command):
@@ -43,7 +44,7 @@ class CmdItems(Command):
                 return
 
             # Paginar items
-            pagination = paginate_list(items, page=page, per_page=30)
+            pagination = paginate_list(items, page=page, per_page=settings.pagination_items_per_page)
 
             # Construir output
             lines = [
@@ -106,7 +107,7 @@ class CmdPersonajes(Command):
             active_characters.sort(key=lambda c: c.name)
 
             # Paginar personajes
-            pagination = paginate_list(active_characters, page=page, per_page=30)
+            pagination = paginate_list(active_characters, page=page, per_page=settings.pagination_items_per_page)
 
             # Construir output
             lines = [

@@ -107,6 +107,7 @@ Prefiere múltiples comandos dedicados a un solo comando con subcomandos:
 - **APScheduler**: Sistema de pulse global y tareas programadas
 - **Pydantic**: Validación de configuración
 - **Jinja2**: Motor de templates para outputs consistentes
+- **TOML**: Formato de configuración del juego (legible y versionable)
 
 ### Arquitectura de Servicios
 El proyecto sigue una arquitectura de servicios para mantener la lógica de negocio separada de los handlers:
@@ -422,18 +423,27 @@ async def handle_player_action(session, message, args):
     # 200 líneas de código mezclando validación, lógica de negocio y presentación
 ```
 
-#### Evita Números Mágicos
+#### Evita Números Mágicos - Usa Configuración Centralizada
 ```python
-# ❌ Malo
+# ❌ Malo - Número mágico hardcodeado
 if player.afk_time > 300:
     mark_as_afk(player)
 
-# ✅ Bueno
+# ⚠️ Aceptable - Constante con nombre
 AFK_THRESHOLD_SECONDS = 300  # 5 minutos
-
 if player.afk_time > AFK_THRESHOLD_SECONDS:
     mark_as_afk(player)
+
+# ✅ MEJOR - Configuración centralizada en gameconfig.toml
+from src.config import settings
+
+if player.afk_time > settings.online_threshold.total_seconds():
+    mark_as_offline(player)
 ```
+
+**Principio:** Si un valor podría necesitar ajustes de balanceo, debugging o personalización, debe estar en `gameconfig.toml`, NO hardcodeado.
+
+**Ver:** `docs/10_CONFIGURATION.md` para guía completa de configuración.
 
 #### DRY (Don't Repeat Yourself)
 ```python

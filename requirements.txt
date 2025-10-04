@@ -9,6 +9,7 @@ APScheduler==3.10.1
 python-dateutil
 psycopg2-binary==2.9.9
 Jinja2==3.1.2
+toml==0.10.2
 
 # Testing dependencies
 pytest==7.4.3

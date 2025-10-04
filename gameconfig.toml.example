@@ -1,0 +1,54 @@
+# ============================================================================
+#                    RUNEGRAM - Configuración del Juego
+# ============================================================================
+#
+# Este archivo contiene todas las configuraciones de comportamiento del juego
+# que NO son credenciales sensibles. Puede estar en Git y ser modificado por
+# administradores sin editar código Python.
+#
+# IMPORTANTE: Para credenciales sensibles (tokens, passwords), usar .env
+
+# --- Sistema de Presencia (Online/Offline) ---
+[online]
+# Tiempo de inactividad (en minutos) antes de marcar jugador como offline
+threshold_minutes = 5
+
+# TTL en Redis para el timestamp last_seen (en días)
+last_seen_ttl_days = 7
+
+# TTL en Redis para el flag offline_notified (en días)
+offline_notified_ttl_days = 1
+
+# --- Sistema de Pulse Global ---
+[pulse]
+# Intervalo del pulse en segundos (cada cuántos segundos ejecuta un tick)
+# IMPORTANTE: Cambiar este valor afecta la conversión de ticks a tiempo real
+# en todos los scripts que usan interval_ticks
+interval_seconds = 2
+
+# --- Paginación ---
+[pagination]
+# Items por página en listados completos (/items, /inv todo, /quien todo)
+items_per_page = 30
+
+# --- Límites de Visualización ---
+[display_limits]
+# Máximo de items mostrados en /mirar (sala) antes de truncar
+max_room_items = 10
+
+# Máximo de personajes mostrados en /mirar (sala)
+max_room_characters = 10
+
+# Máximo de items mostrados en /inventario (sin paginación)
+max_inventory = 15
+
+# Máximo de items mostrados al mirar un contenedor
+max_container = 15
+
+# Máximo de jugadores mostrados en /quien (sin paginación)
+max_who = 20
+
+# --- Gameplay General ---
+[gameplay]
+# Habilitar modo debug (logs extra, comandos de testing)
+debug_mode = false

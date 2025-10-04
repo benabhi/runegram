@@ -14,7 +14,7 @@ Toda esta lógica está encapsulada en `src/services/online_service.py`.
     1.  `last_seen:<character_id>`: Un timestamp de Unix que registra la última vez que el personaje envió un comando.
     2.  `offline_notified:<character_id>`: Un "flag" o marcador que indica si ya se le ha notificado al jugador que se ha desconectado por inactividad.
 
-*   **Umbral de Actividad (`ONLINE_THRESHOLD`):** Una constante (actualmente 5 minutos) que define el tiempo máximo de inactividad antes de que un jugador se considere desconectado (offline).
+*   **Umbral de Actividad:** El tiempo máximo de inactividad antes de que un jugador se considere desconectado (offline). Este valor se configura en `gameconfig.toml` bajo `[online] threshold_minutes` (por defecto: 5 minutos).
 
 ### Flujo de Funcionamiento
 

@@ -1402,7 +1402,13 @@ if not is_active:
 
 #### Desconexión Manual
 
-Los jugadores pueden desconectarse manualmente usando `/desconectar` (también `/salir` o `/logout`), lo que elimina inmediatamente sus claves de Redis y los marca como offline.
+Los jugadores pueden desconectarse manualmente usando `/desconectar` (también `/salir` o `/logout`).
+
+**Comportamiento del comando:**
+- Elimina `last_seen` → el jugador se marca como offline inmediatamente
+- Establece `offline_notified` → cuando vuelva, recibirá notificación de reconexión
+- Mensaje de confirmación: "Te has desconectado del juego. Vuelve cuando quieras..."
+- Al volver: El jugador recibe "Te has reconectado al juego."
 
 #### Consideraciones Futuras
 

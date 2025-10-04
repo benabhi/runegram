@@ -342,10 +342,17 @@ class CmdDisconnect(Command):
     async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
         try:
             from src.services.online_service import redis_client, _get_last_seen_key, _get_offline_notified_key
+            from datetime import timedelta
 
-            # Eliminar las claves Redis del jugador
+            # Eliminar last_seen para marcar como offline
             await redis_client.delete(_get_last_seen_key(character.id))
-            await redis_client.delete(_get_offline_notified_key(character.id))
+
+            # Establecer offline_notified para que se notifique la reconexión
+            await redis_client.set(
+                _get_offline_notified_key(character.id),
+                "1",
+                ex=timedelta(days=1)
+            )
 
             await message.answer(
                 "Te has desconectado del juego.\n\n"

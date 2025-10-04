@@ -35,7 +35,13 @@ Este sistema dual asegura notificaciones de estado online/offline precisas y sin
 
 ### Desconexión Manual
 
-Los jugadores pueden desconectarse manualmente del juego en cualquier momento usando el comando `/desconectar` (también disponible como `/salir` o `/logout`). Este comando elimina inmediatamente las claves de Redis del jugador, haciendo que el sistema lo considere desconectado hasta que envíe un nuevo comando.
+Los jugadores pueden desconectarse manualmente del juego en cualquier momento usando el comando `/desconectar` (también disponible como `/salir` o `/logout`).
+
+**Comportamiento:**
+1. Elimina la clave `last_seen` del jugador en Redis
+2. Establece la clave `offline_notified` para marcar la desconexión
+3. El sistema considera al jugador como desconectado inmediatamente
+4. Cuando el jugador vuelva con cualquier comando, recibirá el mensaje: "Te has reconectado al juego."
 
 ### Política de Jugadores Desconectados en el Juego
 

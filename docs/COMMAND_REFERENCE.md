@@ -214,7 +214,7 @@ Todos los comandos de movimiento siguen el mismo patrón: se mueven en la direcc
 
 ### Canales Dinámicos (Enviar Mensajes)
 
-Los siguientes comandos se generan automáticamente según los canales definidos:
+Los siguientes comandos se generan **automáticamente** según los canales definidos en `game_data/channel_prototypes.py`:
 
 #### `/novato <mensaje>`
 - **Descripción:** Envía un mensaje por el canal Novato (📢).
@@ -229,6 +229,8 @@ Los siguientes comandos se generan automáticamente según los canales definidos
   - Solo usuarios con rol ADMIN o superior.
   - Debes tener el canal activado.
 - **Notas:** Canal para anuncios del juego y notificaciones automáticas.
+
+**Nota:** Cada canal de tipo `CHAT` en los prototipos genera automáticamente un comando con su nombre. Para agregar nuevos canales, edita `game_data/channel_prototypes.py`.
 
 ---
 
@@ -391,6 +393,10 @@ Todos los comandos de administrador requieren el rol **ADMIN** o superior, a men
 
 ---
 
-**Versión:** 1.0
+**Versión:** 1.1
 **Última actualización:** 2025-10-04
+**Changelog:**
+- v1.1 (2025-10-04): Agregada nota sobre generación automática de comandos de canales dinámicos
+- v1.0 (2025-10-04): Primera versión completa de la referencia
+
 **Nota:** Esta referencia se actualiza constantemente. Consulta el código fuente en `commands/` para la implementación más reciente.

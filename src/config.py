@@ -65,11 +65,11 @@ class Settings(BaseSettings):
     pagination_items_per_page: int = 30
 
     # Límites de Visualización
-    max_room_items_display: int = 10
-    max_room_characters_display: int = 10
-    max_inventory_display: int = 15
-    max_container_display: int = 15
-    max_who_display: int = 20
+    display_limits_max_room_items: int = 10
+    display_limits_max_room_characters: int = 10
+    display_limits_max_inventory: int = 15
+    display_limits_max_container: int = 15
+    display_limits_max_who: int = 20
 
     # Gameplay General
     gameplay_debug_mode: bool = False

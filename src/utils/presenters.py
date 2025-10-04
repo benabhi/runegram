@@ -47,8 +47,8 @@ async def format_room(
                      (`items`, `exits_from`, `characters`) ya cargadas.
         viewing_character (Character, optional): El personaje que está mirando,
                                                   para excluirlo de la lista de personajes.
-        max_items (int, optional): Máximo de items a mostrar. Default: settings.max_room_items_display
-        max_characters (int, optional): Máximo de personajes a mostrar. Default: settings.max_room_characters_display
+        max_items (int, optional): Máximo de items a mostrar. Default: settings.display_limits_max_room_items
+        max_characters (int, optional): Máximo de personajes a mostrar. Default: settings.display_limits_max_room_characters
 
     Returns:
         str: Un string formateado con HTML listo para ser enviado.
@@ -59,9 +59,9 @@ async def format_room(
 
         # Usar valores por defecto de config si no se especifican
         if max_items is None:
-            max_items = settings.max_room_items_display
+            max_items = settings.display_limits_max_room_items
         if max_characters is None:
-            max_characters = settings.max_room_characters_display
+            max_characters = settings.display_limits_max_room_characters
 
         # Filtrar personajes desconectados (solo mostrar jugadores online)
         active_characters = []
@@ -109,7 +109,7 @@ def format_inventory(
         items: Lista de objetos Item
         owner_name: Nombre del dueño del inventario (opcional)
         is_container: Si True, adapta el mensaje para contenedores
-        max_items: Máximo de items a mostrar. Default: settings.max_inventory_display o max_container_display
+        max_items: Máximo de items a mostrar. Default: settings.display_limits_max_inventory o display_limits_max_container
 
     Returns:
         str: HTML formateado del inventario
@@ -117,7 +117,7 @@ def format_inventory(
     try:
         # Usar valores por defecto de config si no se especifican
         if max_items is None:
-            max_items = settings.max_container_display if is_container else settings.max_inventory_display
+            max_items = settings.display_limits_max_container if is_container else settings.display_limits_max_inventory
 
         context = {
             'items': items,
@@ -164,7 +164,7 @@ def format_item_look(item: Item, can_interact: bool = True, max_contained: int =
     Args:
         item: Objeto Item a describir
         can_interact: Si True, muestra sugerencias de interacción
-        max_contained: Máximo de items contenidos a mostrar. Default: settings.max_container_display
+        max_contained: Máximo de items contenidos a mostrar. Default: settings.display_limits_max_container
 
     Returns:
         str: HTML formateado con descripción del item
@@ -172,7 +172,7 @@ def format_item_look(item: Item, can_interact: bool = True, max_contained: int =
     try:
         # Usar valores por defecto de config si no se especifican
         if max_contained is None:
-            max_contained = settings.max_container_display
+            max_contained = settings.display_limits_max_container
 
         context = {
             'item': item,
@@ -206,7 +206,7 @@ def format_who_list(
     Args:
         characters: Lista de personajes conectados
         viewer_character: El personaje que está viendo la lista
-        max_characters: Máximo de personajes a mostrar. Default: settings.max_who_display
+        max_characters: Máximo de personajes a mostrar. Default: settings.display_limits_max_who
 
     Returns:
         str: HTML formateado con lista de jugadores
@@ -214,7 +214,7 @@ def format_who_list(
     try:
         # Usar valores por defecto de config si no se especifican
         if max_characters is None:
-            max_characters = settings.max_who_display
+            max_characters = settings.display_limits_max_who
 
         context = {
             'characters': characters,

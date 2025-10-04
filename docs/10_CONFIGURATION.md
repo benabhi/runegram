@@ -219,8 +219,8 @@ Límites de visualización para prevenir spam y overflow en pantallas móviles.
 from src.config import settings
 
 # En presenters o comandos
-if len(items) > settings.max_room_items_display:
-    truncated = items[:settings.max_room_items_display]
+if len(items) > settings.display_limits_max_room_items:
+    truncated = items[:settings.display_limits_max_room_items]
     # Mostrar truncated + mensaje "y X más..."
 ```
 

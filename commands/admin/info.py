@@ -22,28 +22,57 @@ class CmdListarSalas(Command):
     """
     Comando que muestra una lista de todas las salas existentes en el mundo,
     incluyendo su ID, su clave de prototipo y su nombre.
+    Soporta filtrado por categoría y tags.
     """
     names = ["listarsalas", "lsalas"]
     lock = "rol(ADMIN)"
-    description = "Muestra ID, Clave y Nombre de todas las salas del mundo."
+    description = "Lista salas. Uso: /listarsalas [category:X] [tag:Y]"
 
     async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
         """Ejecuta la consulta y formatea la lista de salas."""
         try:
-            # 1. Realizar la consulta a la base de datos para obtener todas las salas.
-            # Se ordenan por ID para una visualización consistente.
-            result = await session.execute(select(Room).order_by(Room.id))
-            all_rooms = result.scalars().all()
+            from src.services import tag_service
+
+            all_rooms = []
+
+            if not args:
+                # Sin filtros, listar todas las salas
+                result = await session.execute(select(Room).order_by(Room.id))
+                all_rooms = result.scalars().all()
+            else:
+                # Parsear filtros
+                category_filter = None
+                tag_filters = []
+
+                for arg in args:
+                    if arg.startswith("category:"):
+                        category_filter = arg.split(":", 1)[1]
+                    elif arg.startswith("tag:"):
+                        tag_filters.append(arg.split(":", 1)[1])
+
+                # Ejecutar búsqueda
+                if category_filter:
+                    all_rooms = await tag_service.find_rooms_by_category(session, category_filter)
+                elif tag_filters:
+                    all_rooms = await tag_service.find_rooms_by_tags_all(session, tag_filters)
+                else:
+                    result = await session.execute(select(Room).order_by(Room.id))
+                    all_rooms = result.scalars().all()
 
             if not all_rooms:
-                await message.answer("No se encontraron salas en la base de datos.")
+                await message.answer("No se encontraron salas con esos criterios.")
                 return
 
             # 2. Construir el mensaje de respuesta línea por línea.
             response_lines = ["<b>Lista de Salas del Mundo:</b>"]
-            for room in all_rooms:
-                # El formato con `<` alinea el texto a la izquierda, rellenando con espacios.
-                response_lines.append(f"ID: {room.id:<4} | Key: {room.key:<20} | Nombre: {room.name}")
+            for room in all_rooms[:30]:  # Límite de 30 salas
+                # Agregar category y tags si existen
+                category_str = f" [cat: {room.category}]" if room.category else ""
+                tags_str = f" [tags: {', '.join(room.tags)}]" if room.tags else ""
+                response_lines.append(f"ID: {room.id:<4} | Key: {room.key:<20} | {room.name}{category_str}{tags_str}")
+
+            if len(all_rooms) > 30:
+                response_lines.append(f"\n... y {len(all_rooms) - 30} salas más.")
 
             body = "\n".join(response_lines)
 

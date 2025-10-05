@@ -137,39 +137,49 @@ item_tags = tag_service.get_all_tags_from_items()
 
 ## 💻 Comandos de Admin
 
-### /listar_rooms
+### /listarsalas (extendido)
+
+El comando existente `/listarsalas` ahora soporta filtrado por categoría y tags:
 
 ```bash
-# Todas las salas
-/listar_rooms
+# Todas las salas (uso original)
+/listarsalas
 
-# Por categoría
-/listar_rooms category:ciudad_runegard
+# Filtrar por categoría
+/listarsalas category:ciudad_runegard
 
-# Por tag
-/listar_rooms tag:exterior
+# Filtrar por tag
+/listarsalas tag:exterior
 ```
 
-### /listar_items
+Alias: `/lsalas`
+
+### /listaritems
 
 ```bash
 # Todos los items
-/listar_items
+/listaritems
 
-# Por categoría
-/listar_items category:arma
+# Filtrar por categoría
+/listaritems category:arma
 
-# Por tag
-/listar_items tag:magica
+# Filtrar por tag
+/listaritems tag:magica
 ```
+
+Alias: `/litems`
 
 ### /categorias
 
-Muestra todas las categorías disponibles de rooms e items.
+Muestra todas las categorías disponibles de salas e items.
+
+Alias: `/cats`
 
 ### /tags
 
-Muestra todos los tags disponibles de rooms e items.
+Muestra todos los tags disponibles de salas e items.
+
+Alias: `/etiquetas`
 
 ## 💡 Mejores Prácticas
 

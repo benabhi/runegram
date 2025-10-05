@@ -747,8 +747,8 @@ items = await tag_service.find_items_by_tags_all(session, ["espada", "magica"])
 
 #### Comandos de Admin
 
-- `/listar_rooms [category:X] [tag:Y]` - Lista salas filtradas
-- `/listar_items [category:X] [tag:Y]` - Lista items filtrados
+- `/listarsalas [category:X] [tag:Y]` - Lista salas filtradas (comando existente extendido)
+- `/listaritems [category:X] [tag:Y]` - Lista items filtrados
 - `/categorias` - Muestra todas las categorías disponibles
 - `/tags` - Muestra todos los tags disponibles
 

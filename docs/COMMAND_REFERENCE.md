@@ -418,11 +418,15 @@ Todos los comandos de administrador requieren el rol **ADMIN** o superior, a men
 
 ## Información y Diagnóstico
 
-### `/listarsalas`
+### `/listarsalas [category:X] [tag:Y]`
 - **Alias:** `/lsalas`
 - **Permiso:** ADMIN
-- **Descripción:** Muestra ID, Clave y Nombre de todas las salas del mundo.
-- **Notas:** Esencial para usar `/teleport` y navegar el mundo.
+- **Descripción:** Muestra ID, Clave y Nombre de todas las salas del mundo. Soporta filtrado por categoría y tags.
+- **Uso:**
+  - `/listarsalas` - Todas las salas
+  - `/listarsalas category:ciudad_runegard` - Solo salas de esa categoría
+  - `/listarsalas tag:exterior` - Solo salas con ese tag
+- **Notas:** Esencial para usar `/teleport` y navegar el mundo. Ahora soporta filtrado por el sistema de Categories/Tags.
 
 ### `/examinarsala <id o key>`
 - **Alias:** `/exsala`
@@ -475,6 +479,32 @@ Todos los comandos de administrador requieren el rol **ADMIN** o superior, a men
 
 ---
 
+## Búsqueda por Categories y Tags
+
+### `/listaritems [category:X] [tag:Y]`
+- **Alias:** `/litems`
+- **Permiso:** ADMIN
+- **Descripción:** Lista items filtrados por categoría y tags.
+- **Uso:**
+  - `/listaritems` - Todos los items
+  - `/listaritems category:arma` - Solo items de esa categoría
+  - `/listaritems tag:magica` - Solo items con ese tag
+- **Notas:** Muestra ubicación (inventario/sala/contenedor), categoría y tags de cada item. Límite de 20 resultados.
+
+### `/categorias`
+- **Alias:** `/cats`
+- **Permiso:** ADMIN
+- **Descripción:** Muestra todas las categorías disponibles de salas e items.
+- **Notas:** Útil para conocer qué categorías están definidas en los prototipos antes de filtrar.
+
+### `/tags`
+- **Alias:** `/etiquetas`
+- **Permiso:** ADMIN
+- **Descripción:** Muestra todos los tags disponibles de salas e items.
+- **Notas:** Útil para conocer qué tags están definidos en los prototipos antes de filtrar.
+
+---
+
 ## Gestión del Juego
 
 ### `/asignarrol <nombre_personaje> <rol>`
@@ -513,9 +543,10 @@ Todos los comandos de administrador requieren el rol **ADMIN** o superior, a men
 
 ---
 
-**Versión:** 1.2
-**Última actualización:** 2025-10-04
+**Versión:** 1.3
+**Última actualización:** 2025-10-05
 **Changelog:**
+- v1.3 (2025-10-05): Agregado sistema de Categories/Tags con comandos de búsqueda (/listaritems, /categorias, /tags); extendido /listarsalas con filtros
 - v1.2 (2025-10-04): Agregado sistema de ordinales para objetos duplicados (sintaxis N.nombre)
 - v1.1 (2025-10-04): Agregada nota sobre generación automática de comandos de canales dinámicos
 - v1.0 (2025-10-04): Primera versión completa de la referencia

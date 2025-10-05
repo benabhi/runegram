@@ -45,10 +45,16 @@ Estos comandos permiten a los administradores moverse libremente por el mundo.
 
 Estos comandos son herramientas de solo lectura para inspeccionar el estado del juego.
 
-### `/listarsalas`
+### `/listarsalas [category:X] [tag:Y]`
 *   **Alias:** `/lsalas`
 *   **Permiso:** `ADMIN`
-*   **Descripción:** Muestra una lista de todas las salas que existen en el mundo, incluyendo su `ID`, su `key` de prototipo y su `nombre`. Esencial para usar `/teleport`.
+*   **Descripción:** Muestra una lista de todas las salas que existen en el mundo, incluyendo su `ID`, su `key` de prototipo y su `nombre`. Soporta filtrado por categoría y tags. Esencial para usar `/teleport`.
+*   **Uso:**
+    ```
+    /listarsalas                        # Todas las salas
+    /listarsalas category:ciudad_runegard  # Solo salas de esa categoría
+    /listarsalas tag:exterior           # Solo salas con ese tag
+    ```
 
 ### `/examinarsala <id_o_key>`
 *   **Alias:** `/exsala`
@@ -84,6 +90,36 @@ Estos comandos son herramientas de solo lectura para inspeccionar el estado del 
 *   **Permiso:** `ADMIN`
 *   **Descripción:** Muestra un reporte de validación de integridad del sistema. Detecta conflictos de aliases entre comandos, keys duplicadas, y advertencias de configuración.
 *   **Notas:** Útil para diagnosticar problemas después de modificar prototipos o comandos.
+
+---
+
+## Comandos de Búsqueda por Categories/Tags
+
+Estos comandos permiten buscar y filtrar contenido del juego usando el sistema de categories y tags.
+
+### `/listaritems [category:X] [tag:Y]`
+*   **Alias:** `/litems`
+*   **Permiso:** `ADMIN`
+*   **Descripción:** Lista items filtrados por categoría y tags. Muestra ubicación (inventario/sala/contenedor), categoría y tags de cada item.
+*   **Uso:**
+    ```
+    /listaritems                    # Todos los items
+    /listaritems category:arma      # Solo items de esa categoría
+    /listaritems tag:magica         # Solo items con ese tag
+    ```
+*   **Notas:** Límite de 20 resultados.
+
+### `/categorias`
+*   **Alias:** `/cats`
+*   **Permiso:** `ADMIN`
+*   **Descripción:** Muestra todas las categorías disponibles de salas e items.
+*   **Notas:** Útil para conocer qué categorías están definidas en los prototipos antes de filtrar.
+
+### `/tags`
+*   **Alias:** `/etiquetas`
+*   **Permiso:** `ADMIN`
+*   **Descripción:** Muestra todos los tags disponibles de salas e items.
+*   **Notas:** Útil para conocer qué tags están definidos en los prototipos antes de filtrar.
 
 ---
 

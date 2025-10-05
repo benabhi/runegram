@@ -9,6 +9,7 @@ Variables esperadas:
 <pre>{{ icon('room') }} <b>{{ room.name|upper }}</b>
 {{ room.description|trim }}
 {%- if room.items %}
+
 {{ icon('look') }} <b>Cosas a la vista:</b>
 {%- if room.items|length > max_items %}
 {%- for item in room.items[:max_items] %}
@@ -22,10 +23,12 @@ Variables esperadas:
     {{ loop.index }}. {{ item_icon }} {{ item.get_name() }}{% if item.prototype.get('is_container') and item.contained_items %} ({{ item.contained_items|length }} {{ item.contained_items|length|pluralize('item', 'items') }}){% endif %}
 {%- endfor %}
 {%- endif %}
+
 {%- endif %}
 {%- if active_characters and character %}
 {%- set other_characters = active_characters|reject('equalto', character)|list %}
 {%- if other_characters %}
+
 {{ icon('friend') }} <b>Personajes:</b>
 {%- if other_characters|length > max_characters %}
 {%- for char in other_characters[:max_characters] %}
@@ -37,13 +40,16 @@ Variables esperadas:
     - {{ icon('character') }} {{ char.name }}
 {%- endfor %}
 {%- endif %}
+
 {%- endif %}
 {%- endif %}
 {%- if room.exits_from %}
+
 {{ icon('exit') }} <b>Salidas:</b>
 {%- for exit in room.exits_from|sort(attribute='name') %}
     - {{ get_direction_icon(exit.name) }} {{ exit.name|capitalize }}{% if exit.to_room %} ({{ exit.to_room.name }}){% endif %}{% if exit.lock_string %} <i>[cerrada]</i>{% endif %}
 {%- endfor %}
 {%- else %}
+
 {{ icon('exit') }} <b>Salidas:</b> [ Ninguna ]
 {%- endif %}</pre>

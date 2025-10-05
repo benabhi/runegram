@@ -76,6 +76,25 @@ items_per_page = 30  # Items por página en listados
 
 ---
 
+## Características Principales
+
+### Sistemas del Motor Implementados
+
+- **🏗️ Sistema de Comandos Dinámicos** - Los comandos disponibles cambian según el contexto del personaje (ubicación, equipo, rol)
+- **📡 Sistema de Broadcasting** - Mensajes a salas y canales globales de comunicación
+- **⏰ Sistema de Pulse Global** - Corazón temporal del juego que sincroniza todos los sistemas basados en tiempo (ticks cada 2s)
+- **📜 Sistema de Scripts** - Ejecuta código Python en respuesta a eventos del juego
+- **🗂️ Sistema de Prototipos** - Define contenido reutilizable (salas, items) separado del motor
+- **🏷️ Sistema de Categories y Tags** - Organiza y busca contenido eficientemente usando categorías únicas y etiquetas múltiples (inspirado en Evennia)
+- **💬 Sistema de Canales** - Canales estáticos de comunicación global + canales dinámicos creados por jugadores
+- **🎨 Sistema de Templates** - Separación de presentación y lógica usando Jinja2
+- **🔘 Sistema de Botones Inline** - Interacción mejorada con botones de Telegram
+- **👥 Sistema de Online/AFK** - Detección de jugadores activos vs. desconectados con notificaciones sociales
+
+**Ver:** [Sistemas del Motor Completos](./docs/03_ENGINE_SYSTEMS/) para detalles de implementación.
+
+---
+
 ## Documentación Detallada
 
 Toda la documentación exhaustiva sobre la arquitectura, los sistemas del motor, las guías para crear contenido y la visión a futuro del proyecto se encuentra en la carpeta `docs/`.

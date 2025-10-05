@@ -678,7 +678,83 @@ item.get_description()  # Returns: descripción del prototipo
 
 **Ventaja**: Cambiar un prototipo actualiza **todas** las instancias instantáneamente.
 
-### 4. Sistema de Broadcasting
+### 4. Sistema de Categories y Tags
+
+Permite organizar y buscar contenido (Rooms, Items) de forma eficiente, inspirado en el framework **Evennia**.
+
+#### Conceptos Clave
+
+- **Category (Categoría)**: Un objeto pertenece a **UNA** categoría
+  - Ejemplos: `"ciudad_runegard"`, `"arma"`, `"consumible"`
+  - Clasificación principal/tipo del objeto
+
+- **Tags (Etiquetas)**: Un objeto puede tener **MÚLTIPLES** tags
+  - Ejemplos: `["exterior", "seguro"]`, `["espada", "magica", "unica"]`
+  - Características o propiedades adicionales
+
+#### Definición en Prototipos
+
+```python
+# game_data/room_prototypes.py
+"plaza_central": {
+    "name": "Plaza Central de Runegard",
+    "description": "...",
+    "category": "ciudad_runegard",  # UNA categoría
+    "tags": ["ciudad", "seguro", "social", "exterior"],  # MÚLTIPLES tags
+    "exits": {...}
+}
+
+# game_data/item_prototypes.py
+"espada_viviente": {
+    "name": "una espada viviente",
+    "description": "...",
+    "category": "arma",  # Tipo de item
+    "tags": ["espada", "magica", "unica", "una_mano"],  # Características
+    "keywords": [...]
+}
+```
+
+#### Acceso desde Código
+
+Los modelos `Room` e `Item` exponen category y tags mediante properties:
+
+```python
+# Ejemplo de uso
+if room.category == "ciudad_runegard":
+    # Aplicar lógica específica de ciudad
+    pass
+
+if "exterior" in room.tags:
+    # Aplicar efectos de clima
+    pass
+```
+
+#### Servicio tag_service.py
+
+Búsquedas centralizadas para Rooms e Items:
+
+```python
+from src.services import tag_service
+
+# Buscar por categoría
+rooms = await tag_service.find_rooms_by_category(session, "ciudad_runegard")
+items = await tag_service.find_items_by_category(session, "arma")
+
+# Buscar por tags
+rooms = await tag_service.find_rooms_by_tag(session, "exterior")
+items = await tag_service.find_items_by_tags_all(session, ["espada", "magica"])
+```
+
+#### Comandos de Admin
+
+- `/listar_rooms [category:X] [tag:Y]` - Lista salas filtradas
+- `/listar_items [category:X] [tag:Y]` - Lista items filtrados
+- `/categorias` - Muestra todas las categorías disponibles
+- `/tags` - Muestra todos los tags disponibles
+
+Ver: `docs/03_ENGINE_SYSTEMS/08_CATEGORIES_AND_TAGS.md` para documentación completa.
+
+### 5. Sistema de Broadcasting
 
 Permite enviar mensajes a múltiples jugadores simultáneamente.
 
@@ -704,7 +780,7 @@ await broadcaster_service.msg_channel(
 
 Ver: `src/services/broadcaster_service.py`
 
-### 5. Sistema de Pulse Global
+### 6. Sistema de Pulse Global
 
 El corazón temporal de Runegram. Ejecuta un "tick" cada 2 segundos, permitiendo que todos los sistemas basados en tiempo se sincronicen.
 
@@ -766,7 +842,7 @@ Ver: `docs/03_ENGINE_SYSTEMS/07_PULSE_SYSTEM.md` para detalles completos.
 - ✅ Efectos ambientales de items (actual)
 - ✅ Chequeo de jugadores AFK (actual)
 
-### 6. Sistema de Scripts
+### 7. Sistema de Scripts
 
 Permite ejecutar código Python almacenado como string (con sandboxing).
 
@@ -792,7 +868,7 @@ Ver: `src/services/script_service.py`
 
 **⚠️ Seguridad**: Actualmente NO implementa sandboxing real. Solo usar para contenido confiable.
 
-### 7. Sistema de Canales
+### 8. Sistema de Canales
 
 Canales de comunicación global entre jugadores.
 
@@ -827,7 +903,7 @@ Los jugadores pueden crear sus propios canales privados:
 
 Ver: `commands/player/dynamic_channels.py`
 
-### 8. Sistema de Templates
+### 9. Sistema de Templates
 
 Sistema centralizado de templates con **Jinja2** que separa la presentación del código, permitiendo outputs consistentes y fácilmente personalizables.
 
@@ -925,7 +1001,7 @@ ITEM_PROTOTYPES = {
 
 Ver: `docs/04_CONTENT_CREATION/04_OUTPUT_TEMPLATES.md` para guía completa.
 
-### 9. Sistema de Presentación
+### 10. Sistema de Presentación
 
 Funciones centralizadas para generar texto formateado para el usuario usando el sistema de templates.
 
@@ -951,7 +1027,7 @@ await message.answer(output, parse_mode="HTML")
 
 Ver: `src/utils/presenters.py`
 
-### 10. Sistema de Botones Inline
+### 11. Sistema de Botones Inline
 
 Sistema de interacción mediante botones de Telegram para mejorar la UX móvil.
 

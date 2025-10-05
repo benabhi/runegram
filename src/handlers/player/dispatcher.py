@@ -94,7 +94,7 @@ async def main_command_dispatcher(message: types.Message):
 
                     # Si estaba AFK, notificar que volvió
                     if was_afk:
-                        await message.answer("✅ Ya no estás AFK.")
+                        await message.answer("<i>Ya no estás AFK.</i>", parse_mode="HTML")
 
             # 3. Manejo especial para el comando /start.
             if input_text.lower().startswith('/start'):

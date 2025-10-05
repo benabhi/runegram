@@ -114,17 +114,10 @@ class CmdLook(Command):
                 adjacent_room = result.scalar_one_or_none()
 
                 if adjacent_room:
-                    # Obtener personajes online en la sala
-                    online_chars_in_room = []
-                    for char in adjacent_room.characters:
-                        if await online_service.is_character_online(char.id):
-                            online_chars_in_room.append(char)
-
-                    # Formatear y mostrar la sala
-                    room_description = format_room(
+                    # Formatear y mostrar la sala (format_room filtra personajes online internamente)
+                    room_description = await format_room(
                         adjacent_room,
-                        character=character,
-                        active_characters=online_chars_in_room
+                        viewing_character=character
                     )
                     await message.answer(
                         f"🔭 <b>Miras hacia el {target_string}...</b>\n\n{room_description}",

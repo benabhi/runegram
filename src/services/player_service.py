@@ -38,7 +38,7 @@ async def get_character_with_relations_by_id(session: AsyncSession, character_id
             .options(
                 selectinload(Character.room).selectinload(Room.items).selectinload(Item.contained_items),
                 selectinload(Character.room).selectinload(Room.exits_from).selectinload(Exit.to_room),
-                selectinload(Character.room).selectinload(Room.characters),
+                selectinload(Character.room).selectinload(Room.characters).selectinload(Character.account),
                 selectinload(Character.items).selectinload(Item.contained_items),
                 selectinload(Character.account),
                 selectinload(Character.settings)

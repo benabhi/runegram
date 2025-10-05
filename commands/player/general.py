@@ -106,7 +106,7 @@ class CmdLook(Command):
                     select(Room)
                     .where(Room.id == target_exit.to_room_id)
                     .options(
-                        selectinload(Room.items).selectinload(Item.prototype),
+                        selectinload(Room.items),
                         selectinload(Room.characters).selectinload(Character.account),
                         selectinload(Room.exits_from).selectinload(Exit.to_room)
                     )

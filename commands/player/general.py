@@ -120,7 +120,7 @@ class CmdLook(Command):
                         viewing_character=character
                     )
                     await message.answer(
-                        f"🔭 <b>Miras hacia el {target_string}...</b>\n\n{room_description}",
+                        f"🔭 <b>Miras hacia el {target_string}...</b>\n{room_description}",
                         parse_mode="HTML"
                     )
                     return

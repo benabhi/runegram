@@ -54,18 +54,21 @@ Esta es la referencia completa de todos los comandos disponibles en Runegram MUD
 
 ### `/mirar [objetivo]`
 - **Alias:** `/m`, `/l`
-- **Descripción:** Observa tu entorno o un objeto/personaje/detalle específico.
+- **Descripción:** Observa tu entorno, un objeto, personaje, detalle o sala aledaña.
 - **Uso:**
   - `/mirar` - Muestra la descripción de tu sala actual
   - `/mirar espada` - Examina un objeto específico
   - `/mirar 2.espada` - Examina la segunda espada (si hay duplicados)
   - `/mirar Gandalf` - Examina a otro jugador
   - `/mirar fuente` - Examina un detalle de la sala
+  - `/mirar norte` - Ve la sala al norte sin moverte
+  - `/mirar sur` - Ve la sala al sur sin moverte
 - **Notas:**
   - Sin argumentos, muestra la sala completa con salidas, objetos y personajes.
   - Puede ejecutar scripts `on_look` si el objeto los tiene definidos.
   - Solo muestra jugadores que estén activamente online.
   - Soporta ordinales para objetos duplicados (ver [Sistema de Ordinales](#-sistema-de-ordinales-para-objetos-duplicados)).
+  - Puedes mirar salas aledañas usando el nombre de la dirección (norte, sur, este, oeste, etc.).
 
 ### `/decir <mensaje>`
 - **Alias:** `'`
@@ -76,6 +79,18 @@ Esta es la referencia completa de todos los comandos disponibles en Runegram MUD
 - **Notas:**
   - El mensaje se enviará a todos los jugadores online en la sala.
   - El mensaje aparece en cursiva para otros jugadores.
+
+### `/emocion <acción>`
+- **Alias:** `/emote`, `/me`
+- **Descripción:** Expresa una emoción o acción de roleplay.
+- **Uso:**
+  - `/emocion se rasca la nariz` → "Benabhi se rasca la nariz"
+  - `/emote sonríe ampliamente` → "Benabhi sonríe ampliamente"
+  - `/me guiña un ojo` → "Benabhi guiña un ojo"
+- **Notas:**
+  - El mensaje se muestra a todos en la sala (incluyéndote).
+  - Útil para roleplay y expresar acciones del personaje.
+  - El formato es: TuNombre + acción_que_escribes
 
 ### `/inventario [contenedor | todo [página]]`
 - **Alias:** `/inv`, `/i`
@@ -119,6 +134,18 @@ Esta es la referencia completa de todos los comandos disponibles en Runegram MUD
   - Te marca como offline instantáneamente.
   - Al volver, recibirás un mensaje de reconexión.
   - No es necesario usar este comando; el juego te marca como offline automáticamente tras 5 minutos de inactividad.
+
+### `/afk [mensaje]`
+- **Descripción:** Te marca como AFK (Away From Keyboard) con un mensaje opcional.
+- **Uso:**
+  - `/afk` - Te marca como AFK con mensaje por defecto
+  - `/afk comiendo` - Te marca como AFK con el mensaje "comiendo"
+  - `/afk vuelvo en 10 minutos` - Mensaje personalizado más descriptivo
+- **Notas:**
+  - Tu estado AFK será visible para otros jugadores en `/quien` con el emoji 💤
+  - El estado AFK se elimina automáticamente al usar cualquier comando
+  - El mensaje AFK expira después de 24 horas
+  - A diferencia de la desconexión automática (5 minutos de inactividad), este comando te marca AFK de manera inmediata y visible
 
 ### `/susurrar <jugador> <mensaje>`
 - **Alias:** `/whisper`
@@ -213,6 +240,22 @@ Todos los comandos de movimiento siguen el mismo patrón: se mueven en la direcc
 - **Notas:**
   - Se notifica a la sala cuando sacas un objeto.
   - Ambos argumentos (objeto y contenedor) soportan ordinales (ver [Sistema de Ordinales](#-sistema-de-ordinales-para-objetos-duplicados)).
+
+### `/dar <objeto> a <personaje>`
+- **Alias:** `/give`
+- **Descripción:** Da un objeto de tu inventario a otro personaje.
+- **Uso:**
+  - `/dar espada a Gandalf` - Le das la espada a Gandalf
+  - `/dar 2.pocion a Legolas` - Le das la segunda poción a Legolas
+- **Restricciones:**
+  - El personaje debe estar en tu misma sala.
+  - El personaje debe estar online.
+  - Solo puedes dar objetos que tengas en tu inventario.
+- **Notas:**
+  - Se notifica a la sala cuando das un objeto (excepto al que da y al que recibe).
+  - El que recibe recibe un mensaje directo.
+  - Si el objeto otorga command sets, se actualizan los comandos de ambos jugadores.
+  - Soporta ordinales para objetos duplicados (ver [Sistema de Ordinales](#-sistema-de-ordinales-para-objetos-duplicados)).
 
 ### 🔢 Sistema de Ordinales para Objetos Duplicados
 

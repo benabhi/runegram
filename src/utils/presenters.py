@@ -196,13 +196,13 @@ def format_item_look(item: Item, can_interact: bool = True, max_contained: int =
         return "<pre>❌ Error al mostrar el objeto.</pre>"
 
 
-def format_who_list(
+async def format_who_list(
     characters: list[Character],
     viewer_character: Character = None,
     max_characters: int = None
 ) -> str:
     """
-    Formatea la lista de personajes online.
+    Formatea la lista de personajes online con estado AFK.
 
     Args:
         characters: Lista de personajes conectados
@@ -217,10 +217,20 @@ def format_who_list(
         if max_characters is None:
             max_characters = settings.display_limits_max_who
 
+        # Obtener mensajes AFK desde Redis
+        from src.services.online_service import redis_client
+        afk_messages = {}
+        for char in characters:
+            afk_key = f"afk:{char.id}"
+            afk_msg = await redis_client.get(afk_key)
+            if afk_msg:
+                afk_messages[char.id] = afk_msg.decode('utf-8') if isinstance(afk_msg, bytes) else afk_msg
+
         context = {
             'characters': characters,
             'viewer_character': viewer_character,
             'max_characters': max_characters,
+            'afk_messages': afk_messages,
             'icon': lambda key: ICONS.get(key, ''),
         }
 

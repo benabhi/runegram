@@ -4,6 +4,7 @@
 Variables esperadas:
 - characters: Lista de objetos Character online
 - viewer_character: El personaje que está viendo (opcional)
+- afk_messages: Dict de mensajes AFK {character_id: mensaje}
 #}
 <pre>{{ icon('player') }} <b>Jugadores en Runegram ({{ characters|length }})</b>
 ─────────────────────────────
@@ -19,12 +20,12 @@ Eres la única alma aventurera en este mundo ahora mismo.
 {%- endfor %}
 {%- if filtered_chars|length > max_characters %}
 {%- for char in filtered_chars[:max_characters] %}
-    - {{ char.name }}{% if char.room %} ({{ icon('room') }} {{ char.room.name }}){% endif %}
+    - {{ char.name }}{% if char.room %} ({{ icon('room') }} {{ char.room.name }}){% endif %}{% if afk_messages.get(char.id) %} 💤 <i>AFK: {{ afk_messages[char.id] }}</i>{% endif %}
 {%- endfor %}
 ... y {{ filtered_chars|length - max_characters }} {{ (filtered_chars|length - max_characters)|pluralize('jugador', 'jugadores') }} más conectados.
 {%- else %}
 {%- for char in filtered_chars %}
-    - {{ char.name }}{% if char.room %} ({{ icon('room') }} {{ char.room.name }}){% endif %}
+    - {{ char.name }}{% if char.room %} ({{ icon('room') }} {{ char.room.name }}){% endif %}{% if afk_messages.get(char.id) %} 💤 <i>AFK: {{ afk_messages[char.id] }}</i>{% endif %}
 {%- endfor %}
 {%- endif %}
 {%- endif %}</pre>

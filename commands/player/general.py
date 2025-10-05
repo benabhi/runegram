@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from collections import Counter
 
 from commands.command import Command
-from src.models import Character
+from src.models import Character, Item, Exit, Room
 from src.utils.presenters import show_current_room, format_item_look, format_inventory, format_who_list
 from src.services import script_service, online_service, permission_service, broadcaster_service
 from src.utils.pagination import paginate_list, format_pagination_footer
@@ -89,6 +89,49 @@ class CmdLook(Command):
                     await message.answer(f"<pre>{other_char.get_description()}</pre>", parse_mode="HTML")
                     return
 
+            # 5. Buscar si es una dirección/salida para ver sala aledaña.
+            from src.utils.presenters import format_room
+            target_exit = next(
+                (exit_obj for exit_obj in character.room.exits_from if exit_obj.name == target_string),
+                None
+            )
+
+            if target_exit and target_exit.to_room:
+                # Cargar sala destino con relaciones necesarias
+                from sqlalchemy import select
+                from sqlalchemy.orm import selectinload
+                from src.models import Room
+
+                result = await session.execute(
+                    select(Room)
+                    .where(Room.id == target_exit.to_room_id)
+                    .options(
+                        selectinload(Room.items).selectinload(Item.prototype),
+                        selectinload(Room.characters).selectinload(Character.account),
+                        selectinload(Room.exits_from).selectinload(Exit.to_room)
+                    )
+                )
+                adjacent_room = result.scalar_one_or_none()
+
+                if adjacent_room:
+                    # Obtener personajes online en la sala
+                    online_chars_in_room = []
+                    for char in adjacent_room.characters:
+                        if await online_service.is_character_online(char.id):
+                            online_chars_in_room.append(char)
+
+                    # Formatear y mostrar la sala
+                    room_description = format_room(
+                        adjacent_room,
+                        character=character,
+                        active_characters=online_chars_in_room
+                    )
+                    await message.answer(
+                        f"🔭 <b>Miras hacia el {target_string}...</b>\n\n{room_description}",
+                        parse_mode="HTML"
+                    )
+                    return
+
             # Si no se encontró nada, dar un mensaje amigable
             await message.answer("No ves eso por aquí.")
 
@@ -118,6 +161,30 @@ class CmdSay(Command):
             room_id=character.room_id,
             message_text=f"<i>{character.name} dice: {say_text}</i>",
             exclude_character_id=character.id
+        )
+
+class CmdEmotion(Command):
+    """Comando para realizar emotes/emociones de roleplay."""
+    names = ["emocion", "emote", "me"]
+    lock = ""
+    description = "Expresa una emoción o acción. Uso: /emocion se rasca la nariz"
+
+    async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
+        if not args:
+            await message.answer("Uso: /emocion <acción>\nEjemplo: /emocion se rasca la nariz")
+            return
+
+        emote_text = " ".join(args)
+
+        # Mensaje completo: "Benabhi se rasca la nariz"
+        full_emote = f"<i>{character.name} {emote_text}</i>"
+
+        # Enviar a todos en la sala (incluyendo al jugador que lo ejecutó)
+        await broadcaster_service.send_message_to_room(
+            session=session,
+            room_id=character.room_id,
+            message_text=full_emote,
+            exclude_character_id=None  # No excluir a nadie, todos lo ven
         )
 
 class CmdInventory(Command):
@@ -254,7 +321,7 @@ class CmdWho(Command):
             # CASO 1: Mostrar lista normal con límites
             if not args:
                 # Usar el nuevo sistema de templates
-                response = format_who_list(online_characters, viewer_character=character)
+                response = await format_who_list(online_characters, viewer_character=character)
                 await message.answer(response, parse_mode="HTML")
                 return
 
@@ -357,6 +424,34 @@ class CmdDisconnect(Command):
             await message.answer("❌ Ocurrió un error al intentar desconectar.")
             logging.exception(f"Fallo al ejecutar /desconectar para {character.name}")
 
+class CmdAFK(Command):
+    """Comando para ponerse AFK (Away From Keyboard) manualmente con mensaje opcional."""
+    names = ["afk"]
+    description = "Te marca como AFK con un mensaje opcional. Uso: /afk [mensaje]"
+    lock = ""
+
+    async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
+        try:
+            from src.services.online_service import redis_client
+
+            afk_message = " ".join(args) if args else "AFK"
+
+            # Guardar mensaje AFK en Redis (con TTL de 24 horas)
+            afk_key = f"afk:{character.id}"
+            await redis_client.set(afk_key, afk_message, ex=86400)  # 24 horas
+
+            # Mensaje de confirmación
+            await message.answer(
+                f"✅ Ahora estás AFK: {afk_message}\n\n"
+                "Otros jugadores verán tu estado en /quien.\n"
+                "Usa cualquier comando para volver."
+            )
+
+            logging.info(f"Personaje {character.name} se puso AFK: {afk_message}")
+
+        except Exception:
+            await message.answer("❌ Ocurrió un error al intentar ponerte AFK.")
+            logging.exception(f"Fallo al ejecutar /afk para {character.name}")
 
 class CmdWhisper(Command):
     """Comando para enviar un mensaje privado a un jugador en la misma sala."""
@@ -411,10 +506,12 @@ class CmdWhisper(Command):
 GENERAL_COMMANDS = [
     CmdLook(),
     CmdSay(),
+    CmdEmotion(),
     CmdInventory(),
     CmdHelp(),
     CmdWho(),
     CmdPray(),
     CmdDisconnect(),
+    CmdAFK(),
     CmdWhisper(),
 ]

@@ -86,6 +86,12 @@ async def main_command_dispatcher(message: types.Message):
             if character:
                 await online_service.update_last_seen(session, character)
 
+                # Eliminar estado AFK si el comando no es /afk
+                if not input_text.lower().startswith('/afk'):
+                    from src.services.online_service import redis_client
+                    afk_key = f"afk:{character.id}"
+                    await redis_client.delete(afk_key)
+
             # 3. Manejo especial para el comando /start.
             if input_text.lower().startswith('/start'):
                 if character is None:

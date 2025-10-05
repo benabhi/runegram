@@ -15,7 +15,7 @@ from collections import Counter
 
 from commands.command import Command
 from src.models.character import Character
-from src.services import item_service, command_service, player_service, permission_service
+from src.services import item_service, command_service, player_service, permission_service, online_service
 
 # --- Funciones de Ayuda (Compartidas en este módulo) ---
 
@@ -107,11 +107,17 @@ def find_item_in_list_with_ordinal(
         else:
             # Múltiples coincidencias
             if enable_disambiguation:
-                # Generar mensaje de desambiguación
+                # Generar mensaje de desambiguación con ejemplos de uso
                 disambiguation_msg = f"❓ Hay {len(matches)} '{search_term}'. ¿Cuál?\n\n"
                 for idx, item in enumerate(matches, start=1):
                     item_icon = item.prototype.get('display', {}).get('icon', '📦')
                     disambiguation_msg += f"{idx}. {item_icon} {item.get_name()}\n"
+
+                # Agregar ejemplos de uso
+                disambiguation_msg += f"\n💡 Usa ordinales para especificar:\n"
+                disambiguation_msg += f"<code>1.{search_term}</code> → primera {search_term}\n"
+                if len(matches) >= 2:
+                    disambiguation_msg += f"<code>2.{search_term}</code> → segunda {search_term}"
 
                 return None, disambiguation_msg.strip()
             else:
@@ -180,6 +186,20 @@ def parse_interaction_args(args: list[str]) -> tuple[str | None, str | None]:
         parts = re.split(r'\s(?:en|dentro de|de|desde)\s', arg_string, 1)
         return parts[0].strip(), parts[1].strip()
     return arg_string, None
+
+def parse_give_args(args: list[str]) -> tuple[str | None, str | None]:
+    """
+    Parsea argumentos del comando /dar: "objeto a personaje".
+    Devuelve (nombre_objeto, nombre_personaje).
+    """
+    arg_string = " ".join(args).lower()
+    match = re.search(r'\s(a)\s', arg_string)
+    if match:
+        parts = arg_string.split(' a ', 1)
+        item_name = parts[0].strip()
+        character_name = parts[1].strip()
+        return item_name, character_name
+    return None, None
 
 # --- Comandos de Interacción ---
 
@@ -454,10 +474,96 @@ class CmdTake(Command):
             await message.answer("❌ Ocurrió un error al intentar sacar el objeto.")
             logging.exception(f"Fallo al ejecutar /sacar para {character.name}")
 
+class CmdGive(Command):
+    """Comando para dar un objeto a otro personaje."""
+    names = ["dar", "give"]
+    description = "Da un objeto a otro personaje. Uso: /dar <objeto> a <personaje>"
+    lock = ""
+
+    async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
+        try:
+            item_name, target_name = parse_give_args(args)
+            if not item_name or not target_name:
+                await message.answer("Uso: /dar <objeto> a <personaje>\nEjemplo: /dar espada a Gandalf")
+                return
+
+            # Buscar el objeto en el inventario con soporte para ordinales
+            item_to_give, item_error = find_item_in_list_with_ordinal(
+                item_name,
+                character.items,
+                enable_disambiguation=True
+            )
+
+            # Manejar desambiguación del item
+            if item_error:
+                await message.answer(item_error, parse_mode="HTML")
+                return
+
+            if not item_to_give:
+                await message.answer(f"No tienes ningún '{item_name}'.")
+                return
+
+            # Buscar el personaje target en la sala
+            target_character = None
+            for other_char in character.room.characters:
+                if other_char.id != character.id and target_name == other_char.name.lower():
+                    target_character = other_char
+                    break
+
+            if not target_character:
+                await message.answer(f"No ves a '{target_name}' por aquí.")
+                return
+
+            # Verificar que el personaje target esté online
+            if not await online_service.is_character_online(target_character.id):
+                await message.answer(f"{target_character.name} no está disponible en este momento.")
+                return
+
+            # Transferir el objeto
+            await item_service.move_item_to_character(session, item_to_give.id, target_character.id)
+
+            # Mensaje al que da
+            await message.answer(f"Le das {item_to_give.get_name()} a {target_character.name}.")
+
+            # Mensaje al que recibe
+            from src.bot.bot import bot
+            await bot.send_message(
+                target_character.account.telegram_id,
+                f"{character.name} te da {item_to_give.get_name()}."
+            )
+
+            # Mensaje social a la sala (excluyendo a ambos)
+            from src.services import broadcaster_service
+            for other_char in character.room.characters:
+                if other_char.id != character.id and other_char.id != target_character.id:
+                    if await online_service.is_character_online(other_char.id):
+                        await bot.send_message(
+                            other_char.account.telegram_id,
+                            f"<i>{character.name} le da {item_to_give.get_name()} a {target_character.name}.</i>",
+                            parse_mode="HTML"
+                        )
+
+            # Actualizar comandos del que da si el item otorgaba command sets
+            if item_to_give.prototype.get("grants_command_sets"):
+                refreshed_character = await player_service.get_character_with_relations_by_id(session, character.id)
+                await command_service.sync_telegram_commands(refreshed_character)
+
+            # Actualizar comandos del que recibe si el item otorga command sets
+            if item_to_give.prototype.get("grants_command_sets"):
+                refreshed_target = await player_service.get_character_with_relations_by_id(session, target_character.id)
+                await command_service.sync_telegram_commands(refreshed_target)
+
+            await session.commit()
+
+        except Exception:
+            await message.answer("❌ Ocurrió un error al intentar dar el objeto.")
+            logging.exception(f"Fallo al ejecutar /dar para {character.name}")
+
 # Exportamos la lista de comandos de este módulo.
 INTERACTION_COMMANDS = [
     CmdGet(),
     CmdDrop(),
     CmdPut(),
     CmdTake(),
+    CmdGive(),
 ]

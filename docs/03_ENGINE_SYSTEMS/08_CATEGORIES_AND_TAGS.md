@@ -169,13 +169,13 @@ Alias: `/lsalas`
 
 Alias: `/litems`
 
-### /categorias
+### /listarcategorias
 
 Muestra todas las categorías disponibles de salas e items.
 
 Alias: `/cats`
 
-### /tags
+### /listartags
 
 Muestra todos los tags disponibles de salas e items.
 

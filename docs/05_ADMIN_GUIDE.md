@@ -109,13 +109,13 @@ Estos comandos permiten buscar y filtrar contenido del juego usando el sistema d
     ```
 *   **Notas:** Límite de 20 resultados.
 
-### `/categorias`
+### `/listarcategorias`
 *   **Alias:** `/cats`
 *   **Permiso:** `ADMIN`
 *   **Descripción:** Muestra todas las categorías disponibles de salas e items.
 *   **Notas:** Útil para conocer qué categorías están definidas en los prototipos antes de filtrar.
 
-### `/tags`
+### `/listartags`
 *   **Alias:** `/etiquetas`
 *   **Permiso:** `ADMIN`
 *   **Descripción:** Muestra todos los tags disponibles de salas e items.

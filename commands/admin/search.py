@@ -16,7 +16,7 @@ from src.models import Character, Item
 from src.services import tag_service
 
 
-class CmdListarItems(Command):
+class CmdListItems(Command):
     """Lista items filtrados por category o tags."""
     names = ["listaritems", "litems"]
     lock = "rol(ADMIN)"
@@ -70,9 +70,9 @@ class CmdListarItems(Command):
             logging.exception(f"Error en /listaritems para {character.name}")
 
 
-class CmdMostrarCategorias(Command):
+class CmdShowCategories(Command):
     """Muestra todas las categorías disponibles."""
-    names = ["categorias", "cats"]
+    names = ["listarcategorias", "cats"]
     lock = "rol(ADMIN)"
     description = "Muestra todas las categorías de salas/items"
 
@@ -101,12 +101,12 @@ class CmdMostrarCategorias(Command):
 
         except Exception:
             await message.answer("❌ Error al mostrar categorías.")
-            logging.exception(f"Error en /categorias para {character.name}")
+            logging.exception(f"Error en /listarcategorias para {character.name}")
 
 
-class CmdMostrarTags(Command):
+class CmdShowTags(Command):
     """Muestra todos los tags disponibles."""
-    names = ["tags", "etiquetas"]
+    names = ["listartags", "etiquetas"]
     lock = "rol(ADMIN)"
     description = "Muestra todos los tags de salas/items"
 
@@ -135,12 +135,12 @@ class CmdMostrarTags(Command):
 
         except Exception:
             await message.answer("❌ Error al mostrar tags.")
-            logging.exception(f"Error en /tags para {character.name}")
+            logging.exception(f"Error en /listartags para {character.name}")
 
 
 # Exportar todos los comandos de búsqueda
 SEARCH_COMMANDS = [
-    CmdListarItems(),
-    CmdMostrarCategorias(),
-    CmdMostrarTags(),
+    CmdListItems(),
+    CmdShowCategories(),
+    CmdShowTags(),
 ]

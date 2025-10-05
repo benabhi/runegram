@@ -71,10 +71,31 @@ Ejemplos a evitar:
 - `/move n` (demasiado críptico)
 
 #### Convenciones de Nomenclatura
-- **Comandos en español**: `/mirar`, `/coger`, `/atacar`
-- **Clases de comandos en inglés**: `CmdLook`, `CmdGet`, `CmdAttack`
+
+**REGLA FUNDAMENTAL**: Las clases de comandos **SIEMPRE** deben estar en **inglés**, independientemente del idioma del comando.
+
+- **Comandos en español**: `/mirar`, `/coger`, `/atacar`, `/listaritems`
+- **Clases de comandos en inglés**: `CmdLook`, `CmdGet`, `CmdAttack`, `CmdListItems`
 - **Múltiples aliases permitidos**: `["mirar", "m", "l"]`
 - **Primer alias = nombre principal**: Se usa para el menú de Telegram
+
+**Ejemplos correctos**:
+```python
+class CmdListItems(Command):
+    names = ["listaritems", "litems"]  # Español en los nombres
+
+class CmdShowCategories(Command):
+    names = ["listarcategorias", "cats"]  # Español en los nombres
+```
+
+**Ejemplos INCORRECTOS**:
+```python
+class CmdListarItems(Command):  # ❌ INCORRECTO - Clase en español
+    names = ["listaritems", "litems"]
+
+class CmdMostrarCategorias(Command):  # ❌ INCORRECTO - Clase en español
+    names = ["listarcategorias", "cats"]
+```
 
 #### Comandos Dedicados vs. Subcomandos
 Prefiere múltiples comandos dedicados a un solo comando con subcomandos:
@@ -749,8 +770,8 @@ items = await tag_service.find_items_by_tags_all(session, ["espada", "magica"])
 
 - `/listarsalas [category:X] [tag:Y]` - Lista salas filtradas (comando existente extendido)
 - `/listaritems [category:X] [tag:Y]` - Lista items filtrados
-- `/categorias` - Muestra todas las categorías disponibles
-- `/tags` - Muestra todos los tags disponibles
+- `/listarcategorias` - Muestra todas las categorías disponibles
+- `/listartags` - Muestra todos los tags disponibles
 
 Ver: `docs/03_ENGINE_SYSTEMS/08_CATEGORIES_AND_TAGS.md` para documentación completa.
 

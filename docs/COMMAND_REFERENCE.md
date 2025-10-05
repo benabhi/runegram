@@ -491,13 +491,13 @@ Todos los comandos de administrador requieren el rol **ADMIN** o superior, a men
   - `/listaritems tag:magica` - Solo items con ese tag
 - **Notas:** Muestra ubicación (inventario/sala/contenedor), categoría y tags de cada item. Límite de 20 resultados.
 
-### `/categorias`
+### `/listarcategorias`
 - **Alias:** `/cats`
 - **Permiso:** ADMIN
 - **Descripción:** Muestra todas las categorías disponibles de salas e items.
 - **Notas:** Útil para conocer qué categorías están definidas en los prototipos antes de filtrar.
 
-### `/tags`
+### `/listartags`
 - **Alias:** `/etiquetas`
 - **Permiso:** ADMIN
 - **Descripción:** Muestra todos los tags disponibles de salas e items.
@@ -543,10 +543,11 @@ Todos los comandos de administrador requieren el rol **ADMIN** o superior, a men
 
 ---
 
-**Versión:** 1.3
+**Versión:** 1.3.1
 **Última actualización:** 2025-10-05
 **Changelog:**
-- v1.3 (2025-10-05): Agregado sistema de Categories/Tags con comandos de búsqueda (/listaritems, /categorias, /tags); extendido /listarsalas con filtros
+- v1.3.1 (2025-10-05): Renombrados comandos a /listarcategorias y /listartags para consistencia
+- v1.3 (2025-10-05): Agregado sistema de Categories/Tags con comandos de búsqueda (/listaritems, /listarcategorias, /listartags); extendido /listarsalas con filtros
 - v1.2 (2025-10-04): Agregado sistema de ordinales para objetos duplicados (sintaxis N.nombre)
 - v1.1 (2025-10-04): Agregada nota sobre generación automática de comandos de canales dinámicos
 - v1.0 (2025-10-04): Primera versión completa de la referencia

@@ -1,14 +1,16 @@
 {# src/templates/base/item_list.html.j2 #}
-{# Template para listar items (comando /listaritems) #}
+{# Template para listar items con paginación (comando /listaritems) #}
 {#
 Variables esperadas:
-- items: Lista de objetos Item
-- max_items: Límite de items a mostrar (default: 20)
+- items: Lista de objetos Item (ya paginados)
+- page: Número de página actual
+- total_pages: Total de páginas
+- total_items: Total de items sin paginar
 - filters: Boolean indicando si hay filtros aplicados
 - cat: Categoría filtrada (opcional)
 - tags: Lista de tags filtrados (opcional)
 #}
-<pre>{{ icon('list') }} <b>ITEMS{% if filters %} (Filtrados){% endif %} ({{ items|length }})</b>
+<pre>{{ icon('list') }} <b>ITEMS{% if filters %} (Filtrados){% endif %}</b>
 {%- if filters %}
 ─────────────────────────────
 {{ icon('filter') }} <b>Filtros aplicados:</b>
@@ -23,17 +25,7 @@ Variables esperadas:
 {%- if not items %}
 No se encontraron items{% if filters %} con esos criterios{% endif %}.
 {%- else %}
-{{ icon('item') }} <b>Resultados:</b>
-{%- if items|length > max_items %}
-{%- for item in items[:max_items] %}
-{%- set item_icon = item.prototype.get('display', {}).get('icon', icon('item')) %}
-{%- set location = "inventario" if item.character_id else ("sala " ~ item.room_id) if item.room_id else "contenedor" %}
-    {{ loop.index }}. {{ item_icon }} <b>{{ item.get_name() }}</b> <i>({{ location }})</i>{% if item.category %} <i>[{{ item.category }}]</i>{% endif %}
-       <i>ID: {{ item.id }}</i>{% if item.tags %}
-       {{ icon('tag') }} {{ item.tags|join(', ') }}{% endif %}
-{%- endfor %}
-... y {{ items|length - max_items }} {{ (items|length - max_items)|pluralize('item', 'items') }} más.
-{%- else %}
+{{ icon('item') }} <b>Resultados:</b> (Página {{ page }}/{{ total_pages }} - {{ total_items }} totales)
 {%- for item in items %}
 {%- set item_icon = item.prototype.get('display', {}).get('icon', icon('item')) %}
 {%- set location = "inventario" if item.character_id else ("sala " ~ item.room_id) if item.room_id else "contenedor" %}
@@ -41,5 +33,4 @@ No se encontraron items{% if filters %} con esos criterios{% endif %}.
        <i>ID: {{ item.id }}</i>{% if item.tags %}
        {{ icon('tag') }} {{ item.tags|join(', ') }}{% endif %}
 {%- endfor %}
-{%- endif %}
 {%- endif %}</pre>

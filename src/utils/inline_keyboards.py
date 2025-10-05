@@ -238,3 +238,77 @@ def create_refresh_button(context: str) -> InlineKeyboardButton:
         text="🔄 Actualizar",
         callback_data=create_callback_data("refresh", context=context)
     )
+
+
+# ===========================
+# Botones de Paginación
+# ===========================
+
+def create_pagination_keyboard(
+    page: int,
+    total_pages: int,
+    callback_action: str,
+    **params
+) -> InlineKeyboardMarkup:
+    """
+    Crea un teclado inline con botones de navegación de páginas.
+
+    Genera botones [ ⬅️ Anterior ] [ 📄 X/Y ] [ Siguiente ➡️ ] que permiten
+    navegar entre páginas sin necesidad de escribir comandos.
+
+    Args:
+        page: Número de página actual (1-indexed)
+        total_pages: Total de páginas disponibles
+        callback_action: Acción base para el callback (ej: "pg_items", "pg_rooms")
+        **params: Parámetros adicionales a preservar (filtros, etc.)
+
+    Returns:
+        InlineKeyboardMarkup: Teclado con botones de navegación
+
+    Examples:
+        >>> # Paginación simple sin filtros
+        >>> keyboard = create_pagination_keyboard(2, 5, "pg_items")
+
+        >>> # Paginación con filtros preservados
+        >>> keyboard = create_pagination_keyboard(
+        ...     page=3,
+        ...     total_pages=10,
+        ...     callback_action="pg_rooms",
+        ...     c="ciudad",  # c = category (abreviado)
+        ...     t="seguro,social"  # t = tags (abreviado)
+        ... )
+    """
+    keyboard = InlineKeyboardMarkup(row_width=3)
+    buttons = []
+
+    # Botón "Anterior" (solo si no es la primera página)
+    if page > 1:
+        prev_button = InlineKeyboardButton(
+            text="⬅️ Anterior",
+            callback_data=create_callback_data(callback_action, p=page - 1, **params)
+        )
+        buttons.append(prev_button)
+    else:
+        # Botón deshabilitado (espacio en blanco)
+        buttons.append(InlineKeyboardButton(text=" ", callback_data="noop"))
+
+    # Botón de información de página (no hace nada, solo muestra info)
+    page_info_button = InlineKeyboardButton(
+        text=f"📄 {page}/{total_pages}",
+        callback_data="noop"  # No hace nada
+    )
+    buttons.append(page_info_button)
+
+    # Botón "Siguiente" (solo si no es la última página)
+    if page < total_pages:
+        next_button = InlineKeyboardButton(
+            text="Siguiente ➡️",
+            callback_data=create_callback_data(callback_action, p=page + 1, **params)
+        )
+        buttons.append(next_button)
+    else:
+        # Botón deshabilitado (espacio en blanco)
+        buttons.append(InlineKeyboardButton(text=" ", callback_data="noop"))
+
+    keyboard.row(*buttons)
+    return keyboard

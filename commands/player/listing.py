@@ -27,14 +27,10 @@ class CmdItems(Command):
 
     async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
         try:
+            from src.utils.paginated_output import send_paginated_simple, parse_page_from_args
+
             # Obtener número de página
-            page = 1
-            if args:
-                try:
-                    page = int(args[0])
-                except ValueError:
-                    await message.answer("Uso: /items [número de página]")
-                    return
+            page = parse_page_from_args(args, default=1)
 
             room = character.room
             items = room.items
@@ -43,31 +39,22 @@ class CmdItems(Command):
                 await message.answer(f"<pre>{ICONS['look']} No hay nada en el suelo aquí.</pre>", parse_mode="HTML")
                 return
 
-            # Paginar items
-            pagination = paginate_list(items, page=page, per_page=settings.pagination_items_per_page)
-
-            # Construir output
-            lines = [
-                f"{ICONS['look']} <b>Todos los items en {room.name}</b>",
-                "─────────────────────────────"
-            ]
-
-            for idx, item in enumerate(pagination['items'], start=pagination['start_index']):
+            # Función de formato para cada item
+            def format_item(item):
                 item_icon = item.prototype.get('display', {}).get('icon', ICONS['item'])
-                item_name = item.get_name()
-                lines.append(f"{idx}. {item_icon} {item_name}")
+                return f"{item_icon} {item.get_name()}"
 
-            # Agregar footer de paginación
-            if pagination['total_pages'] > 1:
-                lines.append(format_pagination_footer(
-                    pagination['page'],
-                    pagination['total_pages'],
-                    '/items',
-                    pagination['total_items']
-                ))
-
-            output = "<pre>" + "\n".join(lines) + "</pre>"
-            await message.answer(output, parse_mode="HTML")
+            # Enviar lista paginada con botones
+            await send_paginated_simple(
+                message=message,
+                items=items,
+                page=page,
+                callback_action="pg_items",
+                format_func=format_item,
+                header=f"Todos los items en {room.name}",
+                per_page=settings.pagination_items_per_page,
+                icon=ICONS['look']
+            )
 
         except Exception:
             await message.answer("❌ Ocurrió un error al listar los items.")
@@ -82,14 +69,10 @@ class CmdPersonajes(Command):
 
     async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
         try:
+            from src.utils.paginated_output import send_paginated_simple, parse_page_from_args
+
             # Obtener número de página
-            page = 1
-            if args:
-                try:
-                    page = int(args[0])
-                except ValueError:
-                    await message.answer("Uso: /personajes [número de página]")
-                    return
+            page = parse_page_from_args(args, default=1)
 
             room = character.room
 
@@ -106,29 +89,17 @@ class CmdPersonajes(Command):
             # Ordenar por nombre
             active_characters.sort(key=lambda c: c.name)
 
-            # Paginar personajes
-            pagination = paginate_list(active_characters, page=page, per_page=settings.pagination_items_per_page)
-
-            # Construir output
-            lines = [
-                f"{ICONS['character']} <b>Personajes en {room.name}</b>",
-                "─────────────────────────────"
-            ]
-
-            for idx, char in enumerate(pagination['items'], start=pagination['start_index']):
-                lines.append(f"{idx}. {char.name}")
-
-            # Agregar footer de paginación
-            if pagination['total_pages'] > 1:
-                lines.append(format_pagination_footer(
-                    pagination['page'],
-                    pagination['total_pages'],
-                    '/personajes',
-                    pagination['total_items']
-                ))
-
-            output = "<pre>" + "\n".join(lines) + "</pre>"
-            await message.answer(output, parse_mode="HTML")
+            # Enviar lista paginada con botones
+            await send_paginated_simple(
+                message=message,
+                items=active_characters,
+                page=page,
+                callback_action="pg_chars",
+                format_func=lambda c: c.name,
+                header=f"Personajes en {room.name}",
+                per_page=settings.pagination_items_per_page,
+                icon=ICONS['character']
+            )
 
         except Exception:
             await message.answer("❌ Ocurrió un error al listar los personajes.")

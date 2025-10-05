@@ -210,14 +210,422 @@ async def handle_refresh(
 
 
 # ===========================
+# Handlers de Paginación
+# ===========================
+
+async def handle_paginate_items(
+    callback: types.CallbackQuery,
+    params: dict,
+    session: AsyncSession
+):
+    """
+    Maneja la paginación del comando /items (items en sala).
+
+    Args:
+        callback: Callback query de Telegram
+        params: Parámetros del callback_data (debe incluir 'p' para página)
+        session: Sesión de base de datos
+    """
+    page = params.get("p", 1)
+
+    # Obtener personaje
+    account = await player_service.get_or_create_account(session, callback.from_user.id)
+    if not account.character:
+        await callback.answer("Primero debes crear un personaje.", show_alert=True)
+        return
+
+    character = account.character
+    room = character.room
+    items = room.items
+
+    if not items:
+        await callback.answer("No hay items en esta sala.", show_alert=True)
+        return
+
+    # Importar helper y re-enviar lista paginada (editando mensaje)
+    from src.utils.paginated_output import send_paginated_simple
+    from src.templates import ICONS
+    from src.config import settings
+
+    def format_item(item):
+        item_icon = item.prototype.get('display', {}).get('icon', ICONS['item'])
+        return f"{item_icon} {item.get_name()}"
+
+    await send_paginated_simple(
+        message=callback.message,
+        items=items,
+        page=page,
+        callback_action="pg_items",
+        format_func=format_item,
+        header=f"Todos los items en {room.name}",
+        per_page=settings.pagination_items_per_page,
+        icon=ICONS['look'],
+        edit=True  # Editar mensaje existente
+    )
+    await callback.answer()
+
+
+async def handle_paginate_characters(
+    callback: types.CallbackQuery,
+    params: dict,
+    session: AsyncSession
+):
+    """Maneja la paginación del comando /personajes."""
+    page = params.get("p", 1)
+
+    account = await player_service.get_or_create_account(session, callback.from_user.id)
+    if not account.character:
+        await callback.answer("Primero debes crear un personaje.", show_alert=True)
+        return
+
+    character = account.character
+    room = character.room
+
+    # Filtrar personajes activos (excluir viewer y desconectados)
+    active_characters = []
+    for char in room.characters:
+        if char.id != character.id and await online_service.is_character_online(char.id):
+            active_characters.append(char)
+
+    if not active_characters:
+        await callback.answer("Estás solo aquí.", show_alert=True)
+        return
+
+    active_characters.sort(key=lambda c: c.name)
+
+    from src.utils.paginated_output import send_paginated_simple
+    from src.templates import ICONS
+    from src.config import settings
+
+    await send_paginated_simple(
+        message=callback.message,
+        items=active_characters,
+        page=page,
+        callback_action="pg_chars",
+        format_func=lambda c: c.name,
+        header=f"Personajes en {room.name}",
+        per_page=settings.pagination_items_per_page,
+        icon=ICONS['character'],
+        edit=True
+    )
+    await callback.answer()
+
+
+async def handle_paginate_who(
+    callback: types.CallbackQuery,
+    params: dict,
+    session: AsyncSession
+):
+    """Maneja la paginación del comando /quien todo."""
+    page = params.get("p", 1)
+
+    account = await player_service.get_or_create_account(session, callback.from_user.id)
+    if not account.character:
+        await callback.answer("Primero debes crear un personaje.", show_alert=True)
+        return
+
+    character = account.character
+
+    # Obtener todos los jugadores online
+    online_characters = await online_service.get_online_characters(session)
+    filtered_chars = [char for char in online_characters if char.id != character.id]
+
+    if not filtered_chars:
+        await callback.answer("No hay otros jugadores online.", show_alert=True)
+        return
+
+    filtered_chars.sort(key=lambda c: c.name)
+
+    from src.utils.paginated_output import send_paginated_simple
+    from src.templates import ICONS
+    from src.config import settings
+
+    def format_who_char(char):
+        location = f" ({ICONS['room']} {char.room.name})" if char.room else ""
+        return f"{char.name}{location}"
+
+    await send_paginated_simple(
+        message=callback.message,
+        items=filtered_chars,
+        page=page,
+        callback_action="pg_who",
+        format_func=format_who_char,
+        header=f"Jugadores en Runegram ({len(online_characters)} conectados)",
+        per_page=settings.pagination_items_per_page,
+        icon=ICONS['player'],
+        edit=True
+    )
+    await callback.answer()
+
+
+async def handle_paginate_inventory(
+    callback: types.CallbackQuery,
+    params: dict,
+    session: AsyncSession
+):
+    """Maneja la paginación del comando /inventario todo."""
+    page = params.get("p", 1)
+
+    account = await player_service.get_or_create_account(session, callback.from_user.id)
+    if not account.character:
+        await callback.answer("Primero debes crear un personaje.", show_alert=True)
+        return
+
+    character = account.character
+    items = character.items
+
+    if not items:
+        await callback.answer("No tienes items en tu inventario.", show_alert=True)
+        return
+
+    from src.utils.paginated_output import send_paginated_simple
+    from src.templates import ICONS
+    from src.config import settings
+
+    def format_inv_item(item):
+        item_icon = item.prototype.get('display', {}).get('icon', ICONS['item'])
+        return f"{item_icon} {item.get_name()}"
+
+    await send_paginated_simple(
+        message=callback.message,
+        items=items,
+        page=page,
+        callback_action="pg_inv",
+        format_func=format_inv_item,
+        header="Tu Inventario Completo",
+        per_page=settings.pagination_items_per_page,
+        icon=ICONS['inventory'],
+        edit=True
+    )
+    await callback.answer()
+
+
+async def handle_paginate_rooms(
+    callback: types.CallbackQuery,
+    params: dict,
+    session: AsyncSession
+):
+    """Maneja la paginación del comando /listarsalas (admin)."""
+    page = params.get("p", 1)
+    category_filter = params.get("c")  # c = category (abreviado)
+    tag_filters_str = params.get("t")  # t = tags (abreviado)
+
+    # Parsear tags si existen
+    tag_filters = []
+    if tag_filters_str:
+        tag_filters = [t.strip() for t in tag_filters_str.split(",")]
+
+    # Ejecutar misma lógica que el comando
+    from src.services import tag_service
+    from sqlalchemy import select
+    from src.models import Room
+
+    all_rooms = []
+    if not category_filter and not tag_filters:
+        result = await session.execute(select(Room).order_by(Room.id))
+        all_rooms = result.scalars().all()
+    elif category_filter:
+        all_rooms = await tag_service.find_rooms_by_category(session, category_filter)
+    elif tag_filters:
+        all_rooms = await tag_service.find_rooms_by_tags_all(session, tag_filters)
+
+    # Preparar parámetros para botones
+    callback_params = {}
+    if category_filter:
+        callback_params['c'] = category_filter
+    if tag_filters:
+        callback_params['t'] = ",".join(tag_filters)
+
+    from src.utils.paginated_output import send_paginated_list
+
+    await send_paginated_list(
+        message=callback.message,
+        items=all_rooms,
+        page=page,
+        template_name='room_list.html.j2',
+        callback_action="pg_rooms",
+        per_page=30,
+        edit=True,
+        filters=bool(category_filter or tag_filters),
+        cat=category_filter,
+        tags=tag_filters,
+        **callback_params
+    )
+    await callback.answer()
+
+
+async def handle_paginate_admin_items(
+    callback: types.CallbackQuery,
+    params: dict,
+    session: AsyncSession
+):
+    """Maneja la paginación del comando /listaritems (admin)."""
+    page = params.get("p", 1)
+    category_filter = params.get("c")
+    tag_filters_str = params.get("t")
+
+    tag_filters = []
+    if tag_filters_str:
+        tag_filters = [t.strip() for t in tag_filters_str.split(",")]
+
+    from src.services import tag_service
+    from sqlalchemy import select
+    from src.models import Item
+
+    items = []
+    if not category_filter and not tag_filters:
+        result = await session.execute(select(Item))
+        items = result.scalars().all()
+    elif category_filter:
+        items = await tag_service.find_items_by_category(session, category_filter)
+    elif tag_filters:
+        items = await tag_service.find_items_by_tags_all(session, tag_filters)
+
+    callback_params = {}
+    if category_filter:
+        callback_params['c'] = category_filter
+    if tag_filters:
+        callback_params['t'] = ",".join(tag_filters)
+
+    from src.utils.paginated_output import send_paginated_list
+
+    await send_paginated_list(
+        message=callback.message,
+        items=items,
+        page=page,
+        template_name='item_list.html.j2',
+        callback_action="pg_adminitems",
+        per_page=20,
+        edit=True,
+        filters=bool(category_filter or tag_filters),
+        cat=category_filter,
+        tags=tag_filters,
+        **callback_params
+    )
+    await callback.answer()
+
+
+async def handle_paginate_categories(
+    callback: types.CallbackQuery,
+    params: dict,
+    session: AsyncSession
+):
+    """Maneja la paginación del comando /listarcategorias (admin)."""
+    page = params.get("p", 1)
+
+    from src.services import tag_service
+    from src.utils.paginated_output import send_paginated_simple
+    from src.templates import ICONS
+
+    room_cats = sorted(tag_service.get_all_categories_from_rooms())
+    item_cats = sorted(tag_service.get_all_categories_from_items())
+
+    all_categories = []
+    for cat in room_cats:
+        all_categories.append(("🏠 Salas", cat))
+    for cat in item_cats:
+        all_categories.append((f"{ICONS['item']} Items", cat))
+
+    if not all_categories:
+        await callback.answer("No hay categorías definidas.", show_alert=True)
+        return
+
+    def format_category(item):
+        tipo, nombre = item
+        return f"{tipo}: <i>{nombre}</i>"
+
+    await send_paginated_simple(
+        message=callback.message,
+        items=all_categories,
+        page=page,
+        callback_action="pg_cats",
+        format_func=format_category,
+        header="CATEGORÍAS DISPONIBLES",
+        per_page=30,
+        icon=ICONS['category'],
+        edit=True
+    )
+    await callback.answer()
+
+
+async def handle_paginate_tags(
+    callback: types.CallbackQuery,
+    params: dict,
+    session: AsyncSession
+):
+    """Maneja la paginación del comando /listartags (admin)."""
+    page = params.get("p", 1)
+
+    from src.services import tag_service
+    from src.utils.paginated_output import send_paginated_simple
+    from src.templates import ICONS
+
+    room_tags = sorted(tag_service.get_all_tags_from_rooms())
+    item_tags = sorted(tag_service.get_all_tags_from_items())
+
+    all_tags = []
+    for tag in room_tags:
+        all_tags.append(("🏠 Salas", tag))
+    for tag in item_tags:
+        all_tags.append((f"{ICONS['item']} Items", tag))
+
+    if not all_tags:
+        await callback.answer("No hay tags definidos.", show_alert=True)
+        return
+
+    def format_tag(item):
+        tipo, nombre = item
+        return f"{tipo}: <i>{nombre}</i>"
+
+    await send_paginated_simple(
+        message=callback.message,
+        items=all_tags,
+        page=page,
+        callback_action="pg_tags",
+        format_func=format_tag,
+        header="TAGS DISPONIBLES",
+        per_page=30,
+        icon=ICONS['tag'],
+        edit=True
+    )
+    await callback.answer()
+
+
+# ===========================
 # Router Principal de Callbacks
 # ===========================
+
+async def handle_noop(
+    callback: types.CallbackQuery,
+    params: dict,
+    session: AsyncSession
+):
+    """
+    Handler para botones que no hacen nada (deshabilitados).
+
+    Usado para botones informativos o deshabilitados en teclados inline.
+    Simplemente responde sin acción para evitar el indicador de "loading".
+    """
+    await callback.answer()
+
 
 # Diccionario que mapea acciones a funciones handler
 CALLBACK_HANDLERS = {
     "create_char": handle_character_creation,
     "move": handle_movement,
     "refresh": handle_refresh,
+    "noop": handle_noop,  # Botones deshabilitados
+
+    # Handlers de paginación
+    "pg_items": handle_paginate_items,
+    "pg_chars": handle_paginate_characters,
+    "pg_who": handle_paginate_who,
+    "pg_inv": handle_paginate_inventory,
+    "pg_rooms": handle_paginate_rooms,
+    "pg_adminitems": handle_paginate_admin_items,
+    "pg_cats": handle_paginate_categories,
+    "pg_tags": handle_paginate_tags,
+
     # Futuras acciones se agregan aquí:
     # "use_item": handle_use_item,
     # "drop_item": handle_drop_item,

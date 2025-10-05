@@ -201,13 +201,10 @@ class CmdInventory(Command):
 
             # CASO 2: Modo "todo" con paginación (inventario completo sin límites).
             if args[0].lower() == "todo":
-                page = 1
-                if len(args) > 1:
-                    try:
-                        page = int(args[1])
-                    except ValueError:
-                        await message.answer("Uso: /inv todo [número de página]")
-                        return
+                from src.utils.paginated_output import send_paginated_simple, parse_page_from_args
+
+                # Parsear página del resto de argumentos
+                page = parse_page_from_args(args[1:], default=1)
 
                 items = character.items
 
@@ -215,31 +212,22 @@ class CmdInventory(Command):
                     await message.answer(f"<pre>{ICONS['inventory']} No llevas nada.</pre>", parse_mode="HTML")
                     return
 
-                # Paginar items
-                pagination = paginate_list(items, page=page, per_page=settings.pagination_items_per_page)
-
-                # Construir output
-                lines = [
-                    f"{ICONS['inventory']} <b>Tu Inventario Completo</b>",
-                    "─────────────────────────────"
-                ]
-
-                for idx, item in enumerate(pagination['items'], start=pagination['start_index']):
+                # Función de formato para cada item
+                def format_inv_item(item):
                     item_icon = item.prototype.get('display', {}).get('icon', ICONS['item'])
-                    item_name = item.get_name()
-                    lines.append(f"{idx}. {item_icon} {item_name}")
+                    return f"{item_icon} {item.get_name()}"
 
-                # Agregar footer de paginación
-                if pagination['total_pages'] > 1:
-                    lines.append(format_pagination_footer(
-                        pagination['page'],
-                        pagination['total_pages'],
-                        '/inv todo',
-                        pagination['total_items']
-                    ))
-
-                output = "<pre>" + "\n".join(lines) + "</pre>"
-                await message.answer(output, parse_mode="HTML")
+                # Enviar lista paginada con botones
+                await send_paginated_simple(
+                    message=message,
+                    items=items,
+                    page=page,
+                    callback_action="pg_inv",
+                    format_func=format_inv_item,
+                    header="Tu Inventario Completo",
+                    per_page=settings.pagination_items_per_page,
+                    icon=ICONS['inventory']
+                )
                 return
 
             # CASO 3: Mirar el inventario de un contenedor.
@@ -320,13 +308,10 @@ class CmdWho(Command):
 
             # CASO 2: Modo "todo" con paginación (lista completa sin límites)
             if args[0].lower() == "todo":
-                page = 1
-                if len(args) > 1:
-                    try:
-                        page = int(args[1])
-                    except ValueError:
-                        await message.answer("Uso: /quien todo [número de página]")
-                        return
+                from src.utils.paginated_output import send_paginated_simple, parse_page_from_args
+
+                # Parsear página del resto de argumentos
+                page = parse_page_from_args(args[1:], default=1)
 
                 # Filtrar para excluir al viewer
                 filtered_chars = [char for char in online_characters if char.id != character.id]
@@ -338,30 +323,22 @@ class CmdWho(Command):
                 # Ordenar por nombre
                 filtered_chars.sort(key=lambda c: c.name)
 
-                # Paginar personajes
-                pagination = paginate_list(filtered_chars, page=page, per_page=settings.pagination_items_per_page)
-
-                # Construir output
-                lines = [
-                    f"{ICONS['player']} <b>Jugadores en Runegram ({len(online_characters)} conectados)</b>",
-                    "─────────────────────────────"
-                ]
-
-                for idx, char in enumerate(pagination['items'], start=pagination['start_index']):
+                # Función de formato para cada personaje
+                def format_who_char(char):
                     location = f" ({ICONS['room']} {char.room.name})" if char.room else ""
-                    lines.append(f"{idx}. {char.name}{location}")
+                    return f"{char.name}{location}"
 
-                # Agregar footer de paginación
-                if pagination['total_pages'] > 1:
-                    lines.append(format_pagination_footer(
-                        pagination['page'],
-                        pagination['total_pages'],
-                        '/quien todo',
-                        pagination['total_items']
-                    ))
-
-                output = "<pre>" + "\n".join(lines) + "</pre>"
-                await message.answer(output, parse_mode="HTML")
+                # Enviar lista paginada con botones
+                await send_paginated_simple(
+                    message=message,
+                    items=filtered_chars,
+                    page=page,
+                    callback_action="pg_who",
+                    format_func=format_who_char,
+                    header=f"Jugadores en Runegram ({len(online_characters)} conectados)",
+                    per_page=settings.pagination_items_per_page,
+                    icon=ICONS['player']
+                )
                 return
 
             # Si hay args pero no es "todo", mostrar mensaje de uso

@@ -32,19 +32,23 @@ class CmdListarSalas(Command):
         """Ejecuta la consulta y formatea la lista de salas."""
         try:
             from src.services import tag_service
-            from src.templates import render_template
+            from src.utils.paginated_output import send_paginated_list, parse_page_from_args, remove_page_from_args
+
+            # Remover página de args para parsear solo filtros
+            filter_args = remove_page_from_args(args)
+            page = parse_page_from_args(args, default=1)
 
             all_rooms = []
             category_filter = None
             tag_filters = []
 
-            if not args:
+            if not filter_args:
                 # Sin filtros, listar todas las salas
                 result = await session.execute(select(Room).order_by(Room.id))
                 all_rooms = result.scalars().all()
             else:
-                # Parsear filtros (nueva sintaxis)
-                for arg in args:
+                # Parsear filtros (sintaxis cat:X tag:Y,Z)
+                for arg in filter_args:
                     if arg.startswith("cat:"):
                         category_filter = arg.split(":", 1)[1]
                     elif arg.startswith("tag:"):
@@ -61,16 +65,26 @@ class CmdListarSalas(Command):
                     result = await session.execute(select(Room).order_by(Room.id))
                     all_rooms = result.scalars().all()
 
-            # Renderizar con template
-            output = render_template('room_list.html.j2',
-                rooms=all_rooms,
-                max_items=30,
-                filters=bool(args),
-                cat=category_filter,
-                tags=tag_filters
-            )
+            # Preparar parámetros para callbacks (abreviados para caber en 64 bytes)
+            callback_params = {}
+            if category_filter:
+                callback_params['c'] = category_filter
+            if tag_filters:
+                callback_params['t'] = ",".join(tag_filters)
 
-            await message.answer(output, parse_mode="HTML")
+            # Enviar lista paginada con template y botones
+            await send_paginated_list(
+                message=message,
+                items=all_rooms,
+                page=page,
+                template_name='room_list.html.j2',
+                callback_action="pg_rooms",
+                per_page=30,
+                filters=bool(filter_args),
+                cat=category_filter,
+                tags=tag_filters,
+                **callback_params  # Para preservar en botones
+            )
 
         except Exception:
             # Captura cualquier error inesperado durante la consulta a la base de datos.

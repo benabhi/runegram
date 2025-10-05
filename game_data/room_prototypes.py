@@ -12,6 +12,8 @@ Estructura de un Prototipo de Sala:
 - <clave_unica>: (ej: "plaza_central")
     - "name": (str) El nombre de la sala.
     - "description": (str) El texto principal que se muestra al entrar.
+    - "category": (str, opcional) Categoría principal de la sala (ej: "ciudad_runegard", "bosque_oscuro").
+    - "tags": (list[str], opcional) Etiquetas múltiples (ej: ["exterior", "seguro", "social"]).
     - "exits": (dict, opcional) Conexiones a otras salas.
         - "<direccion>": (str) La clave única de la sala de destino.
         - IMPORTANTE: Todas las salidas deben ser BIDIRECCIONALES y EXPLÍCITAS.
@@ -30,6 +32,8 @@ ROOM_PROTOTYPES = {
     "limbo": {
         "name": "El Limbo",
         "description": "Te encuentras en una habitación vacía, suspendida en la nada. Es el comienzo de tu aventura y un refugio seguro.",
+        "category": "inicio",
+        "tags": ["seguro", "spawn", "interior"],
         "exits": {
             "norte": "plaza_central"
         },
@@ -42,6 +46,8 @@ ROOM_PROTOTYPES = {
     "plaza_central": {
         "name": "Plaza Central de Runegard",
         "description": "Estás en el corazón de la ciudad. El bullicio de mercaderes y aventureros llena el aire. Una imponente fuente de mármol domina el centro de la plaza. Varios caminos parten desde aquí.",
+        "category": "ciudad_runegard",
+        "tags": ["ciudad", "seguro", "social", "exterior"],
         "exits": {
             "sur": "limbo",           # Salida de vuelta al Limbo
             "este": "calle_mercaderes"
@@ -62,6 +68,8 @@ ROOM_PROTOTYPES = {
     "calle_mercaderes": {
         "name": "Calle de los Mercaderes",
         "description": "Decenas de puestos se alinean en esta calle, ofreciendo todo tipo de mercancías exóticas.",
+        "category": "ciudad_runegard",
+        "tags": ["ciudad", "comercio", "exterior"],
         "exits": {
             "oeste": "plaza_central"  # Salida de vuelta a la Plaza Central
         },

@@ -79,6 +79,16 @@ class Item(Base):
         """
         return ITEM_PROTOTYPES.get(self.key, {})
 
+    @property
+    def category(self) -> str | None:
+        """Retorna la categoría de este item desde su prototipo."""
+        return self.prototype.get("category")
+
+    @property
+    def tags(self) -> list[str]:
+        """Retorna los tags de este item desde su prototipo."""
+        return self.prototype.get("tags", [])
+
     def get_name(self) -> str:
         """
         Obtiene el nombre del item, priorizando el `override` sobre el prototipo.

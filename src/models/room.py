@@ -67,6 +67,16 @@ class Room(Base):
             return {}
         return ROOM_PROTOTYPES.get(self.key, {})
 
+    @property
+    def category(self) -> str | None:
+        """Retorna la categoría de esta sala desde su prototipo."""
+        return self.prototype.get("category")
+
+    @property
+    def tags(self) -> list[str]:
+        """Retorna los tags de esta sala desde su prototipo."""
+        return self.prototype.get("tags", [])
+
     def __repr__(self):
         """
         Representación en string del objeto, útil para logging y depuración.

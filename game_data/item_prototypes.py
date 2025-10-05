@@ -11,6 +11,8 @@ Estructura de un Prototipo de Objeto:
     - "name": (str) El nombre que ven los jugadores.
     - "keywords": (list[str]) Palabras clave para interactuar con el objeto.
     - "description": (str) El texto que se muestra al mirar el objeto.
+    - "category": (str, opcional) Categoría principal del item (ej: "arma", "contenedor", "consumible").
+    - "tags": (list[str], opcional) Etiquetas múltiples (ej: ["espada", "magico", "unica"]).
     - "scripts": (dict, opcional) Scripts reactivos a eventos.
     - "tick_scripts": (list[dict], opcional) Scripts proactivos basados en el sistema de pulse.
         Cada tick_script tiene:
@@ -33,6 +35,8 @@ ITEM_PROTOTYPES = {
         "name": "una espada viviente",
         "description": "La hoja de acero parece retorcerse y susurrarte secretos.",
         "keywords": ["espada", "viviente"],
+        "category": "arma",
+        "tags": ["espada", "magica", "unica", "una_mano"],
         "scripts": {
             "on_look": "script_notificar_brillo_magico(color=rojo)"
         },
@@ -56,6 +60,8 @@ ITEM_PROTOTYPES = {
         "name": "una mochila de cuero",
         "keywords": ["mochila", "cuero"],
         "description": "Una mochila simple pero resistente, hecha de cuero curtido. Parece que tiene espacio para algunas cosas.",
+        "category": "contenedor",
+        "tags": ["mochila", "portatil", "cuero"],
         "is_container": True,
         "capacity": 10, # Puede contener hasta 10 objetos.
         "display": {
@@ -68,6 +74,8 @@ ITEM_PROTOTYPES = {
         "name": "un cofre de roble",
         "keywords": ["cofre", "roble"],
         "description": "Un pesado cofre de madera de roble con refuerzos de hierro. Está cerrado.",
+        "category": "contenedor",
+        "tags": ["cofre", "fijo", "madera", "cerrado"],
         "is_container": True,
         "capacity": 20,
         # Este lock evita que el objeto sea cogido con `/coger`.

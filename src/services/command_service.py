@@ -53,7 +53,7 @@ async def get_active_command_sets_for_character(character: Character) -> list[st
 
     # 4. Añadimos sets de administrador si el rol de la cuenta es el adecuado.
     if character.account and character.account.role in ["ADMIN", "SUPERADMIN"]:
-        active_sets.update(["spawning", "admin_movement", "admin_info", "diagnostics", "management"])
+        active_sets.update(["spawning", "admin_movement", "admin_info", "diagnostics", "management", "search"])
 
     return sorted(list(active_sets))
 

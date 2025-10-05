@@ -43,6 +43,7 @@ from commands.admin.movement import ADMIN_MOVEMENT_COMMANDS
 from commands.admin.info import INFO_COMMANDS
 from commands.admin.diagnostics import DIAGNOSTICS_COMMANDS
 from commands.admin.management import MANAGEMENT_COMMANDS
+from commands.admin.search import SEARCH_COMMANDS
 
 from src.utils.presenters import show_current_room
 
@@ -64,6 +65,7 @@ COMMAND_SETS = {
     "admin_info": INFO_COMMANDS,
     "diagnostics": DIAGNOSTICS_COMMANDS,
     "management": MANAGEMENT_COMMANDS,
+    "search": SEARCH_COMMANDS,
 }
 
 @dp.message_handler(content_types=types.ContentTypes.TEXT)

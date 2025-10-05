@@ -1,0 +1,26 @@
+{# src/templates/base/tags_list.html.j2 #}
+{# Template para listar tags (comando /listartags) #}
+{#
+Variables esperadas:
+- room_tags: Set/lista de tags de salas
+- item_tags: Set/lista de tags de items
+#}
+<pre>{{ icon('tag') }} <b>TAGS DISPONIBLES</b>
+─────────────────────────────
+{{ icon('room') }} <b>Salas:</b>
+{%- if room_tags %}
+{%- for tag in room_tags|sort %}
+    - {{ tag }}
+{%- endfor %}
+{%- else %}
+    Ningún tag definido
+{%- endif %}
+
+{{ icon('item') }} <b>Items:</b>
+{%- if item_tags %}
+{%- for tag in item_tags|sort %}
+    - {{ tag }}
+{%- endfor %}
+{%- else %}
+    Ningún tag definido
+{%- endif %}</pre>

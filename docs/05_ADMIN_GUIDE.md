@@ -45,16 +45,21 @@ Estos comandos permiten a los administradores moverse libremente por el mundo.
 
 Estos comandos son herramientas de solo lectura para inspeccionar el estado del juego.
 
-### `/listarsalas [category:X] [tag:Y]`
+### `/listarsalas [cat:X] [tag:Y,Z]`
 *   **Alias:** `/lsalas`
 *   **Permiso:** `ADMIN`
 *   **Descripción:** Muestra una lista de todas las salas que existen en el mundo, incluyendo su `ID`, su `key` de prototipo y su `nombre`. Soporta filtrado por categoría y tags. Esencial para usar `/teleport`.
 *   **Uso:**
     ```
     /listarsalas                        # Todas las salas
-    /listarsalas category:ciudad_runegard  # Solo salas de esa categoría
+    /listarsalas cat:ciudad_runegard    # Solo salas de esa categoría
     /listarsalas tag:exterior           # Solo salas con ese tag
+    /listarsalas tag:exterior,seguro    # Solo salas con ambos tags (AND)
     ```
+*   **Sintaxis de filtros:**
+    - `cat:X` - Filtra por categoría X
+    - `tag:Y,Z` - Filtra por tags Y y Z (separados por coma, lógica AND)
+*   **Notas:** Formato lista optimizado para móvil.
 
 ### `/examinarsala <id_o_key>`
 *   **Alias:** `/exsala`
@@ -97,29 +102,33 @@ Estos comandos son herramientas de solo lectura para inspeccionar el estado del 
 
 Estos comandos permiten buscar y filtrar contenido del juego usando el sistema de categories y tags.
 
-### `/listaritems [category:X] [tag:Y]`
+### `/listaritems [cat:X] [tag:Y,Z]`
 *   **Alias:** `/litems`
 *   **Permiso:** `ADMIN`
 *   **Descripción:** Lista items filtrados por categoría y tags. Muestra ubicación (inventario/sala/contenedor), categoría y tags de cada item.
 *   **Uso:**
     ```
     /listaritems                    # Todos los items
-    /listaritems category:arma      # Solo items de esa categoría
+    /listaritems cat:arma           # Solo items de esa categoría
     /listaritems tag:magica         # Solo items con ese tag
+    /listaritems tag:magica,unica   # Solo items con ambos tags (AND)
     ```
-*   **Notas:** Límite de 20 resultados.
+*   **Sintaxis de filtros:**
+    - `cat:X` - Filtra por categoría X
+    - `tag:Y,Z` - Filtra por tags Y y Z (separados por coma, lógica AND)
+*   **Notas:** Límite de 20 resultados. Formato lista optimizado para móvil.
 
 ### `/listarcategorias`
-*   **Alias:** `/cats`
+*   **Alias:** `/cats`, `/lcats`
 *   **Permiso:** `ADMIN`
 *   **Descripción:** Muestra todas las categorías disponibles de salas e items.
-*   **Notas:** Útil para conocer qué categorías están definidas en los prototipos antes de filtrar.
+*   **Notas:** Útil para conocer qué categorías están definidas en los prototipos antes de filtrar. Formato lista optimizado para móvil.
 
 ### `/listartags`
-*   **Alias:** `/etiquetas`
+*   **Alias:** `/etiquetas`, `/ltags`
 *   **Permiso:** `ADMIN`
 *   **Descripción:** Muestra todos los tags disponibles de salas e items.
-*   **Notas:** Útil para conocer qué tags están definidos en los prototipos antes de filtrar.
+*   **Notas:** Útil para conocer qué tags están definidos en los prototipos antes de filtrar. Formato lista optimizado para móvil.
 
 ---
 

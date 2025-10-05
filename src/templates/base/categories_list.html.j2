@@ -1,0 +1,26 @@
+{# src/templates/base/categories_list.html.j2 #}
+{# Template para listar categorías (comando /listarcategorias) #}
+{#
+Variables esperadas:
+- room_categories: Set/lista de categorías de salas
+- item_categories: Set/lista de categorías de items
+#}
+<pre>{{ icon('category') }} <b>CATEGORÍAS DISPONIBLES</b>
+─────────────────────────────
+{{ icon('room') }} <b>Salas:</b>
+{%- if room_categories %}
+{%- for cat in room_categories|sort %}
+    - {{ cat }}
+{%- endfor %}
+{%- else %}
+    Ninguna categoría definida
+{%- endif %}
+
+{{ icon('item') }} <b>Items:</b>
+{%- if item_categories %}
+{%- for cat in item_categories|sort %}
+    - {{ cat }}
+{%- endfor %}
+{%- else %}
+    Ninguna categoría definida
+{%- endif %}</pre>

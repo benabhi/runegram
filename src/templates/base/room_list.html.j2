@@ -1,0 +1,41 @@
+{# src/templates/base/room_list.html.j2 #}
+{# Template para listar salas (comando /listarsalas) #}
+{#
+Variables esperadas:
+- rooms: Lista de objetos Room
+- max_items: Límite de items a mostrar (default: 30)
+- filters: Boolean indicando si hay filtros aplicados
+- cat: Categoría filtrada (opcional)
+- tags: Lista de tags filtrados (opcional)
+#}
+<pre>{{ icon('list') }} <b>SALAS{% if filters %} (Filtradas){% endif %} ({{ rooms|length }})</b>
+{%- if filters %}
+─────────────────────────────
+{{ icon('filter') }} <b>Filtros aplicados:</b>
+{%- if cat %}
+    • Categoría: <i>{{ cat }}</i>
+{%- endif %}
+{%- if tags %}
+    • Tags: <i>{{ tags|join(', ') }}</i>
+{%- endif %}
+
+{%- endif %}
+{%- if not rooms %}
+No se encontraron salas{% if filters %} con esos criterios{% endif %}.
+{%- else %}
+{{ icon('room') }} <b>Resultados:</b>
+{%- if rooms|length > max_items %}
+{%- for room in rooms[:max_items] %}
+    {{ loop.index }}. <b>{{ room.name }}</b>{% if room.category %} <i>[{{ room.category }}]</i>{% endif %}
+       <i>ID: {{ room.id }} | Key: {{ room.key }}</i>{% if room.tags %}
+       {{ icon('tag') }} {{ room.tags|join(', ') }}{% endif %}
+{%- endfor %}
+... y {{ rooms|length - max_items }} {{ (rooms|length - max_items)|pluralize('sala', 'salas') }} más.
+{%- else %}
+{%- for room in rooms %}
+    {{ loop.index }}. <b>{{ room.name }}</b>{% if room.category %} <i>[{{ room.category }}]</i>{% endif %}
+       <i>ID: {{ room.id }} | Key: {{ room.key }}</i>{% if room.tags %}
+       {{ icon('tag') }} {{ room.tags|join(', ') }}{% endif %}
+{%- endfor %}
+{%- endif %}
+{%- endif %}</pre>

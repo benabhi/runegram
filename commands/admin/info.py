@@ -26,29 +26,31 @@ class CmdListarSalas(Command):
     """
     names = ["listarsalas", "lsalas"]
     lock = "rol(ADMIN)"
-    description = "Lista salas. Uso: /listarsalas [category:X] [tag:Y]"
+    description = "Lista salas. Uso: /listarsalas [cat:X] [tag:Y,Z]"
 
     async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
         """Ejecuta la consulta y formatea la lista de salas."""
         try:
             from src.services import tag_service
+            from src.templates import render_template
 
             all_rooms = []
+            category_filter = None
+            tag_filters = []
 
             if not args:
                 # Sin filtros, listar todas las salas
                 result = await session.execute(select(Room).order_by(Room.id))
                 all_rooms = result.scalars().all()
             else:
-                # Parsear filtros
-                category_filter = None
-                tag_filters = []
-
+                # Parsear filtros (nueva sintaxis)
                 for arg in args:
-                    if arg.startswith("category:"):
+                    if arg.startswith("cat:"):
                         category_filter = arg.split(":", 1)[1]
                     elif arg.startswith("tag:"):
-                        tag_filters.append(arg.split(":", 1)[1])
+                        # Soportar múltiples tags separados por coma
+                        tags = arg.split(":", 1)[1].split(",")
+                        tag_filters.extend([t.strip() for t in tags])
 
                 # Ejecutar búsqueda
                 if category_filter:
@@ -59,28 +61,16 @@ class CmdListarSalas(Command):
                     result = await session.execute(select(Room).order_by(Room.id))
                     all_rooms = result.scalars().all()
 
-            if not all_rooms:
-                await message.answer("No se encontraron salas con esos criterios.")
-                return
+            # Renderizar con template
+            output = render_template('room_list.html.j2',
+                rooms=all_rooms,
+                max_items=30,
+                filters=bool(args),
+                cat=category_filter,
+                tags=tag_filters
+            )
 
-            # 2. Construir el mensaje de respuesta línea por línea.
-            response_lines = ["<b>Lista de Salas del Mundo:</b>"]
-            for room in all_rooms[:30]:  # Límite de 30 salas
-                # Agregar category y tags si existen
-                category_str = f" [cat: {room.category}]" if room.category else ""
-                tags_str = f" [tags: {', '.join(room.tags)}]" if room.tags else ""
-                response_lines.append(f"ID: {room.id:<4} | Key: {room.key:<20} | {room.name}{category_str}{tags_str}")
-
-            if len(all_rooms) > 30:
-                response_lines.append(f"\n... y {len(all_rooms) - 30} salas más.")
-
-            body = "\n".join(response_lines)
-
-            # 3. Envolver el cuerpo completo en una etiqueta <pre> para asegurar
-            #    un formato de monoespaciado y una alineación perfecta de las columnas.
-            response_text = f"<pre>{body}</pre>"
-
-            await message.answer(response_text, parse_mode="HTML")
+            await message.answer(output, parse_mode="HTML")
 
         except Exception:
             # Captura cualquier error inesperado durante la consulta a la base de datos.

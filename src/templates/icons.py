@@ -131,6 +131,10 @@ SYSTEM = {
     'loading': '⏳',        # Cargando
     'settings': '⚙️',       # Configuración
     'admin': '👑',          # Admin/Superadmin
+    'list': '📋',           # Listados/búsquedas
+    'category': '📂',       # Categorías
+    'tag': '🏷️',           # Tags/Etiquetas
+    'filter': '🔍',         # Filtros aplicados
 }
 
 # Mundo y Ambiente

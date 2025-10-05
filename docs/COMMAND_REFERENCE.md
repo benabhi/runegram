@@ -418,15 +418,19 @@ Todos los comandos de administrador requieren el rol **ADMIN** o superior, a men
 
 ## Información y Diagnóstico
 
-### `/listarsalas [category:X] [tag:Y]`
+### `/listarsalas [cat:X] [tag:Y,Z]`
 - **Alias:** `/lsalas`
 - **Permiso:** ADMIN
 - **Descripción:** Muestra ID, Clave y Nombre de todas las salas del mundo. Soporta filtrado por categoría y tags.
 - **Uso:**
   - `/listarsalas` - Todas las salas
-  - `/listarsalas category:ciudad_runegard` - Solo salas de esa categoría
+  - `/listarsalas cat:ciudad_runegard` - Solo salas de esa categoría
   - `/listarsalas tag:exterior` - Solo salas con ese tag
-- **Notas:** Esencial para usar `/teleport` y navegar el mundo. Ahora soporta filtrado por el sistema de Categories/Tags.
+  - `/listarsalas tag:exterior,seguro` - Solo salas con ambos tags (AND)
+- **Sintaxis de filtros:**
+  - `cat:X` - Filtra por categoría X
+  - `tag:Y,Z` - Filtra por tags Y y Z (separados por coma, lógica AND)
+- **Notas:** Esencial para usar `/teleport` y navegar el mundo. Usa formato lista optimizado para móvil.
 
 ### `/examinarsala <id o key>`
 - **Alias:** `/exsala`
@@ -481,27 +485,31 @@ Todos los comandos de administrador requieren el rol **ADMIN** o superior, a men
 
 ## Búsqueda por Categories y Tags
 
-### `/listaritems [category:X] [tag:Y]`
+### `/listaritems [cat:X] [tag:Y,Z]`
 - **Alias:** `/litems`
 - **Permiso:** ADMIN
 - **Descripción:** Lista items filtrados por categoría y tags.
 - **Uso:**
   - `/listaritems` - Todos los items
-  - `/listaritems category:arma` - Solo items de esa categoría
+  - `/listaritems cat:arma` - Solo items de esa categoría
   - `/listaritems tag:magica` - Solo items con ese tag
-- **Notas:** Muestra ubicación (inventario/sala/contenedor), categoría y tags de cada item. Límite de 20 resultados.
+  - `/listaritems tag:magica,unica` - Solo items con ambos tags (AND)
+- **Sintaxis de filtros:**
+  - `cat:X` - Filtra por categoría X
+  - `tag:Y,Z` - Filtra por tags Y y Z (separados por coma, lógica AND)
+- **Notas:** Muestra ubicación (inventario/sala/contenedor), categoría y tags de cada item. Límite de 20 resultados. Formato lista optimizado para móvil.
 
 ### `/listarcategorias`
-- **Alias:** `/cats`
+- **Alias:** `/cats`, `/lcats`
 - **Permiso:** ADMIN
 - **Descripción:** Muestra todas las categorías disponibles de salas e items.
-- **Notas:** Útil para conocer qué categorías están definidas en los prototipos antes de filtrar.
+- **Notas:** Útil para conocer qué categorías están definidas en los prototipos antes de filtrar. Formato lista optimizado para móvil.
 
 ### `/listartags`
-- **Alias:** `/etiquetas`
+- **Alias:** `/etiquetas`, `/ltags`
 - **Permiso:** ADMIN
 - **Descripción:** Muestra todos los tags disponibles de salas e items.
-- **Notas:** Útil para conocer qué tags están definidos en los prototipos antes de filtrar.
+- **Notas:** Útil para conocer qué tags están definidos en los prototipos antes de filtrar. Formato lista optimizado para móvil.
 
 ---
 
@@ -543,9 +551,10 @@ Todos los comandos de administrador requieren el rol **ADMIN** o superior, a men
 
 ---
 
-**Versión:** 1.3.1
+**Versión:** 1.4
 **Última actualización:** 2025-10-05
 **Changelog:**
+- v1.4 (2025-10-05): Refactorizado sintaxis de filtros (category→cat, tags con comas), agregado sistema de templates, formato lista optimizado para móvil
 - v1.3.1 (2025-10-05): Renombrados comandos a /listarcategorias y /listartags para consistencia
 - v1.3 (2025-10-05): Agregado sistema de Categories/Tags con comandos de búsqueda (/listaritems, /listarcategorias, /listartags); extendido /listarsalas con filtros
 - v1.2 (2025-10-04): Agregado sistema de ordinales para objetos duplicados (sintaxis N.nombre)

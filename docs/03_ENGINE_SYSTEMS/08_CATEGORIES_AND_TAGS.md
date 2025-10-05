@@ -146,13 +146,20 @@ El comando existente `/listarsalas` ahora soporta filtrado por categoría y tags
 /listarsalas
 
 # Filtrar por categoría
-/listarsalas category:ciudad_runegard
+/listarsalas cat:ciudad_runegard
 
 # Filtrar por tag
 /listarsalas tag:exterior
+
+# Filtrar por múltiples tags
+/listarsalas tag:exterior,seguro,social
 ```
 
 Alias: `/lsalas`
+
+**Sintaxis de filtros:**
+- `cat:X` - Filtra por categoría X
+- `tag:Y,Z` - Filtra por tags Y y Z (separados por coma, lógica AND)
 
 ### /listaritems
 
@@ -161,25 +168,32 @@ Alias: `/lsalas`
 /listaritems
 
 # Filtrar por categoría
-/listaritems category:arma
+/listaritems cat:arma
 
 # Filtrar por tag
 /listaritems tag:magica
+
+# Filtrar por múltiples tags
+/listaritems tag:magica,unica
 ```
 
 Alias: `/litems`
+
+**Sintaxis de filtros:**
+- `cat:X` - Filtra por categoría X
+- `tag:Y,Z` - Filtra por tags Y y Z (separados por coma, lógica AND)
 
 ### /listarcategorias
 
 Muestra todas las categorías disponibles de salas e items.
 
-Alias: `/cats`
+Alias: `/cats`, `/lcats`
 
 ### /listartags
 
 Muestra todos los tags disponibles de salas e items.
 
-Alias: `/etiquetas`
+Alias: `/etiquetas`, `/ltags`
 
 ## 💡 Mejores Prácticas
 

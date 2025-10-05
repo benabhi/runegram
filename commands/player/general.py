@@ -22,8 +22,8 @@ from src.utils.pagination import paginate_list, format_pagination_footer
 from src.templates import ICONS
 from src.config import settings
 
-# Re-importamos `find_item_in_list` aquí ya que CmdInventory lo necesita.
-from .interaction import find_item_in_list
+# Re-importamos funciones de búsqueda aquí ya que CmdInventory y CmdLook las necesitan.
+from .interaction import find_item_in_list, find_item_in_list_with_ordinal
 
 class CmdLook(Command):
     """
@@ -48,43 +48,35 @@ class CmdLook(Command):
                     await message.answer(f"<pre>{detail_data['description']}</pre>", parse_mode="HTML")
                     return
 
-            # 2. Buscar en los objetos de la sala.
-            for item in character.room.items:
-                if target_string in item.get_keywords() or target_string == item.get_name().lower():
-                    # Cargar contained_items si es contenedor
-                    if item.prototype.get("is_container"):
-                        await session.refresh(item, attribute_names=['contained_items'])
+            # 2. Buscar en objetos (sala + inventario) con soporte para ordinales.
+            available_items = character.room.items + character.items
+            item_to_look, item_error = find_item_in_list_with_ordinal(
+                target_string,
+                available_items,
+                enable_disambiguation=True
+            )
 
-                    # Usar el nuevo sistema de templates
-                    response = format_item_look(item, can_interact=True)
-                    await message.answer(response, parse_mode="HTML")
+            # Manejar desambiguación
+            if item_error:
+                await message.answer(item_error, parse_mode="HTML")
+                return
 
-                    # Ejecutar script on_look si existe
-                    if "on_look" in item.prototype.get("scripts", {}):
-                        await script_service.execute_script(
-                            script_string=item.prototype["scripts"]["on_look"],
-                            session=session, character=character, target=item
-                        )
-                    return
+            if item_to_look:
+                # Cargar contained_items si es contenedor
+                if item_to_look.prototype.get("is_container"):
+                    await session.refresh(item_to_look, attribute_names=['contained_items'])
 
-            # 3. Buscar en el inventario del personaje.
-            for item in character.items:
-                if target_string in item.get_keywords() or target_string == item.get_name().lower():
-                    # Cargar contained_items si es contenedor
-                    if item.prototype.get("is_container"):
-                        await session.refresh(item, attribute_names=['contained_items'])
+                # Usar el nuevo sistema de templates
+                response = format_item_look(item_to_look, can_interact=True)
+                await message.answer(response, parse_mode="HTML")
 
-                    # Usar el nuevo sistema de templates
-                    response = format_item_look(item, can_interact=True)
-                    await message.answer(response, parse_mode="HTML")
-
-                    # Ejecutar script on_look si existe
-                    if "on_look" in item.prototype.get("scripts", {}):
-                        await script_service.execute_script(
-                            script_string=item.prototype["scripts"]["on_look"],
-                            session=session, character=character, target=item
-                        )
-                    return
+                # Ejecutar script on_look si existe
+                if "on_look" in item_to_look.prototype.get("scripts", {}):
+                    await script_service.execute_script(
+                        script_string=item_to_look.prototype["scripts"]["on_look"],
+                        session=session, character=character, target=item_to_look
+                    )
+                return
 
             # 4. Buscar otros personajes en la sala (solo jugadores online).
             for other_char in character.room.characters:

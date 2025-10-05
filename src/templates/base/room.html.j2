@@ -14,13 +14,13 @@ Variables esperadas:
 {%- if room.items|length > max_items %}
 {%- for item in room.items[:max_items] %}
 {%- set item_icon = item.prototype.get('display', {}).get('icon', icon('item')) %}
-    - {{ item_icon }} {{ item.get_name() }}{% if item.prototype.get('is_container') and item.contained_items %} ({{ item.contained_items|length }} {{ item.contained_items|length|pluralize('item', 'items') }}){% endif %}
+    {{ loop.index }}. {{ item_icon }} {{ item.get_name() }}{% if item.prototype.get('is_container') and item.contained_items %} ({{ item.contained_items|length }} {{ item.contained_items|length|pluralize('item', 'items') }}){% endif %}
 {%- endfor %}
 ... y {{ room.items|length - max_items }} {{ (room.items|length - max_items)|pluralize('item', 'items') }} más.
 {%- else %}
 {%- for item in room.items %}
 {%- set item_icon = item.prototype.get('display', {}).get('icon', icon('item')) %}
-    - {{ item_icon }} {{ item.get_name() }}{% if item.prototype.get('is_container') and item.contained_items %} ({{ item.contained_items|length }} {{ item.contained_items|length|pluralize('item', 'items') }}){% endif %}
+    {{ loop.index }}. {{ item_icon }} {{ item.get_name() }}{% if item.prototype.get('is_container') and item.contained_items %} ({{ item.contained_items|length }} {{ item.contained_items|length|pluralize('item', 'items') }}){% endif %}
 {%- endfor %}
 {%- endif %}
 

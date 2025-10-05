@@ -26,6 +26,149 @@ def find_item_in_list(item_name: str, item_list: list):
             return item
     return None
 
+
+def find_item_in_list_with_ordinal(
+    search_term: str,
+    item_list: list,
+    enable_disambiguation: bool = True
+) -> tuple:
+    """
+    Busca un item con soporte para ordinales y desambiguación.
+
+    Soporta sintaxis de ordinales estándar de MUDs: "2.espada" busca la segunda espada.
+
+    Args:
+        search_term: Término de búsqueda. Puede ser:
+                    - "espada" -> busca primera espada
+                    - "2.espada" -> busca segunda espada (ordinal)
+                    - "mochila" -> busca primera mochila
+        item_list: Lista de items donde buscar
+        enable_disambiguation: Si True, detecta ambigüedad y retorna mensaje de ayuda
+
+    Returns:
+        tuple: (item_encontrado | None, mensaje_error | None)
+               - Si encuentra 1 item: (item, None)
+               - Si hay duplicados sin ordinal: (None, mensaje_desambiguacion)
+               - Si no encuentra nada: (None, None)
+               - Si ordinal es inválido: (None, mensaje_error)
+
+    Ejemplos:
+        >>> find_item_in_list_with_ordinal("espada", items, True)
+        # Si hay 1 espada: (item, None)
+        # Si hay 3 espadas: (None, "Hay 3 'espada'. ¿Cuál?...")
+
+        >>> find_item_in_list_with_ordinal("2.espada", items, True)
+        # (segunda_espada, None) o (None, "No hay segunda espada")
+    """
+    search_term = search_term.lower().strip()
+
+    # Detectar si hay ordinal en el formato "N.nombre"
+    ordinal_match = re.match(r'^(\d+)\.(.+)$', search_term)
+
+    if ordinal_match:
+        # Sintaxis con ordinal: "2.espada"
+        ordinal_num = int(ordinal_match.group(1))
+        item_name = ordinal_match.group(2).strip()
+
+        # Buscar todas las coincidencias
+        matches = []
+        for item in item_list:
+            if item_name in item.get_keywords() or item_name == item.get_name().lower():
+                matches.append(item)
+
+        # Validar que el ordinal esté en rango
+        if ordinal_num < 1:
+            return None, f"El número debe ser 1 o mayor."
+
+        if ordinal_num > len(matches):
+            if len(matches) == 0:
+                return None, None  # No hay items con ese nombre
+            elif len(matches) == 1:
+                return None, f"Solo hay 1 '{item_name}'."
+            else:
+                return None, f"Solo hay {len(matches)} '{item_name}'."
+
+        # Retornar el item en la posición ordinal (ordinal_num - 1 porque es 1-indexed)
+        return matches[ordinal_num - 1], None
+
+    else:
+        # Sin ordinal: buscar todas las coincidencias
+        matches = []
+        for item in item_list:
+            if search_term in item.get_keywords() or search_term == item.get_name().lower():
+                matches.append(item)
+
+        if len(matches) == 0:
+            return None, None  # No se encontró
+
+        elif len(matches) == 1:
+            return matches[0], None  # Exactamente uno, retornarlo
+
+        else:
+            # Múltiples coincidencias
+            if enable_disambiguation:
+                # Generar mensaje de desambiguación
+                disambiguation_msg = f"❓ Hay {len(matches)} '{search_term}'. ¿Cuál?\n\n"
+                for idx, item in enumerate(matches, start=1):
+                    item_icon = item.prototype.get('display', {}).get('icon', '📦')
+                    disambiguation_msg += f"{idx}. {item_icon} {item.get_name()}\n"
+
+                return None, disambiguation_msg.strip()
+            else:
+                # Desambiguación deshabilitada, retornar el primero
+                return matches[0], None
+
+
+def create_disambiguation_message(
+    items: list,
+    action: str,
+    search_term: str,
+    preposition: str = None,
+    target_term: str = None
+) -> str:
+    """
+    Crea un mensaje de desambiguación claro con instrucciones de uso.
+
+    Args:
+        items: Lista de items duplicados
+        action: Verbo del comando ("coger", "meter", "dejar")
+        search_term: Término ambiguo ("espada")
+        preposition: Preposición si aplica ("en", "de")
+        target_term: Término del target si aplica ("mochila")
+
+    Returns:
+        str: Mensaje HTML formateado con opciones y ejemplos
+
+    Ejemplo:
+        >>> create_disambiguation_message(espadas, "coger", "espada")
+        "❓ Hay 2 'espada'. ¿Cuál quieres coger?\n\n1. ⚔️ espada oxidada\n..."
+
+        >>> create_disambiguation_message(pociones, "meter", "pocion", "en", "mochila")
+        "❓ Hay 3 'pocion'. ¿Cuál quieres meter?\n\n1. 🧪 poción roja\n..."
+    """
+    msg = f"❓ Hay {len(items)} '{search_term}'. ¿Cuál quieres {action}?\n\n"
+
+    # Listar items con números
+    for idx, item in enumerate(items, start=1):
+        item_icon = item.prototype.get('display', {}).get('icon', '📦')
+        msg += f"{idx}. {item_icon} {item.get_name()}\n"
+
+    # Agregar ejemplos de uso
+    msg += f"\nUsa:"
+
+    if preposition and target_term:
+        # Comando con preposición: "meter X en Y"
+        msg += f"\n<code>/{action} 1.{search_term} {preposition} {target_term}</code>"
+        if len(items) >= 2:
+            msg += f"\n<code>/{action} 2.{search_term} {preposition} {target_term}</code>"
+    else:
+        # Comando simple: "coger X"
+        msg += f"\n<code>/{action} 1.{search_term}</code>"
+        if len(items) >= 2:
+            msg += f"\n<code>/{action} 2.{search_term}</code>"
+
+    return msg
+
 def parse_interaction_args(args: list[str]) -> tuple[str | None, str | None]:
     """
     Parsea argumentos complejos como "espada en mochila" o "pocion de cofre".
@@ -63,8 +206,18 @@ class CmdGet(Command):
                 await CmdTake().execute(character, session, message, args)
                 return
 
-            # Lógica para coger un objeto del suelo.
-            item_to_get = find_item_in_list(item_name_to_get, character.room.items)
+            # Lógica para coger un objeto del suelo con soporte para ordinales
+            item_to_get, error_msg = find_item_in_list_with_ordinal(
+                item_name_to_get,
+                character.room.items,
+                enable_disambiguation=True
+            )
+
+            # Manejar desambiguación
+            if error_msg:
+                await message.answer(error_msg, parse_mode="HTML")
+                return
+
             if not item_to_get:
                 await message.answer("No ves eso por aquí.")
                 return
@@ -109,7 +262,18 @@ class CmdDrop(Command):
                 return
 
             item_to_drop_name = " ".join(args).lower()
-            item_to_drop = find_item_in_list(item_to_drop_name, character.items)
+
+            # Buscar con soporte para ordinales
+            item_to_drop, error_msg = find_item_in_list_with_ordinal(
+                item_to_drop_name,
+                character.items,
+                enable_disambiguation=True
+            )
+
+            # Manejar desambiguación
+            if error_msg:
+                await message.answer(error_msg, parse_mode="HTML")
+                return
 
             if not item_to_drop:
                 await message.answer("No llevas eso.")
@@ -148,11 +312,23 @@ class CmdPut(Command):
                 await message.answer("Uso: /meter <objeto> en <contenedor>")
                 return
 
-            container = find_item_in_list(container_name, character.items) or \
-                        find_item_in_list(container_name, character.room.items)
+            # Buscar contenedor con soporte para ordinales
+            available_containers = character.items + character.room.items
+            container, container_error = find_item_in_list_with_ordinal(
+                container_name,
+                available_containers,
+                enable_disambiguation=True
+            )
+
+            # Manejar desambiguación del contenedor
+            if container_error:
+                await message.answer(container_error, parse_mode="HTML")
+                return
+
             if not container:
                 await message.answer(f"No ves ningún '{container_name}' por aquí.")
                 return
+
             if not container.prototype.get("is_container"):
                 await message.answer(f"{container.get_name().capitalize()} no es un contenedor.")
                 return
@@ -169,11 +345,23 @@ class CmdPut(Command):
                 await message.answer(f"{container.get_name().capitalize()} está lleno.")
                 return
 
-            item_to_store = find_item_in_list(item_name, character.items) or \
-                            find_item_in_list(item_name, character.room.items)
+            # Buscar item con soporte para ordinales
+            available_items = character.items + character.room.items
+            item_to_store, item_error = find_item_in_list_with_ordinal(
+                item_name,
+                available_items,
+                enable_disambiguation=True
+            )
+
+            # Manejar desambiguación del item
+            if item_error:
+                await message.answer(item_error, parse_mode="HTML")
+                return
+
             if not item_to_store:
                 await message.answer(f"No tienes ni ves ningún '{item_name}'.")
                 return
+
             if item_to_store.id == container.id:
                 await message.answer("No puedes meter un objeto dentro de sí mismo.")
                 return
@@ -208,8 +396,19 @@ class CmdTake(Command):
                 await message.answer("Uso: /sacar <objeto> de <contenedor>")
                 return
 
-            container = find_item_in_list(container_name, character.items) or \
-                        find_item_in_list(container_name, character.room.items)
+            # Buscar contenedor con soporte para ordinales
+            available_containers = character.items + character.room.items
+            container, container_error = find_item_in_list_with_ordinal(
+                container_name,
+                available_containers,
+                enable_disambiguation=True
+            )
+
+            # Manejar desambiguación del contenedor
+            if container_error:
+                await message.answer(container_error, parse_mode="HTML")
+                return
+
             if not container:
                 await message.answer(f"No ves ningún '{container_name}' por aquí.")
                 return
@@ -220,8 +419,19 @@ class CmdTake(Command):
                 await message.answer(f"No puedes sacar nada de {container.get_name()}.")
                 return
 
+            # Buscar item con soporte para ordinales
             await session.refresh(container, attribute_names=['contained_items'])
-            item_to_take = find_item_in_list(item_name, container.contained_items)
+            item_to_take, item_error = find_item_in_list_with_ordinal(
+                item_name,
+                container.contained_items,
+                enable_disambiguation=True
+            )
+
+            # Manejar desambiguación del item
+            if item_error:
+                await message.answer(item_error, parse_mode="HTML")
+                return
+
             if not item_to_take:
                 await message.answer(f"No ves ningún '{item_name}' en {container.get_name()}.")
                 return

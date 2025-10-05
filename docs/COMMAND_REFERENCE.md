@@ -58,12 +58,14 @@ Esta es la referencia completa de todos los comandos disponibles en Runegram MUD
 - **Uso:**
   - `/mirar` - Muestra la descripción de tu sala actual
   - `/mirar espada` - Examina un objeto específico
+  - `/mirar 2.espada` - Examina la segunda espada (si hay duplicados)
   - `/mirar Gandalf` - Examina a otro jugador
   - `/mirar fuente` - Examina un detalle de la sala
 - **Notas:**
   - Sin argumentos, muestra la sala completa con salidas, objetos y personajes.
   - Puede ejecutar scripts `on_look` si el objeto los tiene definidos.
   - Solo muestra jugadores que estén activamente online.
+  - Soporta ordinales para objetos duplicados (ver [Sistema de Ordinales](#-sistema-de-ordinales-para-objetos-duplicados)).
 
 ### `/decir <mensaje>`
 - **Alias:** `'`
@@ -81,11 +83,13 @@ Esta es la referencia completa de todos los comandos disponibles en Runegram MUD
 - **Uso:**
   - `/inv` - Muestra tu inventario (limitado)
   - `/inv mochila` - Muestra el contenido de un contenedor
+  - `/inv 2.mochila` - Muestra el contenido de la segunda mochila (si hay duplicados)
   - `/inv todo` - Muestra tu inventario completo con paginación
   - `/inv todo 2` - Muestra la página 2 del inventario completo
 - **Notas:**
   - Los contenedores pueden tener locks que restrinjan el acceso.
   - El modo "todo" es útil cuando tienes muchos objetos.
+  - Soporta ordinales para contenedores duplicados (ver [Sistema de Ordinales](#-sistema-de-ordinales-para-objetos-duplicados)).
 
 ### `/ayuda`
 - **Alias:** `/help`
@@ -164,35 +168,108 @@ Todos los comandos de movimiento siguen el mismo patrón: se mueven en la direcc
 - **Descripción:** Recoge un objeto del suelo o de un contenedor.
 - **Uso:**
   - `/coger espada` - Recoge una espada del suelo
+  - `/coger 2.espada` - Recoge la segunda espada (si hay duplicados)
   - `/coger pocion de mochila` - Saca una poción de una mochila
 - **Notas:**
   - Si se especifica un contenedor, delega a `/sacar`.
   - Los objetos pueden tener locks que restrinjan quién puede cogerlos.
   - Se notifica a la sala cuando coges un objeto.
+  - Soporta ordinales para objetos duplicados (ver [Sistema de Ordinales](#-sistema-de-ordinales-para-objetos-duplicados)).
 
 ### `/dejar <objeto>`
 - **Alias:** `/d`
 - **Descripción:** Deja un objeto de tu inventario en el suelo.
-- **Uso:** `/dejar espada`
-- **Notas:** Se notifica a la sala cuando dejas un objeto.
+- **Uso:**
+  - `/dejar espada`
+  - `/dejar 3.espada` - Deja la tercera espada (si hay duplicados)
+- **Notas:**
+  - Se notifica a la sala cuando dejas un objeto.
+  - Soporta ordinales para objetos duplicados (ver [Sistema de Ordinales](#-sistema-de-ordinales-para-objetos-duplicados)).
 
 ### `/meter <objeto> en <contenedor>`
 - **Alias:** `/guardar`
 - **Descripción:** Guarda un objeto en un contenedor.
-- **Uso:** `/meter pocion en mochila`
+- **Uso:**
+  - `/meter pocion en mochila`
+  - `/meter 2.pocion en 1.mochila` - Mete la segunda poción en la primera mochila
+  - `/meter espada en 3.cofre` - Mete la espada en el tercer cofre
 - **Restricciones:**
   - El contenedor debe estar en tu inventario o en la sala.
   - El contenedor no puede estar lleno (límite definido en `capacity`).
   - El contenedor puede tener locks.
-- **Notas:** Se notifica a la sala cuando guardas un objeto.
+- **Notas:**
+  - Se notifica a la sala cuando guardas un objeto.
+  - Ambos argumentos (objeto y contenedor) soportan ordinales (ver [Sistema de Ordinales](#-sistema-de-ordinales-para-objetos-duplicados)).
 
 ### `/sacar <objeto> de <contenedor>`
 - **Descripción:** Saca un objeto de un contenedor.
-- **Uso:** `/sacar pocion de mochila`
+- **Uso:**
+  - `/sacar pocion de mochila`
+  - `/sacar 1.daga de 2.cofre` - Saca la primera daga del segundo cofre
+  - `/sacar espada de 3.mochila` - Saca la espada de la tercera mochila
 - **Restricciones:**
   - El contenedor debe estar en tu inventario o en la sala.
   - El contenedor puede tener locks.
-- **Notas:** Se notifica a la sala cuando sacas un objeto.
+- **Notas:**
+  - Se notifica a la sala cuando sacas un objeto.
+  - Ambos argumentos (objeto y contenedor) soportan ordinales (ver [Sistema de Ordinales](#-sistema-de-ordinales-para-objetos-duplicados)).
+
+### 🔢 Sistema de Ordinales para Objetos Duplicados
+
+Cuando tienes múltiples objetos con el mismo nombre, Runegram utiliza un **sistema de ordinales** (números) para identificarlos de forma única.
+
+#### ¿Cómo funciona?
+
+Todos los listados de objetos (inventario, sala, contenedores) muestran números automáticamente:
+
+```
+📦 Tu Inventario:
+1. ⚔️ espada oxidada
+2. 🎒 mochila de cuero
+3. ⚔️ espada brillante
+4. 🧪 poción de vida
+```
+
+Si intentas interactuar con un objeto duplicado sin especificar cuál, recibirás un mensaje de desambiguación:
+
+```
+❓ Hay 2 'espada'. ¿Cuál?
+
+1. ⚔️ espada oxidada
+2. ⚔️ espada brillante
+
+Usa:
+/coger 1.espada
+/coger 2.espada
+```
+
+#### Sintaxis de Ordinales: `N.nombre`
+
+Para especificar un objeto duplicado, usa el formato **`N.nombre`** donde N es el número del objeto:
+
+- `/coger 2.espada` - Coge la segunda espada
+- `/mirar 1.mochila` - Examina la primera mochila
+- `/meter 3.pocion en 1.mochila` - Mete la tercera poción en la primera mochila
+- `/sacar 2.daga de 2.cofre` - Saca la segunda daga del segundo cofre
+
+#### Comandos que Soportan Ordinales
+
+✅ **Todos los comandos de interacción con objetos:**
+- `/mirar N.objeto` - Examinar objetos duplicados
+- `/coger N.objeto` - Coger objetos duplicados
+- `/dejar N.objeto` - Dejar objetos duplicados
+- `/meter N.objeto en N.contenedor` - Ambos argumentos soportan ordinales
+- `/sacar N.objeto de N.contenedor` - Ambos argumentos soportan ordinales
+- `/inventario N.contenedor` - Ver contenido de contenedores duplicados
+
+#### Notas Importantes
+
+- **Compatibilidad hacia atrás:** Si solo hay un objeto con ese nombre, no necesitas usar ordinales.
+  - `/coger espada` funciona si solo hay una espada.
+- **Números basados en 1:** Los números empiezan en 1, no en 0.
+- **Desambiguación automática:** Si no usas ordinales y hay duplicados, recibirás una lista con instrucciones.
+- **Combinaciones flexibles:** Puedes mezclar ordinales con nombres normales:
+  - `/meter pocion en 2.mochila` (poción única, segunda mochila)
 
 ---
 
@@ -393,9 +470,10 @@ Todos los comandos de administrador requieren el rol **ADMIN** o superior, a men
 
 ---
 
-**Versión:** 1.1
+**Versión:** 1.2
 **Última actualización:** 2025-10-04
 **Changelog:**
+- v1.2 (2025-10-04): Agregado sistema de ordinales para objetos duplicados (sintaxis N.nombre)
 - v1.1 (2025-10-04): Agregada nota sobre generación automática de comandos de canales dinámicos
 - v1.0 (2025-10-04): Primera versión completa de la referencia
 

@@ -1034,6 +1034,152 @@ async def process_character_name(message, state: FSMContext):
 
 Ver: `docs/11_INLINE_BUTTONS.md` para guía completa y ejemplos.
 
+### 11. Sistema de Ordinales para Objetos Duplicados
+
+Sistema estandarizado para identificar y manipular objetos cuando hay múltiples instancias con el mismo nombre.
+
+#### Concepto
+
+Runegram utiliza el patrón MUD estándar de **ordinales** para resolver ambigüedad en objetos duplicados. La sintaxis es `N.nombre` donde N es el número ordinal (basado en 1).
+
+**Ejemplo:**
+```
+📦 Tu Inventario:
+1. ⚔️ espada oxidada
+2. 🎒 mochila de cuero
+3. ⚔️ espada brillante
+
+/coger 1.espada   → Coge la primera espada (oxidada)
+/coger 3.espada   → Coge la tercera espada (brillante)
+```
+
+#### Función Principal: `find_item_in_list_with_ordinal()`
+
+Ubicación: `commands/player/interaction.py`
+
+```python
+def find_item_in_list_with_ordinal(
+    search_term: str,
+    item_list: list,
+    enable_disambiguation: bool = True
+) -> tuple:
+    """
+    Busca un item con soporte para ordinales y desambiguación.
+    Soporta sintaxis de ordinales estándar de MUDs: "2.espada" busca la segunda espada.
+
+    Args:
+        search_term: Término de búsqueda (puede incluir ordinal "N.nombre")
+        item_list: Lista de objetos Item donde buscar
+        enable_disambiguation: Si True, genera mensajes de desambiguación automáticamente
+
+    Returns:
+        tuple: (item_encontrado | None, mensaje_error | None)
+    """
+```
+
+#### Características
+
+1. **Parseo de Ordinales**: Usa regex `r'^(\d+)\.(.+)'` para detectar sintaxis `N.nombre`
+2. **Validación**: Verifica que el ordinal esté en rango válido
+3. **Desambiguación Automática**: Genera mensajes de ayuda cuando hay duplicados
+4. **Compatibilidad Hacia Atrás**: Si solo hay un match, funciona sin ordinales
+
+#### Implementación en Comandos
+
+**Patrón Estándar:**
+```python
+# Buscar con soporte para ordinales
+item_to_get, error_msg = find_item_in_list_with_ordinal(
+    item_name,
+    character.items,
+    enable_disambiguation=True
+)
+
+# Manejar desambiguación
+if error_msg:
+    await message.answer(error_msg, parse_mode="HTML")
+    return
+
+if not item_to_get:
+    await message.answer("No tienes ese objeto.")
+    return
+
+# Continuar con la lógica del comando
+```
+
+**Para comandos con múltiples objetos (como `/meter` y `/sacar`):**
+```python
+# Buscar contenedor con ordinales
+available_containers = character.items + character.room.items
+container, container_error = find_item_in_list_with_ordinal(
+    container_name,
+    available_containers,
+    enable_disambiguation=True
+)
+
+if container_error:
+    await message.answer(container_error, parse_mode="HTML")
+    return
+
+# Luego buscar item con ordinales
+item_to_store, item_error = find_item_in_list_with_ordinal(
+    item_name,
+    available_items,
+    enable_disambiguation=True
+)
+
+if item_error:
+    await message.answer(item_error, parse_mode="HTML")
+    return
+```
+
+#### Templates Actualizados
+
+Todos los templates que muestran listas de items ahora usan números:
+
+**inventory.html.j2, room.html.j2, item_look.html.j2:**
+```jinja
+{# Antes #}
+- {{ item_icon }} {{ item.get_name() }}
+
+{# Ahora #}
+{{ loop.index }}. {{ item_icon }} {{ item.get_name() }}
+```
+
+#### Comandos que Implementan Ordinales
+
+✅ **Implementados:**
+- `/mirar [N.objeto]` - Examinar objetos duplicados
+- `/coger N.objeto` - Coger objetos duplicados
+- `/dejar N.objeto` - Dejar objetos duplicados
+- `/meter N.objeto en N.contenedor` - Ambos soportan ordinales
+- `/sacar N.objeto de N.contenedor` - Ambos soportan ordinales
+- `/inventario N.contenedor` - Ver contenedores duplicados
+
+#### Buenas Prácticas para Nuevos Comandos
+
+Al crear comandos que interactúan con objetos:
+
+1. **SIEMPRE** usa `find_item_in_list_with_ordinal()` en lugar de `find_item_in_list()`
+2. **SIEMPRE** maneja el mensaje de error retornado (puede ser desambiguación)
+3. **SIEMPRE** usa `parse_mode="HTML"` al mostrar mensajes de desambiguación
+4. **Considera** si el comando necesita manejar múltiples objetos (como `/meter`)
+5. **Documenta** el soporte de ordinales en el docstring del comando
+
+**Ejemplo de Mensaje de Desambiguación:**
+```
+❓ Hay 2 'espada'. ¿Cuál quieres coger?
+
+1. ⚔️ espada oxidada
+2. ⚔️ espada brillante
+
+Usa:
+/coger 1.espada
+/coger 2.espada
+```
+
+Ver: `docs/03_ENGINE_SYSTEMS/08_ITEM_DISAMBIGUATION.md` para documentación completa.
+
 ---
 
 ## 🎮 Creación de Contenido
@@ -1640,9 +1786,10 @@ Después de CUALQUIER cambio:
 
 ---
 
-**Versión**: 1.6
+**Versión**: 1.7
 **Última actualización**: 2025-10-04
 **Changelog**:
+- v1.7 (2025-10-04): Agregado sistema de ordinales para objetos duplicados (sintaxis N.nombre)
 - v1.6 (2025-10-04): Filosofía de diseño de indentación: 4 espacios + guion para listas, títulos en mayúsculas
 - v1.5 (2025-10-04): Mejorado mensaje de desconexión automática para incluir instrucción de reconexión
 - v1.4 (2025-10-04): Agregado comando /suicidio y documentación completa de comandos (COMMAND_REFERENCE.md)

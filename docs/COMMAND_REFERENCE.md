@@ -402,7 +402,19 @@ Todos los comandos de administrador requieren el rol **ADMIN** o superior, a men
 - **Notas:**
   - La clave debe existir en `game_data/item_prototypes.py`.
   - El objeto aparece en el suelo de la sala actual.
-  - Se envía un mensaje social a todos en la sala.
+  - Se envía un mensaje social a todos en la sala (solo jugadores online).
+
+### `/destruirobjeto <ID>`
+- **Alias:** `/delobj`
+- **Permiso:** ADMIN
+- **Descripción:** Elimina permanentemente un objeto del juego usando su ID numérico.
+- **Uso:** `/destruirobjeto 42`
+- **⚠️ ADVERTENCIA:** Esta acción es irreversible.
+- **Notas:**
+  - Usa `/examinarobjeto <ID>` o `/listaritems` para obtener el ID del objeto.
+  - Si el objeto es un contenedor, los items dentro quedan huérfanos (sin parent).
+  - NO envía mensaje social a la sala (usa `/decir` si quieres notificar a los jugadores).
+  - El objeto se elimina permanentemente de la base de datos.
 
 ---
 
@@ -564,9 +576,10 @@ Todos los comandos de administrador requieren el rol **ADMIN** o superior, a men
 
 ---
 
-**Versión:** 1.5
+**Versión:** 1.6
 **Última actualización:** 2025-10-09
 **Changelog:**
+- v1.6 (2025-10-09): Agregado comando `/destruirobjeto` para eliminar objetos del juego
 - v1.5 (2025-10-09): **Paginación unificada** - `/inventario` y `/quien` ahora usan paginación automática sin necesidad de "todo"; eliminada inconsistencia entre límites de visualización y paginación
 - v1.4 (2025-10-05): Refactorizado sintaxis de filtros (category→cat, tags con comas), agregado sistema de templates, formato lista optimizado para móvil
 - v1.3.1 (2025-10-05): Renombrados comandos a /listarcategorias y /listartags para consistencia

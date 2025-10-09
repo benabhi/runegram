@@ -64,7 +64,52 @@ class CmdGenerarObjeto(Command):
             await message.answer("❌ Ocurrió un error inesperado al generar el objeto.")
             logging.exception(f"Fallo al ejecutar /generarobjeto con la clave '{item_key}'")
 
+class CmdDestruirObjeto(Command):
+    """
+    Comando para que un administrador elimine permanentemente una instancia de objeto
+    del juego especificando su ID.
+    """
+    names = ["destruirobjeto", "delobj"]
+    lock = "rol(ADMIN)"  # Solo usuarios con rol ADMIN o superior pueden usarlo.
+    description = "Elimina permanentemente un objeto del juego usando su ID."
+
+    async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
+        # Validación de entrada
+        if not args:
+            await message.answer("Uso: /destruirobjeto [ID_del_objeto]\nEjemplo: /destruirobjeto 5")
+            return
+
+        try:
+            item_id = int(args[0])
+        except ValueError:
+            await message.answer("❌ El ID del objeto debe ser un número válido.")
+            return
+
+        try:
+            # Llama al servicio para eliminar el objeto de la base de datos.
+            deleted_item = await item_service.delete_item(session, item_id)
+
+            # Obtenemos el nombre del objeto eliminado para el mensaje de confirmación.
+            item_name = deleted_item.get_name()
+
+            # Mensaje al admin
+            await message.answer(f"✅ Objeto '{item_name}' (ID: {item_id}) eliminado permanentemente.")
+
+            # Nota: NO enviamos mensaje social a la sala porque:
+            # 1. El objeto podría no estar en una sala (podría estar en un inventario)
+            # 2. La desaparición de objetos sin explicación puede ser confusa para los jugadores
+            # Si el admin quiere notificar a los jugadores, puede hacerlo manualmente con /decir
+
+        except ValueError as e:
+            # Este error se lanza desde `item_service` si el ID no existe.
+            await message.answer(f"❌ Error: {e}")
+        except Exception:
+            # Captura cualquier otro error inesperado durante el proceso de eliminación.
+            await message.answer("❌ Ocurrió un error inesperado al eliminar el objeto.")
+            logging.exception(f"Fallo al ejecutar /destruirobjeto con el ID '{args[0]}'")
+
 # Exportamos la lista de comandos de este módulo.
 SPAWN_COMMANDS = [
     CmdGenerarObjeto(),
+    CmdDestruirObjeto(),
 ]

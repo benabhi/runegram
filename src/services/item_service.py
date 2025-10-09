@@ -79,3 +79,51 @@ async def move_item_to_container(session: AsyncSession, item_id: int, container_
     )
     await session.execute(query)
     await session.commit()
+
+
+async def delete_item(session: AsyncSession, item_id: int) -> Item:
+    """
+    Elimina permanentemente un objeto del juego.
+
+    Args:
+        session: Sesión de base de datos activa
+        item_id: ID del objeto a eliminar
+
+    Returns:
+        Item: El objeto eliminado (antes de ser eliminado, para obtener información)
+
+    Raises:
+        ValueError: Si el objeto no existe
+
+    Notas:
+        - Si el objeto es un contenedor, los items dentro quedarán huérfanos
+          (sin parent_item_id) y deberán ser manejados por el llamador.
+        - El objeto se elimina permanentemente de la base de datos.
+    """
+    # Obtener el objeto antes de eliminarlo para retornar información
+    item = await session.get(Item, item_id)
+
+    if not item:
+        raise ValueError(f"No existe un objeto con el ID '{item_id}'")
+
+    try:
+        # Si es un contenedor, eliminar referencia de los items contenidos
+        # (opcional: podrías querer moverlos al suelo o inventario)
+        if item.prototype.get("is_container"):
+            # Actualizar items contenidos para que queden sin parent
+            await session.execute(
+                update(Item)
+                .where(Item.parent_item_id == item_id)
+                .values(parent_item_id=None)
+            )
+
+        # Eliminar el objeto
+        await session.delete(item)
+        await session.commit()
+
+        logging.info(f"Objeto eliminado: {item.get_name()} (ID: {item_id})")
+        return item
+
+    except Exception:
+        logging.exception(f"Error inesperado al eliminar el objeto con ID '{item_id}'")
+        raise

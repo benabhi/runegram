@@ -124,40 +124,22 @@ class CmdExaminarSala(Command):
                 await message.answer(f"❌ No se encontró ninguna sala con ID o key '{search_term}'.")
                 return
 
-            # Construir información detallada
-            response_lines = [
-                f"<b>╔══ INFORMACIÓN DE SALA ══╗</b>",
-                f"<b>ID:</b> {room.id}",
-                f"<b>Key:</b> {room.key or 'N/A'}",
-                f"<b>Nombre:</b> {room.name}",
-                f"<b>Descripción:</b> {room.description[:100]}..." if len(room.description) > 100 else f"<b>Descripción:</b> {room.description}",
-                f"<b>Locks:</b> {room.locks or 'Ninguno'}",
-            ]
-
-            # Salidas
-            if room.exits_from:
-                exits_info = []
-                for exit_obj in room.exits_from:
-                    exits_info.append(f"  • {exit_obj.name} → Sala ID {exit_obj.to_room_id}")
-                response_lines.append(f"<b>Salidas:</b>\n" + "\n".join(exits_info))
-            else:
-                response_lines.append(f"<b>Salidas:</b> Ninguna")
-
-            # Objetos en la sala
-            if room.items:
-                items_info = [f"  • {item.get_name()} (ID: {item.id})" for item in room.items]
-                response_lines.append(f"<b>Objetos:</b> ({len(room.items)})\n" + "\n".join(items_info))
-            else:
-                response_lines.append(f"<b>Objetos:</b> Ninguno")
-
-            # Personajes en la sala
-            if room.characters:
-                chars_info = [f"  • {char.name} (ID: {char.id})" for char in room.characters]
-                response_lines.append(f"<b>Personajes:</b> ({len(room.characters)})\n" + "\n".join(chars_info))
-            else:
-                response_lines.append(f"<b>Personajes:</b> Ninguno")
-
-            response_text = f"<pre>{chr(10).join(response_lines)}</pre>"
+            # Cargar relaciones necesarias
+            await session.refresh(room, ['exits_from', 'items', 'characters'])
+            
+            # Cargar relaciones de salidas para mostrar nombres
+            for exit_obj in room.exits_from:
+                await session.refresh(exit_obj, ['to_room'])
+            
+            # Verificar estado online de personajes
+            from src.services import online_service
+            for char in room.characters:
+                char.is_online = await online_service.is_character_online(char.id)
+            
+            # Usar template compacto específico para admin
+            from src.templates import render_template
+            response_text = render_template('room_examine.html.j2', room=room)
+            
             await message.answer(response_text, parse_mode="HTML")
 
         except Exception:

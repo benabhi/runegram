@@ -1,0 +1,41 @@
+{#- src/templates/base/room_examine.html.j2 -#}
+{#- Template compacto para examen administrativo de salas -#}
+{#-
+Variables esperadas:
+- room: Objeto Room con las relaciones cargadas (exits_from, items, characters)
+-#}
+<pre>{{ icon('info') }} <b>INFORMACIÓN TÉCNICA DE SALA</b>
+{{ icon('room') }} Sala: {{ room.name }} (ID: {{ room.id }})
+{{ icon('key') }} Key: {{ room.key or 'N/A' }}
+{{ icon('lock') }} Locks: {{ room.locks or 'Ninguno' }}
+
+{%- if room.exits_from %}
+{{ icon('exit') }} Salidas ({{ room.exits_from|length }}):
+{%- for exit in room.exits_from|sort(attribute='name') %}
+    - {{ get_direction_icon(exit.name) }} {{ exit.name }} → ID:{{ exit.to_room_id }}{% if exit.to_room %} ({{ exit.to_room.name }}){% endif %}{% if exit.lock_string %} [cerrada]{% endif %}
+{%- endfor %}
+{%- else %}
+
+{{ icon('exit') }} Salidas: Ninguna
+{%- endif %}
+
+{%- if room.items %}
+{{ icon('item') }} Items ({{ room.items|length }}):
+{%- for item in room.items %}
+{%- set item_icon = item.prototype.get('display', {}).get('icon', icon('item')) %}
+    - {{ item_icon }} {{ item.get_name() }} (ID:{{ item.id }})
+{%- endfor %}
+{%- else %}
+
+{{ icon('item') }} Items: Ninguno
+{%- endif %}
+
+{%- if room.characters %}
+{{ icon('character') }} Personajes ({{ room.characters|length }}):
+{%- for char in room.characters %}
+    - {{ icon('character') }} {{ char.name }} (ID:{{ char.id }}){% if char.is_online %} [online]{% else %} [offline]{% endif %}
+{%- endfor %}
+{%- else %}
+
+{{ icon('character') }} Personajes: Ninguno
+{%- endif %}</pre>

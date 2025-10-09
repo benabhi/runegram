@@ -17,7 +17,7 @@ import logging
 from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, select_autoescape, TemplateNotFound
 
-from src.templates.icons import ICONS
+from src.templates.icons import ICONS, get_direction_icon
 
 
 # Directorio base donde están almacenados los templates
@@ -45,6 +45,7 @@ class TemplateEngine:
         # Registrar funciones helper globales
         self.env.globals['icon'] = self._get_icon
         self.env.globals['icons'] = ICONS
+        self.env.globals['get_direction_icon'] = get_direction_icon
 
         # Registrar filtros personalizados
         self.env.filters['pluralize'] = self._pluralize

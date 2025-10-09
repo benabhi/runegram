@@ -92,18 +92,20 @@ Esta es la referencia completa de todos los comandos disponibles en Runegram MUD
   - Útil para roleplay y expresar acciones del personaje.
   - El formato es: TuNombre + acción_que_escribes
 
-### `/inventario [contenedor | todo [página]]`
+### `/inventario [contenedor] [página]`
 - **Alias:** `/inv`, `/i`
-- **Descripción:** Muestra tu inventario o el de un contenedor.
+- **Descripción:** Muestra tu inventario o el de un contenedor con paginación automática.
 - **Uso:**
-  - `/inv` - Muestra tu inventario (limitado)
-  - `/inv mochila` - Muestra el contenido de un contenedor
+  - `/inv` - Muestra tu inventario (página 1, con botones de navegación si hay más)
+  - `/inv 2` - Muestra la página 2 de tu inventario
+  - `/inv mochila` - Muestra el contenido de un contenedor (página 1)
+  - `/inv mochila 2` - Muestra la página 2 del contenedor
   - `/inv 2.mochila` - Muestra el contenido de la segunda mochila (si hay duplicados)
-  - `/inv todo` - Muestra tu inventario completo con paginación
-  - `/inv todo 2` - Muestra la página 2 del inventario completo
+  - `/inv 2.mochila 3` - Muestra la página 3 de la segunda mochila
 - **Notas:**
+  - **Paginación automática:** Si tienes más de 30 items, se activan botones inline y comandos de paginación.
   - Los contenedores pueden tener locks que restrinjan el acceso.
-  - El modo "todo" es útil cuando tienes muchos objetos.
+  - Los items que son contenedores muestran cuántos items contienen.
   - Soporta ordinales para contenedores duplicados (ver [Sistema de Ordinales](#-sistema-de-ordinales-para-objetos-duplicados)).
 
 ### `/ayuda`
@@ -111,16 +113,18 @@ Esta es la referencia completa de todos los comandos disponibles en Runegram MUD
 - **Descripción:** Muestra una lista con los comandos básicos del juego.
 - **Notas:** Proporciona un resumen rápido de los comandos más comunes.
 
-### `/quien [todo [página]]`
+### `/quien [página]`
 - **Alias:** `/who`
-- **Descripción:** Muestra una lista de los jugadores conectados.
+- **Descripción:** Muestra una lista de los jugadores conectados con paginación automática.
 - **Uso:**
-  - `/quien` - Lista limitada de jugadores online
-  - `/quien todo` - Lista completa con paginación
-  - `/quien todo 2` - Página 2 de la lista completa
+  - `/quien` - Muestra la página 1 (con botones de navegación si hay más jugadores)
+  - `/quien 2` - Muestra la página 2 de jugadores
+  - `/quien 5` - Muestra la página 5
 - **Notas:**
   - Solo muestra jugadores activamente online (últimos 5 minutos de actividad).
   - Incluye la sala donde se encuentra cada jugador.
+  - **Paginación automática:** Si hay más de 30 jugadores, se activan botones inline y comandos de paginación.
+  - Muestra el estado AFK con el mensaje personalizado si el jugador lo ha configurado.
 
 ### `/orar`
 - **Alias:** `/rezar`
@@ -545,15 +549,25 @@ Todos los comandos de administrador requieren el rol **ADMIN** o superior, a men
 - Las notificaciones aparecen en cursiva para diferenciarlas del texto normal.
 
 ### Sobre la Paginación
-- Varios comandos soportan paginación para listas largas.
-- La configuración por defecto muestra 20 items por página.
+- Varios comandos usan **paginación automática** para listas largas.
+- La configuración por defecto muestra **30 items por página**.
 - Usa el argumento de página para navegar: `/comando [número_página]`.
+- **Navegación dual:** Puedes navegar con comandos (`/inv 2`) o con botones inline (⬅️ ➡️).
+- **Comandos con paginación automática:**
+  - `/inventario` - Si tienes más de 30 items
+  - `/quien` - Si hay más de 30 jugadores
+  - `/items` - Siempre usa paginación
+  - `/personajes` - Siempre usa paginación
+  - `/listarsalas`, `/listaritems` (admin) - Siempre usan paginación
+- **Comandos con truncado (sin paginación):**
+  - `/mirar` (sala) - Muestra máximo 10 items y usa "... y X más" (usa `/items` para ver todos)
 
 ---
 
-**Versión:** 1.4
-**Última actualización:** 2025-10-05
+**Versión:** 1.5
+**Última actualización:** 2025-10-09
 **Changelog:**
+- v1.5 (2025-10-09): **Paginación unificada** - `/inventario` y `/quien` ahora usan paginación automática sin necesidad de "todo"; eliminada inconsistencia entre límites de visualización y paginación
 - v1.4 (2025-10-05): Refactorizado sintaxis de filtros (category→cat, tags con comas), agregado sistema de templates, formato lista optimizado para móvil
 - v1.3.1 (2025-10-05): Renombrados comandos a /listarcategorias y /listartags para consistencia
 - v1.3 (2025-10-05): Agregado sistema de Categories/Tags con comandos de búsqueda (/listaritems, /listarcategorias, /listartags); extendido /listarsalas con filtros

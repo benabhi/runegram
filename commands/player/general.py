@@ -181,41 +181,69 @@ class CmdEmotion(Command):
         )
 
 class CmdInventory(Command):
-    """Comando para mostrar el inventario del jugador o el de un contenedor."""
+    """Comando para mostrar el inventario del jugador o el de un contenedor con paginación automática."""
     names = ["inventario", "inv", "i"]
-    description = "Muestra tu inventario o el de un contenedor. Uso: /inv [contenedor|todo [página]]"
+    description = "Muestra tu inventario o el de un contenedor. Uso: /inv [contenedor] [página]"
 
     async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
         try:
-            # CASO 1: Mirar el inventario propio (sin límites).
+            from src.utils.paginated_output import send_paginated_simple, parse_page_from_args
+
+            # CASO 1: Inventario propio con paginación automática
             if not args:
-                # Cargar contained_items para todos los contenedores
-                for item in character.items:
-                    if item.prototype.get("is_container"):
-                        await session.refresh(item, attribute_names=['contained_items'])
-
-                # Usar el nuevo sistema de templates
-                response = format_inventory(character.items, owner_name=None, is_container=False)
-                await message.answer(response, parse_mode="HTML")
-                return
-
-            # CASO 2: Modo "todo" con paginación (inventario completo sin límites).
-            if args[0].lower() == "todo":
-                from src.utils.paginated_output import send_paginated_simple, parse_page_from_args
-
-                # Parsear página del resto de argumentos
-                page = parse_page_from_args(args[1:], default=1)
-
                 items = character.items
 
                 if not items:
-                    await message.answer(f"<pre>{ICONS['inventory']} No llevas nada.</pre>", parse_mode="HTML")
+                    await message.answer(f"<pre>{ICONS['inventory']} <b>Tu Inventario</b>\nNo llevas nada.</pre>", parse_mode="HTML")
                     return
 
                 # Función de formato para cada item
                 def format_inv_item(item):
                     item_icon = item.prototype.get('display', {}).get('icon', ICONS['item'])
-                    return f"{item_icon} {item.get_name()}"
+                    container_info = ""
+                    if item.prototype.get("is_container") and item.contained_items:
+                        container_info = f" ({len(item.contained_items)} {len(item.contained_items) if len(item.contained_items) != 1 else ''} {'items' if len(item.contained_items) != 1 else 'item'})"
+                    return f"{item_icon} {item.get_name()}{container_info}"
+
+                # Cargar contained_items para contenedores (para el contador)
+                for item in items:
+                    if item.prototype.get("is_container"):
+                        await session.refresh(item, attribute_names=['contained_items'])
+
+                # Enviar lista paginada con botones (página 1 por defecto)
+                await send_paginated_simple(
+                    message=message,
+                    items=items,
+                    page=1,
+                    callback_action="pg_inv",
+                    format_func=format_inv_item,
+                    header="Tu Inventario",
+                    per_page=settings.pagination_items_per_page,
+                    icon=ICONS['inventory']
+                )
+                return
+
+            # CASO 2: Si el primer argumento es un número, es página del inventario propio
+            if args[0].isdigit():
+                page = parse_page_from_args(args, default=1)
+                items = character.items
+
+                if not items:
+                    await message.answer(f"<pre>{ICONS['inventory']} <b>Tu Inventario</b>\nNo llevas nada.</pre>", parse_mode="HTML")
+                    return
+
+                # Función de formato para cada item
+                def format_inv_item(item):
+                    item_icon = item.prototype.get('display', {}).get('icon', ICONS['item'])
+                    container_info = ""
+                    if item.prototype.get("is_container") and item.contained_items:
+                        container_info = f" ({len(item.contained_items)} {'items' if len(item.contained_items) != 1 else 'item'})"
+                    return f"{item_icon} {item.get_name()}{container_info}"
+
+                # Cargar contained_items para contenedores
+                for item in items:
+                    if item.prototype.get("is_container"):
+                        await session.refresh(item, attribute_names=['contained_items'])
 
                 # Enviar lista paginada con botones
                 await send_paginated_simple(
@@ -224,14 +252,21 @@ class CmdInventory(Command):
                     page=page,
                     callback_action="pg_inv",
                     format_func=format_inv_item,
-                    header="Tu Inventario Completo",
+                    header="Tu Inventario",
                     per_page=settings.pagination_items_per_page,
                     icon=ICONS['inventory']
                 )
                 return
 
-            # CASO 3: Mirar el inventario de un contenedor.
-            container_name = " ".join(args).lower()
+            # CASO 3: Mirar el inventario de un contenedor con paginación
+            # Detectar si el último argumento es un número (página)
+            page = 1
+            container_args = args
+            if len(args) > 1 and args[-1].isdigit():
+                page = int(args[-1])
+                container_args = args[:-1]
+
+            container_name = " ".join(container_args).lower()
             container = find_item_in_list(container_name, character.items) or \
                         find_item_in_list(container_name, character.room.items)
 
@@ -250,13 +285,27 @@ class CmdInventory(Command):
 
             await session.refresh(container, attribute_names=['contained_items'])
 
-            # Usar el nuevo sistema de templates
-            response = format_inventory(
-                container.contained_items,
-                owner_name=container.get_name(),
-                is_container=True
+            if not container.contained_items:
+                await message.answer(f"<pre>{ICONS['inventory']} <b>Inventario de {container.get_name()}</b>\nEstá vacío.</pre>", parse_mode="HTML")
+                return
+
+            # Función de formato para cada item del contenedor
+            def format_container_item(item):
+                item_icon = item.prototype.get('display', {}).get('icon', ICONS['item'])
+                return f"{item_icon} {item.get_name()}"
+
+            # Enviar lista paginada con botones
+            await send_paginated_simple(
+                message=message,
+                items=container.contained_items,
+                page=page,
+                callback_action="pg_inv_cont",
+                format_func=format_container_item,
+                header=f"Inventario de {container.get_name()}",
+                per_page=settings.pagination_items_per_page,
+                icon=ICONS['inventory'],
+                container_id=container.id  # Para callbacks
             )
-            await message.answer(response, parse_mode="HTML")
 
         except Exception:
             await message.answer("❌ Ocurrió un error al mostrar el inventario.")
@@ -274,75 +323,74 @@ class CmdHelp(Command):
             "<b>Comandos Básicos de Runegram</b>\n"
             "---------------------------------\n"
             "/mirar - Muestra la descripción de tu entorno.\n"
-            "/inventario - Muestra los objetos que llevas.\n"
+            "/inventario - Muestra los objetos que llevas (con paginación).\n"
             "/decir [mensaje] - Hablas a la gente en tu misma sala.\n"
             "/coger [objeto] - Recoges un objeto del suelo.\n"
             "/dejar [objeto] - Dejas un objeto en el suelo.\n"
-            "/quien - Muestra quién está conectado.\n"
+            "/quien - Muestra quién está conectado (con paginación).\n"
             "/canales - Gestiona tus suscripciones a canales.\n\n"
             "<b>Comandos de Listados</b>\n"
             "/items - Lista todos los items de la sala.\n"
             "/personajes - Lista todos los personajes aquí.\n"
-            "/inv todo - Inventario completo con paginación.\n"
-            "/quien todo - Lista completa de jugadores.\n\n"
+            "/inv 2 - Ver página 2 de tu inventario.\n"
+            "/quien 2 - Ver página 2 de jugadores.\n\n"
             "Para moverte, usa /norte, /sur, etc."
         )
         await message.answer(f"<pre>{help_text}</pre>", parse_mode="HTML")
 
 class CmdWho(Command):
-    """Comando social que muestra una lista de personajes conectados."""
+    """Comando social que muestra una lista de personajes conectados con paginación automática."""
     names = ["quien", "who"]
     lock = ""
-    description = "Muestra una lista de los jugadores conectados. Uso: /quien [todo [página]]"
+    description = "Muestra una lista de los jugadores conectados. Uso: /quien [página]"
 
     async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
         try:
+            from src.utils.paginated_output import send_paginated_simple, parse_page_from_args
+
             online_characters = await online_service.get_online_characters(session)
 
-            # CASO 1: Mostrar lista normal con límites
-            if not args:
-                # Usar el nuevo sistema de templates
-                response = await format_who_list(online_characters, viewer_character=character)
-                await message.answer(response, parse_mode="HTML")
+            # Filtrar para excluir al viewer
+            filtered_chars = [char for char in online_characters if char.id != character.id]
+
+            if not filtered_chars:
+                await message.answer(f"<pre>{ICONS['player']} <b>Jugadores en Runegram</b>\nEres la única alma aventurera en este mundo ahora mismo.</pre>", parse_mode="HTML")
                 return
 
-            # CASO 2: Modo "todo" con paginación (lista completa sin límites)
-            if args[0].lower() == "todo":
-                from src.utils.paginated_output import send_paginated_simple, parse_page_from_args
+            # Ordenar por nombre
+            filtered_chars.sort(key=lambda c: c.name)
 
-                # Parsear página del resto de argumentos
-                page = parse_page_from_args(args[1:], default=1)
+            # Parsear página (si no se proporciona, default = 1)
+            page = parse_page_from_args(args, default=1)
 
-                # Filtrar para excluir al viewer
-                filtered_chars = [char for char in online_characters if char.id != character.id]
+            # Obtener mensajes AFK desde Redis para formateo
+            from src.services.online_service import redis_client
+            afk_messages = {}
+            for char in filtered_chars:
+                afk_key = f"afk:{char.id}"
+                afk_msg = await redis_client.get(afk_key)
+                if afk_msg:
+                    afk_messages[char.id] = afk_msg.decode('utf-8') if isinstance(afk_msg, bytes) else afk_msg
 
-                if not filtered_chars:
-                    await message.answer(f"<pre>{ICONS['player']} Eres la única alma aventurera en este mundo ahora mismo.</pre>", parse_mode="HTML")
-                    return
+            # Función de formato para cada personaje
+            def format_who_char(char):
+                location = f" ({ICONS['room']} {char.room.name})" if char.room else ""
+                afk_status = ""
+                if char.id in afk_messages:
+                    afk_status = f" [AFK: {afk_messages[char.id]}]"
+                return f"{char.name}{location}{afk_status}"
 
-                # Ordenar por nombre
-                filtered_chars.sort(key=lambda c: c.name)
-
-                # Función de formato para cada personaje
-                def format_who_char(char):
-                    location = f" ({ICONS['room']} {char.room.name})" if char.room else ""
-                    return f"{char.name}{location}"
-
-                # Enviar lista paginada con botones
-                await send_paginated_simple(
-                    message=message,
-                    items=filtered_chars,
-                    page=page,
-                    callback_action="pg_who",
-                    format_func=format_who_char,
-                    header=f"Jugadores en Runegram ({len(online_characters)} conectados)",
-                    per_page=settings.pagination_items_per_page,
-                    icon=ICONS['player']
-                )
-                return
-
-            # Si hay args pero no es "todo", mostrar mensaje de uso
-            await message.answer("Uso: /quien [todo [página]]")
+            # Enviar lista paginada con botones
+            await send_paginated_simple(
+                message=message,
+                items=filtered_chars,
+                page=page,
+                callback_action="pg_who",
+                format_func=format_who_char,
+                header=f"Jugadores en Runegram ({len(online_characters)} conectados)",
+                per_page=settings.pagination_items_per_page,
+                icon=ICONS['player']
+            )
 
         except Exception:
             await message.answer("❌ Ocurrió un error al obtener la lista de jugadores.")

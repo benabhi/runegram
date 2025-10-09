@@ -107,27 +107,25 @@ offline_notified_ttl_days = 1
 # en todos los scripts que usan interval_ticks
 interval_seconds = 2
 
-# --- Paginación ---
+# --- Paginación Universal ---
+# TODOS los listados usan este valor como límite por página
+# Cuando una lista excede este valor, automáticamente se activa
+# la paginación con navegación por comandos y botones inline
 [pagination]
-# Items por página en listados completos (/items, /inv todo, /quien todo)
+# Items por página en TODOS los listados
 items_per_page = 30
 
-# --- Límites de Visualización ---
+# --- Límites de Visualización (solo para comandos con truncado) ---
+# Estos valores aplican SOLO a comandos que muestran previsualizaciones
+# y tienen alternativas dedicadas para ver listados completos
 [display_limits]
 # Máximo de items mostrados en /mirar (sala) antes de truncar
+# (el jugador puede usar /items para ver listado completo con paginación)
 max_room_items = 10
 
 # Máximo de personajes mostrados en /mirar (sala)
+# (el jugador puede usar /personajes para ver listado completo con paginación)
 max_room_characters = 10
-
-# Máximo de items mostrados en /inventario (sin paginación)
-max_inventory = 15
-
-# Máximo de items mostrados al mirar un contenedor
-max_container = 15
-
-# Máximo de jugadores mostrados en /quien (sin paginación)
-max_who = 20
 
 # --- Gameplay General ---
 [gameplay]
@@ -183,45 +181,66 @@ scheduler.add_job(
 
 | Variable | Tipo | Default | Descripción |
 |----------|------|---------|-------------|
-| `items_per_page` | int | 30 | Items por página en listados paginados |
+| `items_per_page` | int | 30 | Items por página en TODOS los listados con paginación automática |
 
-**Comandos afectados:**
-- `/items [página]`
-- `/personajes [página]`
-- `/inv todo [página]`
-- `/quien todo [página]`
+**Filosofía de Paginación Unificada:**
+
+Runegram usa un **único valor** de paginación para TODOS los listados. Cuando una lista excede este límite, se activa automáticamente:
+- ✅ Botones inline de navegación (⬅️ ➡️)
+- ✅ Comandos de paginación (`/comando 2` para página 2)
+- ✅ Indicador de página actual
+
+**Comandos con paginación automática:**
+- `/inventario` - Activa paginación si tienes >30 items
+- `/inventario [contenedor]` - Activa paginación si el contenedor tiene >30 items
+- `/quien` - Activa paginación si hay >30 jugadores online
+- `/items [página]` - Siempre usa paginación
+- `/personajes [página]` - Siempre usa paginación
+- `/listarsalas` (admin) - Siempre usa paginación
+- `/listaritems` (admin) - Siempre usa paginación
 
 **Uso en código:**
 ```python
 from src.config import settings
 
-pagination = paginate_list(
-    items,
+# Paginación simple con send_paginated_simple
+await send_paginated_simple(
+    message=message,
+    items=items,
     page=page,
+    callback_action="pg_inv",
+    format_func=lambda item: f"{item.get_name()}",
+    header="Tu Inventario",
     per_page=settings.pagination_items_per_page
 )
 ```
 
 #### Sección `[display_limits]`
 
-Límites de visualización para prevenir spam y overflow en pantallas móviles.
+**⚠️ Importante:** Estos límites aplican SOLO a comandos con **truncado** (que muestran "... y X más items"). Los comandos sin alternativas (como `/inventario`, `/quien`) usan paginación automática en su lugar.
 
 | Variable | Tipo | Default | Descripción |
 |----------|------|---------|-------------|
-| `max_room_items` | int | 10 | Items mostrados en `/mirar` (sala) |
+| `max_room_items` | int | 10 | Items mostrados en `/mirar` (sala) antes de truncar |
 | `max_room_characters` | int | 10 | Personajes mostrados en `/mirar` (sala) |
-| `max_inventory` | int | 15 | Items mostrados en `/inventario` |
-| `max_container` | int | 15 | Items al mirar un contenedor |
-| `max_who` | int | 20 | Jugadores en `/quien` |
+
+**Comandos afectados (con truncado):**
+- `/mirar` (sala) - Muestra máximo 10 items/personajes y dice "... y X más" (el jugador puede usar `/items` o `/personajes` para ver todos)
+
+**Comandos que YA NO usan estos límites:**
+- ❌ `/inventario` - Ahora usa paginación automática (`pagination.items_per_page`)
+- ❌ `/quien` - Ahora usa paginación automática (`pagination.items_per_page`)
+- ❌ `/inventario [contenedor]` - Ahora usa paginación automática
 
 **Uso en código:**
 ```python
 from src.config import settings
 
-# En presenters o comandos
+# Solo para comandos con truncado (como /mirar sala)
 if len(items) > settings.display_limits_max_room_items:
     truncated = items[:settings.display_limits_max_room_items]
-    # Mostrar truncated + mensaje "y X más..."
+    remaining = len(items) - settings.display_limits_max_room_items
+    # Mostrar: "... y {remaining} más items. Usa /items para verlos todos."
 ```
 
 #### Sección `[gameplay]`

@@ -28,25 +28,21 @@ interval_seconds = 2
 
 # --- Paginación ---
 [pagination]
-# Items por página en listados completos (/items, /inv todo, /quien todo)
+# Items por página para comandos con paginación automática
+# Aplica a: /inventario, /quien, /items, /personajes, /listarsalas, /listaritems, etc.
 items_per_page = 30
 
-# --- Límites de Visualización ---
+# --- Límites de Visualización (solo para comandos con truncado) ---
+# Estos valores aplican SOLO a comandos que muestran previsualizaciones
+# y tienen alternativas dedicadas para ver listados completos
 [display_limits]
 # Máximo de items mostrados en /mirar (sala) antes de truncar
+# (el jugador puede usar /items para ver listado completo con paginación)
 max_room_items = 10
 
 # Máximo de personajes mostrados en /mirar (sala)
+# (el jugador puede usar /personajes para ver listado completo con paginación)
 max_room_characters = 10
-
-# Máximo de items mostrados en /inventario (sin paginación)
-max_inventory = 15
-
-# Máximo de items mostrados al mirar un contenedor
-max_container = 15
-
-# Máximo de jugadores mostrados en /quien (sin paginación)
-max_who = 20
 
 # --- Gameplay General ---
 [gameplay]

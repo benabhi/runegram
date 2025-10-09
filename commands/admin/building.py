@@ -47,13 +47,13 @@ class CmdGenerarObjeto(Command):
             # Mensaje al admin
             await message.answer(f"✅ Objeto '{item_name}' generado en la sala actual.")
 
-            # Mensaje social a la sala
+            # Mensaje social a la sala (broadcaster_service filtra automáticamente jugadores desconectados)
             from src.services import broadcaster_service
             await broadcaster_service.send_message_to_room(
                 session=session,
                 room_id=character.room_id,
                 message_text=f"<i>{item_name.capitalize()} aparece de la nada.</i>",
-                exclude_character_id=None  # Todos ven esto, incluyendo el admin
+                exclude_character_id=None  # Todos los jugadores online lo ven, incluyendo el admin
             )
 
         except ValueError as e:

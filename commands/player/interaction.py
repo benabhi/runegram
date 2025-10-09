@@ -525,23 +525,23 @@ class CmdGive(Command):
             # Mensaje al que da
             await message.answer(f"Le das {item_to_give.get_name()} a {target_character.name}.")
 
-            # Mensaje al que recibe
-            from src.bot.bot import bot
-            await bot.send_message(
-                target_character.account.telegram_id,
-                f"<i>{character.name} te da {item_to_give.get_name()}.</i>",
-                parse_mode="HTML"
+            # Mensaje al que recibe (notificación privada)
+            from src.services import broadcaster_service
+            await broadcaster_service.send_message_to_character(
+                target_character,
+                f"<i>{character.name} te da {item_to_give.get_name()}.</i>"
             )
 
-            # Mensaje social a la sala (excluyendo a ambos)
-            from src.services import broadcaster_service
+            # Mensaje social a la sala (excluyendo a ambos participantes)
+            # broadcaster_service ya filtra desconectados automáticamente
             for other_char in character.room.characters:
+                # Excluir al que da y al que recibe
                 if other_char.id != character.id and other_char.id != target_character.id:
+                    # Verificar que esté online (aunque broadcaster ya lo hace, doble verificación)
                     if await online_service.is_character_online(other_char.id):
-                        await bot.send_message(
-                            other_char.account.telegram_id,
-                            f"<i>{character.name} le da {item_to_give.get_name()} a {target_character.name}.</i>",
-                            parse_mode="HTML"
+                        await broadcaster_service.send_message_to_character(
+                            other_char,
+                            f"<i>{character.name} le da {item_to_give.get_name()} a {target_character.name}.</i>"
                         )
 
             # Actualizar comandos del que da si el item otorgaba command sets

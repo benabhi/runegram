@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from commands.command import Command
 from src.models.character import Character
-from src.services import item_service
+from src.services import item_service, narrative_service
 from game_data.item_prototypes import ITEM_PROTOTYPES
 
 class CmdGenerarObjeto(Command):
@@ -49,10 +49,14 @@ class CmdGenerarObjeto(Command):
 
             # Mensaje social a la sala (broadcaster_service filtra automáticamente jugadores desconectados)
             from src.services import broadcaster_service
+            narrative_message = narrative_service.get_random_narrative(
+                "item_spawn",
+                item_name=item_name
+            )
             await broadcaster_service.send_message_to_room(
                 session=session,
                 room_id=character.room_id,
-                message_text=f"<i>{item_name.capitalize()} aparece de la nada.</i>",
+                message_text=narrative_message,
                 exclude_character_id=None  # Todos los jugadores online lo ven, incluyendo el admin
             )
 
@@ -95,10 +99,62 @@ class CmdDestruirObjeto(Command):
             # Mensaje al admin
             await message.answer(f"✅ Objeto '{item_name}' (ID: {item_id}) eliminado permanentemente.")
 
-            # Nota: NO enviamos mensaje social a la sala porque:
-            # 1. El objeto podría no estar en una sala (podría estar en un inventario)
-            # 2. La desaparición de objetos sin explicación puede ser confusa para los jugadores
-            # Si el admin quiere notificar a los jugadores, puede hacerlo manualmente con /decir
+            # Notificaciones sociales según la ubicación del objeto
+            from src.services import broadcaster_service
+
+            # Caso 1: El objeto estaba en una sala
+            if deleted_item.room_id:
+                narrative_message = narrative_service.get_random_narrative(
+                    "item_destroy_room",
+                    item_name=item_name
+                )
+                await broadcaster_service.send_message_to_room(
+                    session=session,
+                    room_id=deleted_item.room_id,
+                    message_text=narrative_message,
+                    exclude_character_id=None  # Todos los jugadores online lo ven
+                )
+
+            # Caso 2: El objeto estaba en el inventario de un personaje
+            elif deleted_item.character_id:
+                # Cargar el personaje dueño manualmente (delete_item no precarga relaciones)
+                from sqlalchemy import select
+                from sqlalchemy.orm import selectinload
+                from src.models import Character
+
+                owner_query = (
+                    select(Character)
+                    .where(Character.id == deleted_item.character_id)
+                    .options(selectinload(Character.account))
+                )
+                owner_result = await session.execute(owner_query)
+                owner = owner_result.scalar_one_or_none()
+
+                if owner:
+                    narrative_message_private = narrative_service.get_random_narrative(
+                        "item_destroy_inventory",
+                        item_name=item_name
+                    )
+                    await broadcaster_service.send_message_to_character(
+                        character=owner,
+                        message_text=narrative_message_private
+                    )
+
+                    # Broadcast a la sala donde está el dueño
+                    if owner.room_id:
+                        narrative_message_room = narrative_service.get_random_narrative(
+                            "item_destroy_room",
+                            item_name=item_name
+                        )
+                        await broadcaster_service.send_message_to_room(
+                            session=session,
+                            room_id=owner.room_id,
+                            message_text=narrative_message_room,
+                            exclude_character_id=owner.id  # El dueño ya recibió mensaje privado
+                        )
+
+            # Caso 3: El objeto estaba dentro de un contenedor
+            # No enviamos notificación social (los jugadores no ven directamente dentro de contenedores)
 
         except ValueError as e:
             # Este error se lanza desde `item_service` si el ID no existe.

@@ -18,11 +18,26 @@ Estos comandos permiten crear nuevas instancias de entidades en el mundo.
 ### `/generarobjeto <clave_prototipo>`
 *   **Alias:** `/genobj`
 *   **Permiso:** `ADMIN`
-*   **Descripción:** Crea una instancia del objeto especificado por su `clave_prototipo` y la coloca en el suelo de la sala actual del administrador. La clave debe corresponder a una entrada en `game_data/item_prototypes.py`.
+*   **Descripción:** Crea una instancia del objeto especificado por su `clave_prototipo` y la coloca en el suelo de la sala actual del administrador. La clave debe corresponder a una entrada en `game_data/item_prototypes.py`. Los jugadores online en la sala ven un mensaje narrativo evocativo y aleatorio sobre la aparición del objeto.
 *   **Uso:**
     ```
     /generarobjeto espada_viviente
     ```
+*   **Nota:** El mensaje de aparición varía aleatoriamente (ver [Sistema de Narrativa](./03_ENGINE_SYSTEMS/09_NARRATIVE_SERVICE.md)).
+
+### `/destruirobjeto <id>`
+*   **Alias:** `/delobj`
+*   **Permiso:** `ADMIN`
+*   **Descripción:** Elimina permanentemente una instancia de objeto del juego usando su ID numérico. El comportamiento de notificación depende de la ubicación del objeto:
+    - **En sala:** Los jugadores online en la sala ven un mensaje narrativo evocativo sobre la desaparición
+    - **En inventario:** El dueño recibe un mensaje privado + los jugadores en su sala ven un mensaje narrativo
+    - **En contenedor:** Solo el admin recibe confirmación (sin notificación social)
+*   **Uso:**
+    ```
+    /destruirobjeto 15
+    ```
+*   **Advertencia:** Esta acción es irreversible. Usa `/examinarobjeto <id>` antes para confirmar qué estás eliminando.
+*   **Nota:** Los mensajes de destrucción varían aleatoriamente (ver [Sistema de Narrativa](./03_ENGINE_SYSTEMS/09_NARRATIVE_SERVICE.md)).
 
 ---
 
@@ -33,11 +48,12 @@ Estos comandos permiten a los administradores moverse libremente por el mundo.
 ### `/teleport <id_sala>`
 *   **Alias:** `/tp`
 *   **Permiso:** `ADMIN`
-*   **Descripción:** Te teletransporta instantáneamente a la sala especificada por su `ID` numérico. Para encontrar el ID de una sala, utiliza el comando `/listarsalas`.
+*   **Descripción:** Te teletransporta instantáneamente a la sala especificada por su `ID` numérico. Para encontrar el ID de una sala, utiliza el comando `/listarsalas`. Los jugadores online en la sala de origen ven un mensaje narrativo evocativo sobre tu salida, y los jugadores en la sala de destino ven un mensaje sobre tu llegada.
 *   **Uso:**
     ```
     /tp 3
     ```
+*   **Nota:** Los mensajes de teletransporte varían aleatoriamente (ver [Sistema de Narrativa](./03_ENGINE_SYSTEMS/09_NARRATIVE_SERVICE.md)).
 
 ---
 

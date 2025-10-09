@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from commands.command import Command
 from src.models.character import Character
-from src.services import player_service, command_service
+from src.services import player_service, command_service, narrative_service, broadcaster_service
 
 class CmdCreateCharacter(Command):
     """
@@ -116,13 +116,27 @@ class CmdSuicide(Command):
 
         # 3. Guardar información antes de eliminar
         character_name = character.name
+        character_room_id = character.room_id
         account = character.account
 
         try:
-            # 4. Eliminar el personaje
+            # 4. Notificar a la sala sobre la desaparición del personaje (mensaje evocativo)
+            if character_room_id:
+                suicide_message = narrative_service.get_random_narrative(
+                    "character_suicide",
+                    character_name=character_name
+                )
+                await broadcaster_service.send_message_to_room(
+                    session=session,
+                    room_id=character_room_id,
+                    message_text=suicide_message,
+                    exclude_character_id=character.id  # El suicida no ve su propia desaparición
+                )
+
+            # 5. Eliminar el personaje
             await player_service.delete_character(session, character)
 
-            # 5. Actualizar comandos de Telegram (sin personaje ya solo puede crear)
+            # 6. Actualizar comandos de Telegram (sin personaje ya solo puede crear)
             # Para hacer esto, necesitamos obtener la cuenta actualizada
             from src.services import player_service as ps
             updated_account = await ps.get_or_create_account(session, message.from_user.id)
@@ -131,11 +145,10 @@ class CmdSuicide(Command):
                 # Actualizar comandos para reflejar que no hay personaje
                 await command_service.update_telegram_commands(None, updated_account)
 
-            # 6. Actualizar comandos de Telegram para mostrar /crearpersonaje
-            from src.services import command_service
-            await command_service.update_telegram_commands(account=character.account)
+            # 7. Actualizar comandos de Telegram para mostrar /crearpersonaje
+            await command_service.update_telegram_commands(account=account)
 
-            # 7. Enviar confirmación
+            # 8. Enviar confirmación
             await message.answer(
                 f"💀 <b>{character_name}</b> ha sido eliminado permanentemente.\n\n"
                 "Tu cuenta sigue activa, pero ya no tienes un personaje.\n\n"

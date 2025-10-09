@@ -1326,6 +1326,110 @@ Usa:
 
 Ver: `docs/03_ENGINE_SYSTEMS/08_ITEM_DISAMBIGUATION.md` para documentación completa.
 
+### 12. Sistema de Narrativa (Narrative Service)
+
+Sistema centralizado que proporciona mensajes evocativos y aleatorios para diversos eventos del juego, mejorando significativamente la inmersión y evitando la repetición de texto.
+
+#### Filosofía
+
+En lugar de mensajes estáticos y repetitivos:
+```
+❌ "Una espada aparece de la nada." (siempre igual)
+```
+
+El sistema proporciona variedad:
+```
+✅ "Una espada se materializa con un destello de luz."
+✅ "Un portal dimensional deposita una espada en el suelo."
+✅ "Las sombras se arremolinan y revelan una espada."
+```
+
+#### Arquitectura
+
+```
+game_data/narrative_messages.py  →  Mensajes (contenido, español)
+src/services/narrative_service.py  →  API (motor, inglés)
+```
+
+#### Estructura de Mensajes
+
+```python
+# game_data/narrative_messages.py
+NARRATIVE_MESSAGES = {
+    "item_spawn": [
+        "<i>{item_name} aparece de la nada.</i>",
+        "<i>{item_name} se materializa con un destello de luz.</i>",
+        # ... 5-7 variantes
+    ],
+    "item_destroy_room": [...],
+    "teleport_departure": [...],
+    # ... otros tipos
+}
+```
+
+#### Uso Básico
+
+```python
+from src.services import narrative_service
+
+# Obtener mensaje aleatorio
+message = narrative_service.get_random_narrative(
+    "item_spawn",
+    item_name="una espada brillante"
+)
+# Retorna: "<i>Una espada brillante se materializa con un destello.</i>"
+
+# Broadcast a sala
+await broadcaster_service.send_message_to_room(
+    session=session,
+    room_id=room_id,
+    message_text=message
+)
+```
+
+#### Tipos de Mensajes Disponibles
+
+| Tipo | Uso | Comandos |
+|------|-----|----------|
+| `item_spawn` | Aparición de objetos | `/generarobjeto` |
+| `item_destroy_room` | Destrucción en sala | `/destruirobjeto` |
+| `item_destroy_inventory` | Destrucción en inventario | `/destruirobjeto` |
+| `teleport_departure` | Salida de teletransporte | `/teleport` |
+| `teleport_arrival` | Llegada de teletransporte | `/teleport` |
+| `character_suicide` | Suicidio de personaje | `/suicidio` |
+
+**Total**: 41 variantes de mensajes narrativos
+
+#### Agregar Nuevos Tipos
+
+1. **Definir mensajes en `narrative_messages.py`:**
+```python
+NARRATIVE_MESSAGES = {
+    "new_event": [
+        "<i>{variable} hace algo evocativo.</i>",
+        "<i>{variable} hace algo diferente.</i>",
+        # ... 5-7 variantes
+    ]
+}
+```
+
+2. **Usar en comando:**
+```python
+message = narrative_service.get_random_narrative(
+    "new_event",
+    variable="valor"
+)
+```
+
+#### Buenas Prácticas
+
+- **Variedad**: Al menos 5 variantes por tipo
+- **Tono consistente**: Mantener atmósfera de fantasía medieval
+- **Formato**: `<i>` para mensajes sociales, texto plano para privados
+- **Variables**: Nombres descriptivos (`{item_name}`, no `{x}`)
+
+Ver: `docs/03_ENGINE_SYSTEMS/09_NARRATIVE_SERVICE.md`
+
 ---
 
 ## 🎮 Creación de Contenido
@@ -1886,6 +1990,7 @@ Ver `docs/03_ENGINE_SYSTEMS/05_SOCIAL_SYSTEMS.md` para más detalles.
 - `docs/09_SKILL_SYSTEM.md`: Diseño del sistema de habilidades
 - `docs/10_CONFIGURATION.md`: Sistema de configuración centralizada con TOML
 - `docs/11_INLINE_BUTTONS.md`: Sistema de botones inline de Telegram
+- `docs/03_ENGINE_SYSTEMS/09_NARRATIVE_SERVICE.md`: Sistema de mensajes narrativos evocativos
 - `docs/COMMAND_REFERENCE.md`: **Referencia completa de todos los comandos** (jugador y admin)
 
 ### Documentación Externa
@@ -1932,9 +2037,10 @@ Después de CUALQUIER cambio:
 
 ---
 
-**Versión**: 1.7
-**Última actualización**: 2025-10-04
+**Versión**: 1.8
+**Última actualización**: 2025-01-09
 **Changelog**:
+- v1.8 (2025-01-09): Implementado Sistema de Narrativa - mensajes evocativos aleatorios para mejorar inmersión
 - v1.7 (2025-10-04): Agregado sistema de ordinales para objetos duplicados (sintaxis N.nombre)
 - v1.6 (2025-10-04): Filosofía de diseño de indentación: 4 espacios + guion para listas, títulos en mayúsculas
 - v1.5 (2025-10-04): Mejorado mensaje de desconexión automática para incluir instrucción de reconexión

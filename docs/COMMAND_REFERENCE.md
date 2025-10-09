@@ -35,7 +35,7 @@ Esta es la referencia completa de todos los comandos disponibles en Runegram MUD
 
 ### `/suicidio CONFIRMAR`
 - **Alias:** `/borrarpersonaje`, `/eliminarpersonaje`
-- **Descripción:** Elimina permanentemente tu personaje actual (irreversible).
+- **Descripción:** Elimina permanentemente tu personaje actual (irreversible). Los jugadores online en tu sala ven un mensaje narrativo evocativo sobre tu desaparición.
 - **Uso:**
   - `/suicidio` - Muestra advertencia y confirmación requerida
   - `/suicidio CONFIRMAR` - Ejecuta la eliminación
@@ -47,6 +47,7 @@ Esta es la referencia completa de todos los comandos disponibles en Runegram MUD
 - **Notas:**
   - Requiere escribir "CONFIRMAR" en mayúsculas para evitar eliminaciones accidentales.
   - Después de eliminar el personaje, puedes crear uno nuevo con `/crearpersonaje`.
+  - El mensaje de desaparición varía aleatoriamente.
 
 ---
 
@@ -397,23 +398,26 @@ Todos los comandos de administrador requieren el rol **ADMIN** o superior, a men
 ### `/generarobjeto <clave_prototipo>`
 - **Alias:** `/genobj`
 - **Permiso:** ADMIN
-- **Descripción:** Genera un objeto en la sala actual a partir de su clave de prototipo.
+- **Descripción:** Genera un objeto en la sala actual a partir de su clave de prototipo. Los jugadores online en la sala ven un mensaje narrativo evocativo y aleatorio sobre la aparición del objeto.
 - **Uso:** `/generarobjeto espada_viviente`
 - **Notas:**
   - La clave debe existir en `game_data/item_prototypes.py`.
   - El objeto aparece en el suelo de la sala actual.
-  - Se envía un mensaje social a todos en la sala (solo jugadores online).
+  - El mensaje de aparición varía aleatoriamente (ver Sistema de Narrativa).
 
 ### `/destruirobjeto <ID>`
 - **Alias:** `/delobj`
 - **Permiso:** ADMIN
-- **Descripción:** Elimina permanentemente un objeto del juego usando su ID numérico.
+- **Descripción:** Elimina permanentemente un objeto del juego usando su ID numérico. El comportamiento de notificación depende de la ubicación del objeto:
+  - **En sala:** Los jugadores online en la sala ven un mensaje narrativo evocativo sobre la desaparición
+  - **En inventario:** El dueño recibe un mensaje privado + los jugadores en su sala ven un mensaje narrativo
+  - **En contenedor:** Solo el admin recibe confirmación (sin notificación social)
 - **Uso:** `/destruirobjeto 42`
 - **⚠️ ADVERTENCIA:** Esta acción es irreversible.
 - **Notas:**
   - Usa `/examinarobjeto <ID>` o `/listaritems` para obtener el ID del objeto.
   - Si el objeto es un contenedor, los items dentro quedan huérfanos (sin parent).
-  - NO envía mensaje social a la sala (usa `/decir` si quieres notificar a los jugadores).
+  - Los mensajes de destrucción varían aleatoriamente (ver Sistema de Narrativa).
   - El objeto se elimina permanentemente de la base de datos.
 
 ---
@@ -423,12 +427,13 @@ Todos los comandos de administrador requieren el rol **ADMIN** o superior, a men
 ### `/teleport <id_sala>`
 - **Alias:** `/tp`
 - **Permiso:** ADMIN
-- **Descripción:** Teletranspórtate a cualquier sala usando su ID numérico.
+- **Descripción:** Teletranspórtate a cualquier sala usando su ID numérico. Los jugadores online en la sala de origen ven un mensaje narrativo evocativo sobre tu salida, y los jugadores en la sala de destino ven un mensaje sobre tu llegada.
 - **Uso:** `/tp 3`
 - **Notas:**
   - Usa `/listarsalas` para ver los IDs de todas las salas.
   - No está sujeto a las restricciones de salidas normales.
   - Actualiza automáticamente tus comandos disponibles según la nueva sala.
+  - Los mensajes de teletransporte varían aleatoriamente (ver Sistema de Narrativa).
 
 ---
 
@@ -576,9 +581,10 @@ Todos los comandos de administrador requieren el rol **ADMIN** o superior, a men
 
 ---
 
-**Versión:** 1.6
-**Última actualización:** 2025-10-09
+**Versión:** 1.7
+**Última actualización:** 2025-01-09
 **Changelog:**
+- v1.7 (2025-01-09): Implementado Sistema de Narrativa - mensajes evocativos aleatorios para `/generarobjeto`, `/destruirobjeto`, `/teleport` y `/suicidio`
 - v1.6 (2025-10-09): Agregado comando `/destruirobjeto` para eliminar objetos del juego
 - v1.5 (2025-10-09): **Paginación unificada** - `/inventario` y `/quien` ahora usan paginación automática sin necesidad de "todo"; eliminada inconsistencia entre límites de visualización y paginación
 - v1.4 (2025-10-05): Refactorizado sintaxis de filtros (category→cat, tags con comas), agregado sistema de templates, formato lista optimizado para móvil

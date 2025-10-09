@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from commands.command import Command
 from src.models.character import Character
-from src.services import player_service, command_service # Importamos command_service para actualizar comandos
+from src.services import player_service, command_service, narrative_service, broadcaster_service
 from src.utils.presenters import show_current_room
 
 class CmdTeleport(Command):
@@ -42,18 +42,43 @@ class CmdTeleport(Command):
             return
 
         try:
-            # 2. Llamar al servicio que contiene la lógica de negocio.
+            # 2. Notificar a la sala de origen sobre la salida del admin (broadcast)
+            origin_room_id = character.room_id
+            departure_message = narrative_service.get_random_narrative(
+                "teleport_departure",
+                character_name=character.name
+            )
+            await broadcaster_service.send_message_to_room(
+                session=session,
+                room_id=origin_room_id,
+                message_text=departure_message,
+                exclude_character_id=character.id  # El admin no ve su propia salida
+            )
+
+            # 3. Llamar al servicio que contiene la lógica de negocio.
             await player_service.teleport_character(session, character.id, to_room_id)
 
-            # 3. Notificar al administrador del éxito.
+            # 4. Notificar a la sala de destino sobre la llegada del admin (broadcast)
+            arrival_message = narrative_service.get_random_narrative(
+                "teleport_arrival",
+                character_name=character.name
+            )
+            await broadcaster_service.send_message_to_room(
+                session=session,
+                room_id=to_room_id,
+                message_text=arrival_message,
+                exclude_character_id=character.id  # El admin no ve su propia llegada
+            )
+
+            # 5. Notificar al administrador del éxito.
             await message.answer(f"🚀 Teletransportado a la sala {to_room_id}.")
 
-            # 4. Actualizar los comandos de Telegram, ya que la nueva sala puede otorgar sets.
+            # 6. Actualizar los comandos de Telegram, ya que la nueva sala puede otorgar sets.
             refreshed_character = await player_service.get_character_with_relations_by_id(session, character.id)
             if refreshed_character:
                  await command_service.update_telegram_commands(refreshed_character)
 
-            # 5. Mostrar la nueva ubicación.
+            # 7. Mostrar la nueva ubicación.
             await show_current_room(message)
 
         except Exception as e:

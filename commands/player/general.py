@@ -194,7 +194,7 @@ class CmdInventory(Command):
                 items = character.items
 
                 if not items:
-                    await message.answer(f"<pre>{ICONS['inventory']} <b>Tu Inventario</b>\nNo llevas nada.</pre>", parse_mode="HTML")
+                    await message.answer(f"{ICONS['inventory']} No llevas nada.")
                     return
 
                 # Función de formato para cada item
@@ -229,7 +229,7 @@ class CmdInventory(Command):
                 items = character.items
 
                 if not items:
-                    await message.answer(f"<pre>{ICONS['inventory']} <b>Tu Inventario</b>\nNo llevas nada.</pre>", parse_mode="HTML")
+                    await message.answer(f"{ICONS['inventory']} No llevas nada.")
                     return
 
                 # Función de formato para cada item
@@ -286,7 +286,7 @@ class CmdInventory(Command):
             await session.refresh(container, attribute_names=['contained_items'])
 
             if not container.contained_items:
-                await message.answer(f"<pre>{ICONS['inventory']} <b>Inventario de {container.get_name()}</b>\nEstá vacío.</pre>", parse_mode="HTML")
+                await message.answer(f"{ICONS['inventory']} El inventario de {container.get_name()} está vacío.")
                 return
 
             # Función de formato para cada item del contenedor
@@ -354,7 +354,7 @@ class CmdWho(Command):
             filtered_chars = [char for char in online_characters if char.id != character.id]
 
             if not filtered_chars:
-                await message.answer(f"<pre>{ICONS['player']} <b>Jugadores en Runegram</b>\nEres la única alma aventurera en este mundo ahora mismo.</pre>", parse_mode="HTML")
+                await message.answer(f"{ICONS['player']} Eres la única alma aventurera en este mundo ahora mismo.")
                 return
 
             # Ordenar por nombre

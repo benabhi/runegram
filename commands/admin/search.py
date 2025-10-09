@@ -107,7 +107,7 @@ class CmdShowCategories(Command):
                 all_categories.append((f"{ICONS['item']} Items", cat))
 
             if not all_categories:
-                await message.answer(f"<pre>{ICONS['category']} No hay categorías definidas.</pre>", parse_mode="HTML")
+                await message.answer(f"{ICONS['category']} No hay categorías definidas.")
                 return
 
             # Función de formato
@@ -156,7 +156,7 @@ class CmdShowTags(Command):
                 all_tags.append((f"{ICONS['item']} Items", tag))
 
             if not all_tags:
-                await message.answer(f"<pre>{ICONS['tag']} No hay tags definidos.</pre>", parse_mode="HTML")
+                await message.answer(f"{ICONS['tag']} No hay tags definidos.")
                 return
 
             # Función de formato

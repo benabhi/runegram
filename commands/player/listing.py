@@ -36,7 +36,7 @@ class CmdItems(Command):
             items = room.items
 
             if not items:
-                await message.answer(f"<pre>{ICONS['look']} No hay nada en el suelo aquí.</pre>", parse_mode="HTML")
+                await message.answer(f"{ICONS['look']} No hay nada en el suelo aquí.")
                 return
 
             # Función de formato para cada item
@@ -83,7 +83,7 @@ class CmdPersonajes(Command):
                     active_characters.append(char)
 
             if not active_characters:
-                await message.answer(f"<pre>{ICONS['character']} Estás solo aquí.</pre>", parse_mode="HTML")
+                await message.answer(f"{ICONS['character']} Estás solo aquí.")
                 return
 
             # Ordenar por nombre

@@ -30,7 +30,7 @@ interval_seconds = 2
 [pagination]
 # Items por página para comandos con paginación automática
 # Aplica a: /inventario, /quien, /items, /personajes, /listarsalas, /listaritems, etc.
-items_per_page = 30
+items_per_page = 3
 
 # --- Límites de Visualización (solo para comandos con truncado) ---
 # Estos valores aplican SOLO a comandos que muestran previsualizaciones

@@ -25,10 +25,11 @@ class CmdChannels(Command):
             settings = await channel_service.get_or_create_settings(session, character)
             user_channels = settings.active_channels.get("active_channels", [])
 
-            response = ["<b>Estado de tus Canales:</b>"]
+            response = ["<pre>📡 <b>ESTADO DE TUS CANALES</b>"]
             for key, proto in CHANNEL_PROTOTYPES.items():
                 status = "✅ Activado" if key in user_channels else "❌ Desactivado"
-                response.append(f"- <b>{proto['name']}</b> ({key}): {status}\n  <i>{proto['description']}</i>")
+                response.append(f"    - <b>{proto['name']}</b> ({key}): {status}\n      <i>{proto['description']}</i>")
+            response.append("</pre>")
 
             await message.answer("\n".join(response), parse_mode="HTML")
         except Exception:

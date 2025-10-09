@@ -61,7 +61,7 @@ class CmdExaminarPersonaje(Command):
             full_char = result_full.scalar_one()
 
             lines = [
-                f"<b>--- Personaje: {full_char.name} ---</b>",
+                f"<b>--- PERSONAJE: {full_char.name} ---</b>",
                 f"<b>ID:</b> {full_char.id}",
                 f"<b>Cuenta ID:</b> {full_char.account_id} (Rol: {full_char.account.role})",
                 f"<b>Sala Actual:</b> {full_char.room.name} (ID: {full_char.room_id})",
@@ -104,7 +104,7 @@ class CmdExaminarObjeto(Command):
                 return
 
             lines = [
-                f"<b>--- Objeto: {target_item.get_name()} ---</b>",
+                f"<b>--- OBJETO: {target_item.get_name()} ---</b>",
                 f"<b>ID de Instancia:</b> {target_item.id}",
                 f"<b>Clave de Prototipo:</b> {target_item.key}",
             ]

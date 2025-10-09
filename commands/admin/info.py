@@ -126,7 +126,7 @@ class CmdExaminarSala(Command):
 
             # Construir información detallada
             response_lines = [
-                f"<b>╔══ Información de Sala ══╗</b>",
+                f"<b>╔══ INFORMACIÓN DE SALA ══╗</b>",
                 f"<b>ID:</b> {room.id}",
                 f"<b>Key:</b> {room.key or 'N/A'}",
                 f"<b>Nombre:</b> {room.name}",

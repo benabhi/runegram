@@ -29,13 +29,13 @@ class CmdConfig(Command):
     async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
         try:
             help_text = (
-                "<b>Configuración de Runegram</b>\n"
-                "---------------------------------\n"
+                "<pre>⚙️ <b>CONFIGURACIÓN DE RUNEGRAM</b>\n"
+                "─────────────────────────────\n"
                 "Aquí podrás ajustar tus preferencias de juego.\n\n"
                 "<b>Gestión de Canales:</b>\n"
-                " - Usa <code>/canales</code> para ver una lista de todos los canales y su estado.\n"
-                " - Usa <code>/activarcanal [nombre]</code> para suscribirte a un canal.\n"
-                " - Usa <code>/desactivarcanal [nombre]</code> para cancelar tu suscripción."
+                "    - Usa <code>/canales</code> para ver una lista de todos los canales y su estado.\n"
+                "    - Usa <code>/activarcanal [nombre]</code> para suscribirte a un canal.\n"
+                "    - Usa <code>/desactivarcanal [nombre]</code> para cancelar tu suscripción.</pre>"
             )
             await message.answer(help_text, parse_mode="HTML")
         except Exception:

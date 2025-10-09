@@ -33,7 +33,10 @@ class CmdCreateCharacter(Command):
         # 1. Comprobar si el jugador ya tiene un personaje.
         # El objeto 'character' solo es None si la cuenta no tiene un personaje asociado.
         if character:
-            await message.answer("Ya tienes un personaje.")
+            await message.answer(
+                "❌ Ya tienes un personaje creado.\n"
+                "Si quieres eliminarlo y crear uno nuevo, usa: /suicidio CONFIRMAR"
+            )
             return
 
         # 2. Validar el nombre proporcionado por el usuario.
@@ -128,7 +131,11 @@ class CmdSuicide(Command):
                 # Actualizar comandos para reflejar que no hay personaje
                 await command_service.update_telegram_commands(None, updated_account)
 
-            # 6. Enviar confirmación
+            # 6. Actualizar comandos de Telegram para mostrar /crearpersonaje
+            from src.services import command_service
+            await command_service.update_telegram_commands(account=character.account)
+
+            # 7. Enviar confirmación
             await message.answer(
                 f"💀 <b>{character_name}</b> ha sido eliminado permanentemente.\n\n"
                 "Tu cuenta sigue activa, pero ya no tienes un personaje.\n\n"

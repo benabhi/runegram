@@ -88,6 +88,9 @@ async def update_telegram_commands(character: Character = None, account = None):
         # Si no hay personaje, solo mostrar comando de creación
         if character:
             active_set_names = await get_active_command_sets_for_character(character)
+            # Si el personaje ya existe, eliminar el set de creación de personaje
+            if "character_creation" in active_set_names:
+                active_set_names.remove("character_creation")
         else:
             # Sin personaje, solo mostrar comandos de creación de personaje
             active_set_names = ["character_creation"]

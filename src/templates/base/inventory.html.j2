@@ -6,7 +6,7 @@ Variables esperadas:
 - owner_name: Nombre del dueño (personaje o contenedor) (opcional)
 - is_container: Boolean indicando si es un contenedor (opcional)
 #}
-<pre>{{ icon('inventory') }} <b>{% if owner_name %}Inventario de {{ owner_name }}{% else %}Tu Inventario{% endif %}</b>
+<pre>{{ icon('inventory') }} <b>{% if owner_name %}INVENTARIO DE {{ owner_name }}{% else %}TU INVENTARIO{% endif %}</b>
 {%- if not items %}
 {%- if is_container %}
 Está vacío.

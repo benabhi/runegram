@@ -4,7 +4,7 @@
 Variables esperadas:
 - character: Objeto Character con relaciones cargadas
 #}
-<pre>{{ icon('player') }} <b>{{ character.name }}</b>
+<pre>{{ icon('player') }} <b>{{ character.name|upper }}</b>
 {%- if character.get_description() %}
 {{ character.get_description() }}
 {%- endif %}

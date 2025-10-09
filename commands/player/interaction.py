@@ -529,7 +529,8 @@ class CmdGive(Command):
             from src.bot.bot import bot
             await bot.send_message(
                 target_character.account.telegram_id,
-                f"{character.name} te da {item_to_give.get_name()}."
+                f"<i>{character.name} te da {item_to_give.get_name()}.</i>",
+                parse_mode="HTML"
             )
 
             # Mensaje social a la sala (excluyendo a ambos)

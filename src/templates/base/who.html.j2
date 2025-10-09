@@ -6,7 +6,7 @@ Variables esperadas:
 - viewer_character: El personaje que está viendo (opcional)
 - afk_messages: Dict de mensajes AFK {character_id: mensaje}
 #}
-<pre>{{ icon('player') }} <b>Jugadores en Runegram ({{ characters|length }})</b>
+<pre>{{ icon('player') }} <b>JUGADORES EN RUNEGRAM ({{ characters|length }})</b>
 ─────────────────────────────
 {%- if not characters or (characters|length == 1 and viewer_character and characters[0].id == viewer_character.id) %}
 Eres la única alma aventurera en este mundo ahora mismo.

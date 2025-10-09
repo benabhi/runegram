@@ -1020,7 +1020,56 @@ ITEM_PROTOTYPES = {
 - Diálogos/emotes en `<i>cursiva</i>`
 - Todo envuelto en `<pre>` para formato monoespaciado
 
-Ver: `docs/04_CONTENT_CREATION/04_OUTPUT_TEMPLATES.md` para guía completa.
+Ver: `docs/04_CONTENT_CREATION/04_OUTPUT_TEMPLATES.md` para guía técnica completa.
+Ver: `docs/04_CONTENT_CREATION/05_OUTPUT_STYLE_GUIDE.md` para **guía de estilo de outputs** (OBLIGATORIO LEER).
+
+#### Filosofía de Outputs: Las 4 Categorías (CRÍTICO)
+
+**IMPORTANTE:** Runegram clasifica TODOS los outputs del juego en 4 categorías distintas. Cada categoría tiene formato y propósito específicos. **NUNCA mezcles formatos entre categorías.**
+
+**1. Outputs Descriptivos** (La "Vista Principal")
+- **Qué son**: Descripciones del mundo, inventarios, listados (`/mirar`, `/inventario`, `/quien`)
+- **Formato**: `<pre>` + títulos en MAYÚSCULAS + listas con 4 espacios + guion
+- **Ejemplo**:
+  ```html
+  <pre>🏛️ <b>PLAZA CENTRAL</b>
+  Descripción de la sala.
+
+  👁️ <b>Items:</b>
+      - ⚔️ espada
+      - 🎒 mochila</pre>
+  ```
+
+**2. Notificaciones Sociales** (Broadcasts)
+- **Qué son**: Acciones visibles de otros jugadores (`/norte`, `/coger`, `/emocion`)
+- **Formato**: `<i>` + sin íconos + tercera persona
+- **Ejemplo**: `<i>Gandalf se ha ido hacia el norte.</i>`
+
+**3. Notificaciones Privadas**
+- **Qué son**: Mensajes directos a un jugador (`/susurrar`, `/dar`, reconexión)
+- **Formato**: `<i>` + sin íconos + segunda persona
+- **Ejemplo**: `<i>Gandalf te susurra: "Cuidado."</i>`
+
+**4. Feedback de Acciones**
+- **Qué son**: Respuestas a comandos del jugador (éxito, error, validación)
+- **Formato**: Texto plano + íconos de estado opcionales (✅❌❓⚠️)
+- **Ejemplos**:
+  - `Has cogido: una espada.`
+  - `❌ No ves ese objeto.`
+  - Excepción: Listas complejas (desambiguación) usan `<pre>`
+
+**Regla de Oro de Indentación:**
+- En outputs descriptivos (`<pre>`), **TODAS** las listas usan **4 espacios + guion** (`    - `)
+- Esta regla es UNIVERSAL y NO negociable
+- NO usar tabs literales (se renderizan mal en Telegram)
+
+**Checklist Rápido:**
+- ¿Es descripción/listado? → `<pre>` + MAYÚSCULAS + 4 espacios
+- ¿Es acción de otro jugador? → `<i>` + tercera persona
+- ¿Es mensaje privado? → `<i>` + segunda persona
+- ¿Es respuesta a comando? → Texto plano + ícono de estado
+
+Ver: `docs/04_CONTENT_CREATION/05_OUTPUT_STYLE_GUIDE.md` para ejemplos completos y validación.
 
 ### 10. Sistema de Presentación
 

@@ -19,7 +19,7 @@ from commands.command import Command
 from src.models import Character, Account
 from src.services.permission_service import ROLE_HIERARCHY
 
-class CmdAsignarRol(Command):
+class CmdSetRole(Command):
     """
     Comando de Superadmin para cambiar el rol de la cuenta de un personaje.
     """
@@ -79,5 +79,5 @@ class CmdAsignarRol(Command):
 
 # Exportamos la lista de comandos de este módulo.
 MANAGEMENT_COMMANDS = [
-    CmdAsignarRol(),
+    CmdSetRole(),
 ]

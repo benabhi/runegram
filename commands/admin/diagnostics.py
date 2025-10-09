@@ -16,7 +16,7 @@ from commands.command import Command
 from src.models import Character, Item, Room
 from src.services import validation_service
 
-class CmdExaminarPersonaje(Command):
+class CmdExamineCharacter(Command):
     """
     Comando para obtener información detallada sobre un personaje.
     """
@@ -82,7 +82,7 @@ class CmdExaminarPersonaje(Command):
             logging.exception(f"Fallo al ejecutar /examinarpersonaje para '{target_string}'")
 
 
-class CmdExaminarObjeto(Command):
+class CmdExamineItem(Command):
     """
     Comando para obtener información detallada sobre una instancia de objeto.
     """
@@ -127,7 +127,7 @@ class CmdExaminarObjeto(Command):
             await message.answer("❌ Ocurrió un error al examinar el objeto.")
             logging.exception(f"Fallo al ejecutar /examinarobjeto para '{args[0]}'")
 
-class CmdReporteValidacion(Command):
+class CmdValidate(Command):
     """
     Comando que muestra un reporte de validación de integridad del sistema.
     Útil para diagnosticar conflictos de aliases, keys duplicadas, etc.
@@ -147,7 +147,7 @@ class CmdReporteValidacion(Command):
 
 # Exportamos la lista de comandos de este módulo.
 DIAGNOSTICS_COMMANDS = [
-    CmdExaminarPersonaje(),
-    CmdExaminarObjeto(),
-    CmdReporteValidacion(),
+    CmdExamineCharacter(),
+    CmdExamineItem(),
+    CmdValidate(),
 ]

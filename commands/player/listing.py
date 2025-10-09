@@ -61,7 +61,7 @@ class CmdItems(Command):
             logging.exception(f"Fallo al ejecutar /items para {character.name}")
 
 
-class CmdPersonajes(Command):
+class CmdCharacters(Command):
     """Comando para listar todos los personajes en la sala actual con paginación."""
     names = ["personajes"]
     description = "Muestra todos los personajes en la sala. Uso: /personajes [página]"
@@ -109,5 +109,5 @@ class CmdPersonajes(Command):
 # Exportar comandos
 LISTING_COMMANDS = [
     CmdItems(),
-    CmdPersonajes(),
+    CmdCharacters(),
 ]

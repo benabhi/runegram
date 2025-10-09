@@ -20,7 +20,7 @@ from src.models.character import Character
 from src.services import item_service, narrative_service
 from game_data.item_prototypes import ITEM_PROTOTYPES
 
-class CmdGenerarObjeto(Command):
+class CmdSpawnItem(Command):
     """
     Comando para que un administrador cree una instancia de un objeto
     a partir de un prototipo y la coloque en la sala actual.
@@ -68,7 +68,7 @@ class CmdGenerarObjeto(Command):
             await message.answer("❌ Ocurrió un error inesperado al generar el objeto.")
             logging.exception(f"Fallo al ejecutar /generarobjeto con la clave '{item_key}'")
 
-class CmdDestruirObjeto(Command):
+class CmdDestroyItem(Command):
     """
     Comando para que un administrador elimine permanentemente una instancia de objeto
     del juego especificando su ID.
@@ -166,6 +166,6 @@ class CmdDestruirObjeto(Command):
 
 # Exportamos la lista de comandos de este módulo.
 SPAWN_COMMANDS = [
-    CmdGenerarObjeto(),
-    CmdDestruirObjeto(),
+    CmdSpawnItem(),
+    CmdDestroyItem(),
 ]

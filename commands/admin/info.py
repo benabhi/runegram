@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from commands.command import Command
 from src.models import Character, Room
 
-class CmdListarSalas(Command):
+class CmdListRooms(Command):
     """
     Comando que muestra una lista de todas las salas existentes en el mundo,
     incluyendo su ID, su clave de prototipo y su nombre.
@@ -91,7 +91,7 @@ class CmdListarSalas(Command):
             await message.answer("❌ Ocurrió un error al intentar listar las salas.")
             logging.exception("Fallo al ejecutar /listarsalas")
 
-class CmdExaminarSala(Command):
+class CmdExamineRoom(Command):
     """
     Comando para examinar información detallada de una sala por ID o key.
     """
@@ -149,6 +149,6 @@ class CmdExaminarSala(Command):
 
 # Exportamos la lista de comandos de este módulo para que el dispatcher pueda importarla.
 INFO_COMMANDS = [
-    CmdListarSalas(),
-    CmdExaminarSala(),
+    CmdListRooms(),
+    CmdExamineRoom(),
 ]

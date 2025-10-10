@@ -72,7 +72,7 @@ interval_seconds = 2  # Intervalo del pulse global
 items_per_page = 30  # Items por página en listados
 ```
 
-**Ver:** [Documentación Completa de Configuración](./docs/10_CONFIGURATION.md)
+**Ver:** [Documentación Completa de Configuración](./docs/architecture/configuration.md)
 
 ---
 
@@ -91,7 +91,7 @@ items_per_page = 30  # Items por página en listados
 - **🔘 Sistema de Botones Inline** - Interacción mejorada con botones de Telegram
 - **👥 Sistema de Online/AFK** - Detección de jugadores activos vs. desconectados con notificaciones sociales
 
-**Ver:** [Sistemas del Motor Completos](./docs/03_ENGINE_SYSTEMS/) para detalles de implementación.
+**Ver:** [Sistemas del Motor Completos](./docs/engine-systems/) para detalles de implementación.
 
 ---
 
@@ -99,9 +99,12 @@ items_per_page = 30  # Items por página en listados
 
 Toda la documentación exhaustiva sobre la arquitectura, los sistemas del motor, las guías para crear contenido y la visión a futuro del proyecto se encuentra en la carpeta `docs/`.
 
-**Documentos Destacados:**
-- **[Guía de Inicio](./docs/01_GETTING_STARTED.md)** - Primeros pasos para desarrolladores
-- **[Referencia Completa de Comandos](./docs/COMMAND_REFERENCE.md)** - Lista de todos los comandos de jugador y admin con ejemplos
-- **[Guía de Administración](./docs/05_ADMIN_GUIDE.md)** - Comandos y herramientas para administradores
+**Índice de Documentación:**
+- **[📚 Documentación Principal](./docs/README.md)** - Índice maestro de toda la documentación
+- **[🚀 Guía de Inicio](./docs/getting-started/installation.md)** - Primeros pasos para desarrolladores
+- **[📖 Referencia de Comandos](./docs/reference/command-reference.md)** - Lista completa de comandos con ejemplos
+- **[👨‍💼 Guía de Administración](./docs/admin-guide/admin-commands.md)** - Comandos y herramientas para administradores
+- **[⚙️ Sistemas del Motor](./docs/engine-systems/README.md)** - Documentación técnica de sistemas internos
+- **[🎨 Creación de Contenido](./docs/content-creation/README.md)** - Guías para diseñadores y builders
 
-**[➡️ Acceder a la Documentación Completa](./docs/01_GETTING_STARTED.md)**
+**[➡️ Acceder a la Documentación Completa](./docs/README.md)**

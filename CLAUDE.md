@@ -1,5 +1,7 @@
 # CLAUDE.md - Guía de Desarrollo para Runegram MUD
 
+> **📌 NOTA IMPORTANTE PARA CLAUDE**: Este archivo debe mantenerse **SIEMPRE compacto y conciso** sin perder información relevante. Al actualizarlo, evita redundancias, sobre-explicaciones innecesarias y ejemplos excesivos. Prioriza la claridad y brevedad. La información detallada debe estar en `docs/`, no aquí.
+
 ## 🎯 Visión del Proyecto
 
 **Runegram** es un motor de juego de rol textual multijugador (MUD - Multi-User Dungeon) diseñado específicamente para ser jugado a través de Telegram. El objetivo final es crear un **juego masivo completamente funcional** con sistemas de combate, habilidades, economía, y una experiencia rica e inmersiva optimizada para dispositivos móviles.

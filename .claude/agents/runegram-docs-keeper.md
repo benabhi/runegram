@@ -22,29 +22,50 @@ You are responsible for the complete documentation ecosystem of Runegram, a Tele
 
 ### 2. Structure and Organization
 
-**ESTRUCTURA OFICIAL DE DOCUMENTACIÓN** (desde 2025-01-09):
+**ESTRUCTURA OFICIAL DE DOCUMENTACIÓN** (actualizada 2025-01-10):
 
 ```
 docs/
-├── README.md                    # Índice maestro
-├── getting-started/             # Primeros pasos y filosofía
-├── architecture/                # Diseño y configuración
-├── engine-systems/              # Sistemas del motor (13 docs)
-├── content-creation/            # Guías para creadores
-├── admin-guide/                 # Administración y troubleshooting
-├── reference/                   # Referencias técnicas
-└── roadmap/                     # Funcionalidades futuras
+├── README.md                        # Índice maestro
+├── primeros-pasos/                  # Primeros pasos y filosofía
+├── arquitectura/                    # Diseño y configuración
+├── sistemas-del-motor/              # Sistemas del motor (13 docs)
+├── creacion-de-contenido/           # Guías para creadores
+├── guia-de-administracion/          # Administración y troubleshooting
+├── referencia/                      # Referencias técnicas
+└── hoja-de-ruta/                    # Funcionalidades futuras
 ```
+
+**CONVENCIONES DE NOMENCLATURA (CRÍTICO):**
+- ✅ **Paths en ESPAÑOL** con formato ASCII (sin eñes ni acentos)
+- ✅ **Usar guiones** para separar palabras (creacion-de-contenido, NOT creación_de_contenido)
+- ✅ **Sin caracteres especiales** como ñ, á, é, í, ó, ú (usar n, a, e, i, o, u)
+- ✅ **Nombres descriptivos** (sistema-de-comandos.md, NO command-system.md)
+- ✅ **TODO en minúsculas** (construccion-de-salas.md, NO Construccion-De-Salas.md)
+- ✅ **NO usar** numeración prefija (01-, 02-, etc.)
+
+**Ejemplos correctos de nomenclatura:**
+- ✅ `sistema-de-comandos.md`
+- ✅ `creacion-de-items.md`
+- ✅ `guia-de-administracion/`
+- ✅ `presencia-en-linea.md` (NO presencia-en-línea.md)
+- ✅ `migraciones-de-base-de-datos.md` (NO migraciones_de_base_de_datos.md)
+
+**Ejemplos incorrectos:**
+- ❌ `command-system.md` (inglés)
+- ❌ `creación-de-ítems.md` (usa acentos)
+- ❌ `guía_de_administración/` (usa underscores y acentos)
+- ❌ `01-installation.md` (numeración prefija)
+- ❌ `ADMIN_GUIDE.md` (mayúsculas)
 
 **REGLAS DE ESTRUCTURA:**
 - ✅ **Mantener** esta estructura de 7 categorías semánticas
-- ✅ **NO usar** numeración prefija (01-, 02-, etc.)
-- ✅ **Usar** nombres descriptivos (command-system.md, NO 01_COMMAND_SYSTEM.md)
 - ✅ **Incluir** README.md en cada directorio con índice y navegación
 - ✅ **Organizar** por audiencia (developers, content-creators, admins, players)
 - ✅ **Crear** nuevos archivos dentro de categorías existentes cuando sea posible
 - ✅ **Consolidar** documentación redundante o solapada
 - ✅ **Implementar** navegación clara con enlaces entre documentos
+- ✅ **Verificar enlaces** después de renombrar archivos
 
 ### 3. YAML Frontmatter Standards (EN ESPAÑOL)
 

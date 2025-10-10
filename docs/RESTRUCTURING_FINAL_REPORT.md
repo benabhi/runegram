@@ -37,54 +37,54 @@ La reestructuración completa de la documentación de Runegram ha sido **complet
 docs/
 ├── README.md (índice maestro)
 │
-├── getting-started/
+├── primeros-pasos/
 │   ├── README.md
-│   ├── core-philosophy.md
-│   └── installation.md
+│   ├── filosofia-central.md
+│   └── instalacion.md
 │
-├── architecture/
+├── arquitectura/
 │   ├── README.md
-│   └── configuration.md
+│   └── configuracion.md
 │
-├── engine-systems/
+├── sistemas-del-motor/
 │   ├── README.md
-│   ├── categories-and-tags.md
-│   ├── channels-system.md
-│   ├── command-system.md
-│   ├── inline-buttons.md
-│   ├── item-disambiguation.md
-│   ├── narrative-system.md
-│   ├── online-presence.md
-│   ├── permission-system.md
-│   ├── prototype-system.md
-│   ├── pulse-system.md
-│   ├── scripting-system.md
-│   ├── social-systems.md
-│   └── validation-system.md
+│   ├── categorias-y-etiquetas.md
+│   ├── sistema-de-canales.md
+│   ├── sistema-de-comandos.md
+│   ├── botones-en-linea.md
+│   ├── desambiguacion-de-items.md
+│   ├── sistema-de-narrativa.md
+│   ├── presencia-en-linea.md
+│   ├── sistema-de-permisos.md
+│   ├── sistema-de-prototipos.md
+│   ├── sistema-de-pulso.md
+│   ├── sistema-de-scripts.md
+│   ├── sistemas-sociales.md
+│   └── sistema-de-validacion.md
 │
-├── content-creation/
+├── creacion-de-contenido/
 │   ├── README.md
-│   ├── building-rooms.md
-│   ├── creating-commands.md
-│   ├── creating-items.md
-│   ├── output-style-guide.md
-│   └── writing-scripts.md
+│   ├── construccion-de-salas.md
+│   ├── creacion-de-comandos.md
+│   ├── creacion-de-items.md
+│   ├── guia-de-estilo-de-salida.md
+│   └── escritura-de-scripts.md
 │
-├── admin-guide/
+├── guia-de-administracion/
 │   ├── README.md
-│   ├── admin-commands.md
-│   └── database-migrations.md
+│   ├── comandos-de-administracion.md
+│   └── migraciones-de-base-de-datos.md
 │
-├── reference/
+├── referencia/
 │   ├── README.md
-│   └── command-reference.md
+│   └── referencia-de-comandos.md
 │
-└── roadmap/
+└── hoja-de-ruta/
     ├── README.md
-    ├── combat-system-design.md
-    ├── planned-features.md
-    ├── skill-system-design.md
-    └── vision-and-goals.md
+    ├── diseno-sistema-de-combate.md
+    ├── funcionalidades-planificadas.md
+    ├── diseno-sistema-de-habilidades.md
+    └── vision-y-objetivos.md
 ```
 
 ---
@@ -130,7 +130,7 @@ docs/
 - ✅ Actualizado sección "Documentación Detallada"
 - ✅ Nuevo índice con enlaces a categorías
 - ✅ Enlaces a README.md maestro de docs/
-- ✅ Referencias corregidas (configuration.md, engine-systems/, etc.)
+- ✅ Referencias corregidas (configuracion.md, sistemas-del-motor/, etc.)
 
 ### 2. Documentación Principal
 
@@ -142,40 +142,40 @@ docs/
 
 ### 3. READMEs de Navegación Creados
 
-#### ✅ docs/engine-systems/README.md
+#### ✅ docs/sistemas-del-motor/README.md
 - Descripción de 13 sistemas del motor
 - Orden de lectura para desarrolladores, creadores de comandos y arquitectos
 - Convenciones del motor (nomenclatura, async/await, type hints)
 - Filosofía de diseño genérico y reutilizable
 
-#### ✅ docs/admin-guide/README.md
+#### ✅ docs/guia-de-administracion/README.md
 - Descripción de comandos administrativos
 - Flujos de trabajo operativos
 - Procedimientos de backup y migración
 - Permisos y seguridad
 - Troubleshooting común
 
-#### ✅ docs/content-creation/README.md
+#### ✅ docs/creacion-de-contenido/README.md
 - Ya existía, verificado y actualizado
 
-#### ✅ docs/getting-started/README.md
+#### ✅ docs/primeros-pasos/README.md
 - Ya existía, verificado
 
-#### ✅ docs/architecture/README.md
+#### ✅ docs/arquitectura/README.md
 - Ya existía, verificado
 
-#### ✅ docs/reference/README.md
+#### ✅ docs/referencia/README.md
 - Ya existía, verificado
 
-#### ✅ docs/roadmap/README.md
+#### ✅ docs/hoja-de-ruta/README.md
 - Ya existía, verificado
 
 ### 4. Enlaces Corregidos
 
 Se corrigieron enlaces rotos en archivos nuevos:
-- ❌ `quick-start.md` → ✅ `installation.md`
-- ❌ `core-architecture.md` → ✅ `configuration.md` (temporal, hasta crear architecture)
-- ❌ `script-system.md` → ✅ `scripting-system.md`
+- ❌ `quick-start.md` → ✅ `instalacion.md`
+- ❌ `core-architecture.md` → ✅ `configuracion.md` (temporal, hasta crear architecture)
+- ❌ `script-system.md` → ✅ `sistema-de-scripts.md`
 
 **Nota**: Algunos enlaces a archivos futuros (como `overview.md`, `broadcaster-service.md`) están marcados como TODO en READMEs.
 
@@ -242,27 +242,27 @@ importancia: "alta" | "media" | "baja" | "crítica"
 ### Para Nuevos Desarrolladores
 
 1. **Inicio**: [docs/README.md](./README.md)
-2. **Primeros pasos**: [docs/getting-started/installation.md](./getting-started/installation.md)
-3. **Filosofía**: [docs/getting-started/core-philosophy.md](./getting-started/core-philosophy.md)
-4. **Sistemas del motor**: [docs/engine-systems/README.md](./engine-systems/README.md)
+2. **Primeros pasos**: [docs/primeros-pasos/instalacion.md](./primeros-pasos/instalacion.md)
+3. **Filosofía**: [docs/primeros-pasos/filosofia-central.md](./primeros-pasos/filosofia-central.md)
+4. **Sistemas del motor**: [docs/sistemas-del-motor/README.md](./sistemas-del-motor/README.md)
 
 ### Para Creadores de Contenido
 
-1. **Filosofía**: [docs/getting-started/core-philosophy.md](./getting-started/core-philosophy.md)
-2. **Guía de creación**: [docs/content-creation/README.md](./content-creation/README.md)
-3. **Estilo de output**: [docs/content-creation/output-style-guide.md](./content-creation/output-style-guide.md) (OBLIGATORIO)
-4. **Construir salas**: [docs/content-creation/building-rooms.md](./content-creation/building-rooms.md)
+1. **Filosofía**: [docs/primeros-pasos/filosofia-central.md](./primeros-pasos/filosofia-central.md)
+2. **Guía de creación**: [docs/creacion-de-contenido/README.md](./creacion-de-contenido/README.md)
+3. **Estilo de output**: [docs/creacion-de-contenido/guia-de-estilo-de-salida.md](./creacion-de-contenido/guia-de-estilo-de-salida.md) (OBLIGATORIO)
+4. **Construir salas**: [docs/creacion-de-contenido/construccion-de-salas.md](./creacion-de-contenido/construccion-de-salas.md)
 
 ### Para Administradores
 
-1. **Comandos admin**: [docs/admin-guide/admin-commands.md](./admin-guide/admin-commands.md)
-2. **Migraciones**: [docs/admin-guide/database-migrations.md](./admin-guide/database-migrations.md)
-3. **Configuración**: [docs/architecture/configuration.md](./architecture/configuration.md)
+1. **Comandos admin**: [docs/guia-de-administracion/comandos-de-administracion.md](./guia-de-administracion/comandos-de-administracion.md)
+2. **Migraciones**: [docs/guia-de-administracion/migraciones-de-base-de-datos.md](./guia-de-administracion/migraciones-de-base-de-datos.md)
+3. **Configuración**: [docs/arquitectura/configuracion.md](./arquitectura/configuracion.md)
 
 ### Para Jugadores
 
 1. **Inicio**: [docs/player-guide/getting-started-player.md](./player-guide/getting-started-player.md)
-2. **Comandos**: [docs/player-guide/command-reference.md](./player-guide/command-reference.md)
+2. **Comandos**: [docs/player-guide/referencia-de-comandos.md](./player-guide/referencia-de-comandos.md)
 
 ---
 
@@ -283,9 +283,9 @@ importancia: "alta" | "media" | "baja" | "crítica"
 ### ⚠️ Elementos Pendientes (Futuro)
 
 **Documentos marcados como TODO**:
-1. `docs/architecture/overview.md` - Visión general de arquitectura
+1. `docs/arquitectura/overview.md` - Visión general de arquitectura
 2. `docs/player-guide/getting-started-player.md` - Guía inicial para jugadores
-3. `docs/player-guide/command-reference.md` - Referencia de comandos para jugadores
+3. `docs/player-guide/referencia-de-comandos.md` - Referencia de comandos para jugadores
 
 **Enlaces a documentos futuros**:
 - `broadcaster-service.md` - Algunos enlaces apuntan aquí, pero la funcionalidad está documentada en otros archivos
@@ -323,7 +323,7 @@ importancia: "alta" | "media" | "baja" | "crítica"
 
 ### Corto Plazo (Opcional)
 
-1. **Crear `docs/architecture/overview.md`**
+1. **Crear `docs/arquitectura/overview.md`**
    - Diagrama de arquitectura del sistema
    - Flujo de datos (handlers → services → models)
    - Stack tecnológico detallado
@@ -383,53 +383,53 @@ El proyecto Runegram ahora cuenta con una documentación de primera clase, lista
 #### docs/ (raíz)
 - README.md
 
-#### docs/getting-started/
+#### docs/primeros-pasos/
 - README.md
-- core-philosophy.md
-- installation.md
+- filosofia-central.md
+- instalacion.md
 
-#### docs/architecture/
+#### docs/arquitectura/
 - README.md
-- configuration.md
+- configuracion.md
 
-#### docs/engine-systems/
+#### docs/sistemas-del-motor/
 - README.md
-- categories-and-tags.md
-- channels-system.md
-- command-system.md
-- inline-buttons.md
-- item-disambiguation.md
-- narrative-system.md
-- online-presence.md
-- permission-system.md
-- prototype-system.md
-- pulse-system.md
-- scripting-system.md
-- social-systems.md
-- validation-system.md
+- categorias-y-etiquetas.md
+- sistema-de-canales.md
+- sistema-de-comandos.md
+- botones-en-linea.md
+- desambiguacion-de-items.md
+- sistema-de-narrativa.md
+- presencia-en-linea.md
+- sistema-de-permisos.md
+- sistema-de-prototipos.md
+- sistema-de-pulso.md
+- sistema-de-scripts.md
+- sistemas-sociales.md
+- sistema-de-validacion.md
 
-#### docs/content-creation/
+#### docs/creacion-de-contenido/
 - README.md
-- building-rooms.md
-- creating-commands.md
-- creating-items.md
-- output-style-guide.md
-- writing-scripts.md
+- construccion-de-salas.md
+- creacion-de-comandos.md
+- creacion-de-items.md
+- guia-de-estilo-de-salida.md
+- escritura-de-scripts.md
 
-#### docs/admin-guide/
+#### docs/guia-de-administracion/
 - README.md
-- admin-commands.md
-- database-migrations.md
+- comandos-de-administracion.md
+- migraciones-de-base-de-datos.md
 
-#### docs/reference/
+#### docs/referencia/
 - README.md
-- command-reference.md
+- referencia-de-comandos.md
 
-#### docs/roadmap/
+#### docs/hoja-de-ruta/
 - README.md
-- combat-system-design.md
-- planned-features.md
-- skill-system-design.md
-- vision-and-goals.md
+- diseno-sistema-de-combate.md
+- funcionalidades-planificadas.md
+- diseno-sistema-de-habilidades.md
+- vision-y-objetivos.md
 
 **Total**: 37 archivos markdown

@@ -21,45 +21,110 @@ You are responsible for the complete documentation ecosystem of Runegram, a Tele
 - **Verify accuracy** by examining actual source code in `src/`, `commands/`, and `game_data/`
 
 ### 2. Structure and Organization
-- **Maintain** a coherent, scalable documentation hierarchy in `docs/`
-- **Ensure** README.md serves as an effective entry point with a clear index
-- **Organize** documentation by logical categories (Engine Systems, Content Creation, Admin Guides, etc.)
-- **Create** new documentation files when features warrant separate coverage
-- **Consolidate** redundant or overlapping documentation
-- **Implement** clear navigation paths between related documents
 
-### 3. YAML Frontmatter Standards
+**ESTRUCTURA OFICIAL DE DOCUMENTACIÓN** (desde 2025-01-09):
 
-Every markdown file MUST include standardized YAML frontmatter:
+```
+docs/
+├── README.md                    # Índice maestro
+├── getting-started/             # Primeros pasos y filosofía
+├── architecture/                # Diseño y configuración
+├── engine-systems/              # Sistemas del motor (13 docs)
+├── content-creation/            # Guías para creadores
+├── admin-guide/                 # Administración y troubleshooting
+├── reference/                   # Referencias técnicas
+└── roadmap/                     # Funcionalidades futuras
+```
+
+**REGLAS DE ESTRUCTURA:**
+- ✅ **Mantener** esta estructura de 7 categorías semánticas
+- ✅ **NO usar** numeración prefija (01-, 02-, etc.)
+- ✅ **Usar** nombres descriptivos (command-system.md, NO 01_COMMAND_SYSTEM.md)
+- ✅ **Incluir** README.md en cada directorio con índice y navegación
+- ✅ **Organizar** por audiencia (developers, content-creators, admins, players)
+- ✅ **Crear** nuevos archivos dentro de categorías existentes cuando sea posible
+- ✅ **Consolidar** documentación redundante o solapada
+- ✅ **Implementar** navegación clara con enlaces entre documentos
+
+### 3. YAML Frontmatter Standards (EN ESPAÑOL)
+
+**CRÍTICO**: Todo el frontmatter DEBE estar en ESPAÑOL.
+
+Cada archivo markdown DEBE incluir YAML frontmatter estandarizado:
 
 ```yaml
 ---
-title: "Document Title"
-category: "Engine Systems" | "Content Creation" | "Admin Guide" | "Getting Started" | "Reference"
-version: "1.0"
-last_updated: "YYYY-MM-DD"
-author: "Runegram Project"
-tags: ["relevant", "tags", "here"]
-related_docs:
-  - "path/to/related/doc.md"
-  - "another/related/doc.md"
-code_references:
-  - "src/services/example_service.py"
-  - "commands/player/example_command.py"
-status: "current" | "draft" | "deprecated"
+título: "Título del Documento"
+categoría: "Comenzando" | "Arquitectura" | "Sistemas del Motor" | "Creación de Contenido" | "Guía de Admin" | "Referencia" | "Hoja de Ruta"
+versión: "1.0"
+última_actualización: "YYYY-MM-DD"
+autor: "Proyecto Runegram"
+etiquetas: ["etiqueta1", "etiqueta2", "etiqueta3"]
+documentos_relacionados:
+  - "ruta/al/documento-relacionado.md"
+  - "otro/documento/relacionado.md"
+referencias_código:
+  - "src/services/ejemplo_service.py"
+  - "commands/player/ejemplo_comando.py"
+estado: "actual" | "borrador" | "deprecado" | "planificado"
+importancia: "alta" | "crítica" | "normal"  # Opcional
+audiencia: "desarrollador" | "creador-de-contenido" | "admin" | "jugador" | "todos"  # Opcional
 ---
 ```
 
-**Enforce this standard** across ALL documentation files. Update existing files lacking proper frontmatter.
+**TRADUCCIONES DE CATEGORÍAS:**
+- "Getting Started" → "Comenzando"
+- "Architecture" → "Arquitectura"
+- "Engine Systems" → "Sistemas del Motor"
+- "Content Creation" → "Creación de Contenido"
+- "Admin Guide" → "Guía de Admin"
+- "Reference" → "Referencia"
+- "Roadmap" → "Hoja de Ruta"
+
+**TRADUCCIONES DE ESTADOS:**
+- "current" → "actual"
+- "draft" → "borrador"
+- "deprecated" → "deprecado"
+- "planned" → "planificado"
+
+**Aplicar este estándar** en TODOS los archivos de documentación. Actualizar archivos existentes que carezcan de frontmatter apropiado o que lo tengan en inglés.
 
 ### 4. Documentation Quality Standards
 
-**Clarity and Precision**:
-- Use clear, unambiguous language
-- Define technical terms on first use
-- Provide concrete examples for abstract concepts
-- Include code snippets with proper syntax highlighting
-- Use consistent terminology (refer to CLAUDE.md conventions)
+**IDIOMA: ESPAÑOL** (CRÍTICO)
+
+**REGLA FUNDAMENTAL**: Toda la documentación DEBE estar en español.
+
+**Excepciones al español:**
+- ✅ Código Python (variables, funciones, clases en inglés)
+- ✅ Nombres técnicos de tecnologías (SQLAlchemy, Aiogram, Docker)
+- ✅ Comandos de terminal (bash, git)
+- ❌ Comentarios en código → ESPAÑOL
+- ❌ Texto explicativo → ESPAÑOL
+- ❌ Títulos de secciones → ESPAÑOL
+- ❌ YAML frontmatter → ESPAÑOL
+
+**Ejemplo correcto:**
+```python
+# Sistema de comandos - Permite ejecutar comandos del jugador
+class CmdLook(Command):
+    """
+    Comando que permite al jugador mirar su entorno.
+    """
+    names = ["mirar", "m"]  # Nombres de comandos en español
+
+    async def execute(self, character, session, message, args):
+        # Obtener descripción de la sala
+        room_description = get_room_description(character.room)
+        await message.answer(room_description)
+```
+
+**Claridad y Precisión**:
+- Usar lenguaje claro y sin ambigüedades (en español)
+- Definir términos técnicos en su primer uso
+- Proporcionar ejemplos concretos para conceptos abstractos
+- Incluir fragmentos de código con sintaxis correcta
+- Usar terminología consistente (referirse a convenciones de CLAUDE.md)
 
 **Completeness**:
 - Document ALL public APIs, services, and systems
@@ -126,18 +191,22 @@ When updating documentation:
 
 ### 8. Quality Assurance Checks
 
-Before finalizing documentation updates:
+Antes de finalizar actualizaciones de documentación:
 
-- ✅ All markdown files have valid YAML frontmatter
-- ✅ Code examples are tested and accurate
-- ✅ File paths and references are correct
-- ✅ No broken internal links
-- ✅ Consistent terminology with CLAUDE.md
-- ✅ No contradictions with source code
-- ✅ Proper Spanish/English usage (commands in Spanish, code in English)
-- ✅ Version numbers incremented appropriately
-- ✅ `last_updated` dates are current
-- ✅ README.md index reflects current structure
+- ✅ Todos los archivos markdown tienen YAML frontmatter válido **EN ESPAÑOL**
+- ✅ Los ejemplos de código están probados y son precisos
+- ✅ Las rutas de archivos y referencias son correctas
+- ✅ No hay enlaces internos rotos
+- ✅ Terminología consistente con CLAUDE.md
+- ✅ No hay contradicciones con el código fuente
+- ✅ **TODO el texto está en ESPAÑOL** (excepto código/variables/nombres técnicos)
+- ✅ **Comentarios en código en ESPAÑOL**
+- ✅ **YAML frontmatter en ESPAÑOL** (título, categoría, etiquetas, estado)
+- ✅ Archivos en estructura correcta (7 categorías sin numeración)
+- ✅ Cada directorio tiene README.md con índice
+- ✅ Números de versión incrementados apropiadamente
+- ✅ Fechas de `última_actualización` están actualizadas
+- ✅ README.md principal refleja la estructura actual
 
 ## Operational Guidelines
 
@@ -179,14 +248,20 @@ When reporting on documentation work:
 
 ## Special Considerations for Runegram
 
-- **Respect** the motor/contenido separation in documentation structure
-- **Document** both English (engine) and Spanish (content) aspects clearly
-- **Emphasize** Telegram mobile UX considerations
-- **Include** examples using actual game prototypes and commands
-- **Maintain** consistency with CLAUDE.md philosophy and conventions
-- **Document** the async/await patterns and SQLAlchemy usage
-- **Explain** the prototype system and its benefits
-- **Cover** the pulse system, broadcasting, and other unique engine features
+- **Respetar** la separación motor/contenido en la estructura de documentación
+- **Documentar** tanto aspectos del motor (código en inglés) como contenido (datos en español) claramente
+- **Enfatizar** consideraciones de UX móvil de Telegram
+- **Incluir** ejemplos usando prototipos y comandos reales del juego
+- **Mantener** consistencia con filosofía y convenciones de CLAUDE.md
+- **Documentar** patrones async/await y uso de SQLAlchemy
+- **Explicar** el sistema de prototipos y sus beneficios
+- **Cubrir** sistema de pulse, broadcasting, y otras características únicas del motor
+- **GARANTIZAR** que toda la prosa explicativa esté en español
+- **GARANTIZAR** que los comentarios en código estén en español
+- **GARANTIZAR** que YAML frontmatter use claves y valores en español
+- **RESPETAR** la nueva estructura de 7 categorías sin numeración
+- **CREAR** READMEs de navegación en cada directorio
+- **MARCAR** claramente funcionalidades futuras en `roadmap/` con advertencias
 
 ## Success Criteria
 

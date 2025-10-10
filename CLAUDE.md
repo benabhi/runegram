@@ -565,6 +565,54 @@ git commit -m "Corregido bug en /coger con contenedores"
 
 ## 🤖 Guía Específica para Claude
 
+### 🤖 USO DE AGENTES ESPECIALIZADOS (IMPORTANTE)
+
+Este proyecto utiliza **agentes especializados** disponibles en `.claude/agents/` para tareas específicas complejas.
+
+#### Agentes Disponibles
+
+1. **runegram-docs-keeper** - Mantenimiento de documentación
+   - Usar después de implementar nuevas funcionalidades
+   - Usar cuando cambien sistemas existentes
+   - Usar para reestructurar/mejorar documentación
+   - Usar para validar consistencia entre docs y código
+
+2. **runegram-command-auditor** - Auditoría de comandos
+   - Usar PROACTIVAMENTE después de crear/modificar comandos
+   - Verifica convenciones del proyecto
+   - Asegura consistencia con filosofía motor/contenido
+
+#### Política de Uso de Agentes
+
+**DEBES considerar usar agentes especializados cuando sea apropiado:**
+- ✅ Usa `runegram-docs-keeper` después de cambios significativos
+- ✅ Usa `runegram-command-auditor` después de crear/modificar comandos
+- ✅ Los agentes pueden ejecutarse en paralelo si es necesario
+- ✅ Confía en los resultados de los agentes especializados
+
+**Ejemplo de uso proactivo:**
+```
+Usuario: "He implementado un nuevo sistema de inventario mejorado"
+Claude: "Sistema implementado. Ahora usaré runegram-docs-keeper para actualizar la documentación."
+```
+
+#### Mantenimiento de Agentes (CRÍTICO)
+
+**IMPORTANTE**: Los agentes deben evolucionar con el proyecto.
+
+**Cuándo actualizar agentes:**
+- 🔄 **Cambios en convenciones**: Si cambia la forma de escribir comandos, actualizar `runegram-command-auditor`
+- 🔄 **Nuevos sistemas**: Si agregas un sistema del motor, actualizar instrucciones de `runegram-docs-keeper`
+- 🔄 **Cambios en estructura**: Si reorganizas archivos/directorios, actualizar agentes afectados
+- 🔄 **Nuevas reglas**: Si estableces nuevas políticas de código, actualizar agentes relevantes
+
+**Ejemplos de actualización necesaria:**
+- Sistema de comandos cambia estructura → Actualizar `runegram-command-auditor`
+- Estructura de documentación cambia → Actualizar `runegram-docs-keeper`
+- Nuevas convenciones de nomenclatura → Actualizar ambos agentes
+
+**Regla**: Si algo cambia en el proyecto que afecta las tareas de un agente, **evalúa si el agente necesita actualizarse**.
+
 ### 🚨 REGLA #1: DOCUMENTACIÓN SIEMPRE ACTUALIZADA
 
 **ANTES de finalizar CUALQUIER tarea**:

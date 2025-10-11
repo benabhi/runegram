@@ -1,8 +1,8 @@
 ---
 título: "Referencia Completa de Comandos"
 categoría: "Referencia"
-versión: "1.7"
-última_actualización: "2025-01-10"
+versión: "1.8"
+última_actualización: "2025-01-11"
 autor: "Proyecto Runegram"
 etiquetas: ["comandos", "referencia", "jugadores", "admin"]
 documentos_relacionados:
@@ -66,6 +66,19 @@ Esta es la referencia completa de todos los comandos disponibles en Runegram MUD
   - Requiere escribir "CONFIRMAR" en mayúsculas para evitar eliminaciones accidentales.
   - Después de eliminar el personaje, puedes crear uno nuevo con `/crearpersonaje`.
   - El mensaje de desaparición varía aleatoriamente.
+
+### `/apelar <explicación>`
+- **Descripción:** Envía una apelación si tu cuenta ha sido baneada. Solo puedes apelar UNA vez. Los administradores revisarán tu caso.
+- **Uso:** `/apelar Fui víctima de un hack. Mi hermano usó mi cuenta sin permiso y cometió spam.`
+- **Restricciones:**
+  - Solo disponible si tu cuenta está baneada
+  - Solo puedes enviar una apelación por cuenta
+  - Máximo 1000 caracteres
+- **Notas:**
+  - Este es el ÚNICO comando que puedes usar mientras estás baneado
+  - Explica tu situación claramente y con respeto
+  - Los administradores revisarán tu apelación y decidirán
+  - No hay garantía de que se acepte la apelación
 
 ---
 
@@ -566,6 +579,58 @@ Todos los comandos de administrador requieren el rol **ADMIN** o superior, a men
 
 ---
 
+## Moderación y Gestión de Jugadores
+
+### `/banear <nombre> [días] <razón>`
+- **Permiso:** ADMIN
+- **Descripción:** Banea la cuenta asociada al personaje. Puede ser temporal (especificando días) o permanente (sin especificar días). El jugador baneado no podrá usar comandos excepto `/apelar`.
+- **Uso:**
+  - `/banear Gandalf 7 Spam repetido en canales globales` - Ban temporal de 7 días
+  - `/banear Saruman Uso de exploit de duplicación grave` - Ban permanente
+- **Restricciones:**
+  - La razón es obligatoria (máximo 500 caracteres)
+  - No puedes banear una cuenta ya baneada
+- **Notas:**
+  - **Baneos temporales** expiran automáticamente después del tiempo especificado
+  - **Baneos permanentes** solo pueden ser removidos con `/desbanear`
+  - Se registra quién aplicó el ban y cuándo (auditoría)
+  - El jugador puede enviar una apelación con `/apelar`
+
+### `/desbanear <nombre>`
+- **Permiso:** ADMIN
+- **Descripción:** Quita el ban de una cuenta, permitiéndole volver a jugar. Funciona tanto para baneos temporales como permanentes.
+- **Uso:** `/desbanear Gandalf`
+- **Notas:**
+  - Mantiene el historial de apelación si existiera (para auditoría)
+  - Se registra la acción en logs
+
+### `/listabaneados [página]`
+- **Permiso:** ADMIN
+- **Descripción:** Muestra lista paginada (30 por página) de todas las cuentas actualmente baneadas.
+- **Uso:**
+  - `/listabaneados` - Primera página
+  - `/listabaneados 2` - Página 2
+- **Información mostrada:**
+  - Nombre del personaje
+  - Tipo de ban (🕒 Temporal / ⏰ Permanente)
+  - Razón del ban
+  - Fecha del ban
+  - Admin que aplicó el ban
+  - 🔔 Indicador si hay apelación pendiente
+- **Notas:** Baneos expirados no aparecen (se desbanean automáticamente)
+
+### `/verapelacion <nombre>`
+- **Permiso:** ADMIN
+- **Descripción:** Muestra la apelación completa de un jugador baneado junto con información del ban original.
+- **Uso:** `/verapelacion Gandalf`
+- **Información mostrada:**
+  - Datos del ban: Razón, tipo, fecha, admin responsable
+  - Texto completo de la apelación
+  - Fecha de la apelación
+- **Notas:** Útil para revisar casos antes de decidir si desbanear
+
+---
+
 ## Notas Generales
 
 ### Sobre los Aliases
@@ -609,6 +674,7 @@ Todos los comandos de administrador requieren el rol **ADMIN** o superior, a men
 - [Creando Comandos](../creacion-de-contenido/creacion-de-comandos.md) - Guía para crear nuevos comandos
 - [Sistema de Comandos](../sistemas-del-motor/sistema-de-comandos.md) - Arquitectura técnica
 - [Sistema de Permisos](../sistemas-del-motor/sistema-de-permisos.md) - Locks y permisos
+- [Sistema de Baneos](../sistemas-del-motor/sistema-de-baneos.md) - Sistema de moderación
 
 ### Para Administradores
 - [Guía de Administración](../admin/admin-guide.md) - Guía completa de administración
@@ -616,9 +682,10 @@ Todos los comandos de administrador requieren el rol **ADMIN** o superior, a men
 
 ---
 
-**Versión:** 1.7
-**Última actualización:** 2025-01-10
+**Versión:** 1.8
+**Última actualización:** 2025-01-11
 **Changelog:**
+- v1.8 (2025-01-11): Agregado sistema de baneos y apelaciones - comandos `/banear`, `/desbanear`, `/listabaneados`, `/verapelacion`, `/apelar`
 - v1.7 (2025-01-09): Implementado Sistema de Narrativa - mensajes evocativos aleatorios para `/generarobjeto`, `/destruirobjeto`, `/teleport` y `/suicidio`
 - v1.6 (2025-10-09): Agregado comando `/destruirobjeto` para eliminar objetos del juego
 - v1.5 (2025-10-09): Paginación unificada - `/inventario` y `/quien` ahora usan paginación automática sin necesidad de "todo"

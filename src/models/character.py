@@ -39,8 +39,8 @@ class Character(Base):
     command_sets = Column(
         JSONType,
         nullable=False,
-        server_default='["general", "character_creation", "interaction", "movement", "channels", "dynamic_channels", "settings"]',
-        default=["general", "character_creation", "interaction", "movement", "channels", "dynamic_channels", "settings"]
+        server_default='["general", "character_creation", "interaction", "movement", "channels", "dynamic_channels", "settings", "appeal"]',
+        default=["general", "character_creation", "interaction", "movement", "channels", "dynamic_channels", "settings", "appeal"]
     )
 
     # --- Relaciones de SQLAlchemy ---

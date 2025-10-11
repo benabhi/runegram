@@ -2,12 +2,13 @@
 título: "Guía de Comandos de Administración"
 categoría: "Guía de Admin"
 audiencia: "administrador"
-versión: "1.0"
-última_actualización: "2025-01-09"
+versión: "1.1"
+última_actualización: "2025-01-11"
 autor: "Proyecto Runegram"
 etiquetas: ["admin", "comandos", "permisos", "gestión"]
 documentos_relacionados:
   - "sistemas-del-motor/sistema-de-permisos.md"
+  - "sistemas-del-motor/sistema-de-baneos.md"
   - "sistemas-del-motor/categorias-y-etiquetas.md"
   - "sistemas-del-motor/narrative-service.md"
   - "creacion-de-contenido/creacion-de-items.md"
@@ -182,10 +183,68 @@ Estos comandos modifican el estado fundamental de las entidades del juego y gene
     /asignarrol Pippin ADMIN
     ```
 
+### `/banear <nombre_personaje> [días] <razón>`
+*   **Permiso:** `ADMIN`
+*   **Descripción:** Banea la cuenta asociada al personaje especificado. Puede ser temporal (con días) o permanente (sin días). El jugador baneado no podrá usar ningún comando excepto `/apelar`.
+*   **Razón Obligatoria:** Debes proporcionar una razón del ban (máximo 500 caracteres).
+*   **Uso:**
+    ```
+    /banear Gandalf 7 Spam repetido en canales globales
+    /banear Saruman Uso de exploit de duplicación grave
+    ```
+*   **Baneos Temporales:**
+    - Especifica el número de días: `/banear Frodo 3 Razón`
+    - El ban expira automáticamente después del tiempo especificado
+    - El jugador puede volver a jugar sin intervención de admin
+*   **Baneos Permanentes:**
+    - NO especifiques días: `/banear Sauron Razón`
+    - Solo un admin puede desbanear
+*   **Notas:** Se registra quién aplicó el ban y cuándo para auditoría. El jugador puede enviar UNA apelación usando `/apelar`.
+
+### `/desbanear <nombre_personaje>`
+*   **Permiso:** `ADMIN`
+*   **Descripción:** Quita el ban de la cuenta asociada al personaje especificado, permitiéndole volver a jugar. Mantiene el historial de apelación si existiera (para auditoría).
+*   **Uso:**
+    ```
+    /desbanear Gandalf
+    ```
+*   **Notas:** Funciona tanto para baneos temporales como permanentes. Se registra la acción en los logs.
+
+### `/listabaneados [página]`
+*   **Permiso:** `ADMIN`
+*   **Descripción:** Muestra una lista paginada (30 por página) de todas las cuentas actualmente baneadas. Incluye nombre del personaje, tipo de ban (temporal/permanente), razón, fecha, admin responsable e indicador de apelación pendiente.
+*   **Uso:**
+    ```
+    /listabaneados          # Primera página
+    /listabaneados 2        # Página 2
+    ```
+*   **Información mostrada:**
+    - Nombre del personaje
+    - Tipo de ban (🕒 Temporal / ⏰ Permanente)
+    - Razón del ban
+    - Fecha del ban
+    - Admin que aplicó el ban
+    - 🔔 Indicador si hay apelación pendiente
+*   **Notas:** Los baneos temporales expirados NO aparecen en la lista (se desbanean automáticamente).
+
+### `/verapelacion <nombre_personaje>`
+*   **Permiso:** `ADMIN`
+*   **Descripción:** Muestra la apelación completa enviada por un jugador baneado, junto con la información del ban original. Útil para revisar casos antes de decidir si desbanear.
+*   **Uso:**
+    ```
+    /verapelacion Gandalf
+    ```
+*   **Información mostrada:**
+    - Datos del ban: Razón, tipo, fecha, admin responsable
+    - Texto completo de la apelación
+    - Fecha de la apelación
+*   **Notas:** Si el jugador no ha apelado, se indica claramente.
+
 ---
 
 **Documentación Relacionada:**
 - [Sistema de Permisos](../sistemas-del-motor/sistema-de-permisos.md)
+- [Sistema de Baneos](../sistemas-del-motor/sistema-de-baneos.md)
 - [Categorías y Etiquetas](../sistemas-del-motor/categorias-y-etiquetas.md)
 - [Sistema de Narrativa](../sistemas-del-motor/narrative-service.md)
 - [Creando Items](../creacion-de-contenido/creacion-de-items.md)

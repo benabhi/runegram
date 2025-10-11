@@ -428,6 +428,38 @@ message = narrative_service.get_random_narrative(
 
 Ver: `docs/engine-systems/narrative-system.md`
 
+### 14. Sistema de Baneos y Apelaciones
+Sistema completo de moderación para administradores.
+
+```python
+from src.services import ban_service
+
+# Banear cuenta (temporal)
+await ban_service.ban_account(
+    session=session,
+    character=target_character,
+    reason="Spam en canales globales",
+    banned_by_account_id=admin_account.id,
+    expires_at=datetime.utcnow() + timedelta(days=7)
+)
+
+# Verificar si está baneado (automático en dispatcher)
+is_banned = await ban_service.is_account_banned(session, account)
+```
+
+**Características**:
+- **Baneos temporales** con expiración automática
+- **Baneos permanentes** sin fecha de expiración
+- **Sistema de apelaciones** (una oportunidad por cuenta)
+- **Auditoría completa** (quién, cuándo, por qué)
+- **Bloqueo de comandos** automático (excepto `/apelar`)
+
+**Comandos**:
+- Admin: `/banear`, `/desbanear`, `/listabaneados`, `/verapelacion`
+- Jugador: `/apelar`
+
+Ver: `src/services/ban_service.py`, `docs/sistemas-del-motor/sistema-de-baneos.md`
+
 ---
 
 ## 🎮 Creación de Contenido (Resumen)
@@ -725,7 +757,8 @@ Ver: `docs/engine-systems/social-systems.md`
 - `docs/engine-systems/` - Sistemas del motor detallados
   - `command-system.md`, `permission-system.md`, `prototype-system.md`
   - `pulse-system.md`, `narrative-system.md`, `online-presence.md`
-  - Y más (13 documentos en total)
+  - `ban-system.md` - **NUEVO** - Sistema de baneos
+  - Y más (14 documentos en total)
 - `docs/content-creation/` - Guías de creación
   - `creating-commands.md`, `building-rooms.md`, `creating-items.md`
   - `output-style-guide.md` - **OBLIGATORIO** para outputs
@@ -788,15 +821,17 @@ Después de CUALQUIER cambio:
 - **Ordinales**: Sistema `N.nombre` para objetos duplicados
 - **Pulse**: Corazón temporal (tick cada 2s)
 - **Offline**: Jugadores desconectados = ausentes del juego
+- **Baneos**: Moderación con baneos temporales/permanentes y apelaciones
 
 ### Objetivo Final
 Crear un juego masivo, funcional e inmersivo que aproveche las fortalezas únicas de Telegram.
 
 ---
 
-**Versión**: 1.9 (COMPACTADA)
-**Última actualización**: 2025-01-09
+**Versión**: 2.0
+**Última actualización**: 2025-01-11
 **Changelog**:
+- v2.0 (2025-01-11): Sistema de Baneos y Apelaciones implementado
 - v1.9 (2025-01-09): Compactación del archivo sin pérdida de información crítica (~64% reducción: 2057→744 líneas)
 - v1.8 (2025-01-09): Sistema de Narrativa implementado
 - v1.7 (2025-10-04): Sistema de ordinales para objetos duplicados

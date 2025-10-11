@@ -8,13 +8,15 @@ los mensajes de texto enviados por los jugadores.
 
 Actúa como el "cerebro" del juego, orquestando el siguiente flujo para cada mensaje:
 1. Obtiene el contexto del jugador (Cuenta, Personaje) desde la base de datos.
-2. Actualiza el estado de actividad del jugador (online/AFK).
-3. Maneja casos especiales como el comando `/start`.
-4. Utiliza el `command_service` para determinar dinámicamente qué `CommandSets`
+2. Verifica si la cuenta está baneada (Sistema de Baneos).
+   - Si está baneada, bloquea todos los comandos excepto `/apelar`.
+3. Actualiza el estado de actividad del jugador (online/AFK).
+4. Maneja casos especiales como el comando `/start`.
+5. Utiliza el `command_service` para determinar dinámicamente qué `CommandSets`
    están activos para el jugador en ese preciso momento.
-5. Busca el comando invocado dentro de los sets activos.
-6. Verifica los permisos (`permission_service`).
-7. Ejecuta el método `.execute()` del comando encontrado.
+6. Busca el comando invocado dentro de los sets activos.
+7. Verifica los permisos (`permission_service`).
+8. Ejecuta el método `.execute()` del comando encontrado.
 """
 
 import logging
@@ -24,7 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.bot.dispatcher import dp
 from src.db import async_session_factory
-from src.services import player_service, permission_service, online_service, command_service
+from src.services import player_service, permission_service, online_service, command_service, ban_service
 from src.utils.inline_keyboards import create_character_creation_keyboard
 
 # Importaciones de CommandSets de Jugador
@@ -44,6 +46,10 @@ from commands.admin.info import INFO_COMMANDS
 from commands.admin.diagnostics import DIAGNOSTICS_COMMANDS
 from commands.admin.management import MANAGEMENT_COMMANDS
 from commands.admin.search import SEARCH_COMMANDS
+from commands.admin.ban_management import BAN_MANAGEMENT_COMMANDS
+
+# Importaciones de CommandSets de Apelaciones
+from commands.player.appeal import APPEAL_COMMANDS
 
 from src.utils.presenters import show_current_room
 
@@ -59,6 +65,7 @@ COMMAND_SETS = {
     "dynamic_channels": DYNAMIC_CHANNEL_COMMANDS,
     "settings": SETTINGS_COMMANDS,
     "listing": LISTING_COMMANDS,
+    "appeal": APPEAL_COMMANDS,
     # Comandos de Administrador
     "spawning": SPAWN_COMMANDS,
     "admin_movement": ADMIN_MOVEMENT_COMMANDS,
@@ -66,6 +73,7 @@ COMMAND_SETS = {
     "diagnostics": DIAGNOSTICS_COMMANDS,
     "management": MANAGEMENT_COMMANDS,
     "search": SEARCH_COMMANDS,
+    "ban_management": BAN_MANAGEMENT_COMMANDS,
 }
 
 @dp.message_handler(content_types=types.ContentTypes.TEXT)
@@ -84,7 +92,43 @@ async def main_command_dispatcher(message: types.Message):
             character = account.character
             input_text = message.text.strip()
 
-            # 2. Actualizar estado de actividad (online/AFK).
+            # 2. Verificar si la cuenta está baneada (Sistema de Baneos).
+            if await ban_service.is_account_banned(session, account):
+                # Parsear comando para verificar si es /apelar
+                if input_text.startswith('/'):
+                    cmd_name = message.get_command(pure=True).lower()
+
+                    # Permitir SOLO el comando /apelar para usuarios baneados
+                    if cmd_name == "apelar" or cmd_name == "appeal":
+                        # Continuar con el flujo normal para ejecutar /apelar
+                        pass
+                    else:
+                        # Bloquear cualquier otro comando
+                        ban_message = f"🚫 <b>Tu cuenta ha sido bloqueada.</b>\n\n"
+                        ban_message += f"<b>Razón:</b> {account.ban_reason}\n\n"
+
+                        # Verificar si el ban es temporal
+                        if account.ban_expires_at:
+                            ban_message += f"<b>Expira:</b> {account.ban_expires_at.strftime('%Y-%m-%d %H:%M UTC')}\n\n"
+
+                        # Información sobre apelación
+                        if not account.has_appealed:
+                            ban_message += "Tienes <b>una única oportunidad</b> de apelar este bloqueo usando:\n"
+                            ban_message += "/apelar [tu explicación]"
+                        else:
+                            ban_message += "Ya has enviado una apelación. Los administradores la revisarán pronto."
+
+                        await message.answer(ban_message, parse_mode="HTML")
+                        return
+                else:
+                    # Mensaje sin comando (no empieza con /)
+                    await message.answer(
+                        "🚫 Tu cuenta está bloqueada. Solo puedes usar /apelar para apelar el bloqueo.",
+                        parse_mode="HTML"
+                    )
+                    return
+
+            # 3. Actualizar estado de actividad (online/AFK).
             if character:
                 await online_service.update_last_seen(session, character)
 

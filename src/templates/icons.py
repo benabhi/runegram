@@ -135,6 +135,10 @@ SYSTEM = {
     'category': '📂',       # Categorías
     'tag': '🏷️',           # Tags/Etiquetas
     'filter': '🔍',         # Filtros aplicados
+    'ban': '🚫',            # Ban/Baneos
+    'temporary': '⏰',      # Temporal
+    'permanent': '🔒',      # Permanente
+    'appeal': '📨',         # Apelación
 }
 
 # Mundo y Ambiente

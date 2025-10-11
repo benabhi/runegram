@@ -25,6 +25,7 @@ Documentación detallada de los sistemas core del motor.
 - **[Prototype System](sistemas-del-motor/sistema-de-prototipos.md)** - Sistema data-driven de prototipos
 - **[Scripting Engine](sistemas-del-motor/sistema-de-scripts.md)** - Motor de scripts Python
 - **[Validation System](sistemas-del-motor/sistema-de-validacion.md)** - Sistema de validación de integridad
+- **[Ban and Appeal System](sistemas-del-motor/sistema-de-baneos.md)** - Sistema de baneos y apelaciones
 - **[Pulse System](sistemas-del-motor/sistema-de-pulso.md)** - Sistema de pulso temporal global
 - **[Online Presence System](sistemas-del-motor/presencia-en-linea.md)** - Sistema de presencia online/offline
 - **[Channels System](sistemas-del-motor/sistema-de-canales.md)** - Sistema de canales de comunicación
@@ -141,11 +142,12 @@ Los emojis se usan estratégicamente para facilitar el escaneo visual:
 
 ## 📊 Estado de la Documentación
 
-**Versión:** 2.0
-**Última actualización:** 2025-10-09
-**Estado:** ✅ Reestructuración completa
+**Versión:** 2.1
+**Última actualización:** 2025-01-11
+**Estado:** ✅ Actualizado con sistema de baneos
 
 ### Changelog de Estructura
+- **v2.1 (2025-01-11)**: Agregado sistema de baneos y apelaciones
 - **v2.0 (2025-10-09)**: Reestructuración completa con nueva jerarquía de directorios y YAML frontmatter
 - **v1.0 (2025-01-09)**: Estructura original con numeración prefijada
 

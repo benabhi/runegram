@@ -2,8 +2,8 @@
 título: "Índice de Sistemas del Motor"
 categoría: "Sistemas del Motor"
 audiencia: "desarrollador"
-versión: "1.0"
-última_actualización: "2025-01-09"
+versión: "1.1"
+última_actualización: "2025-01-11"
 autor: "Proyecto Runegram"
 etiquetas: ["índice", "navegación", "motor", "arquitectura"]
 documentos_relacionados:
@@ -85,9 +85,23 @@ Ver: [Filosofía del Proyecto](../primeros-pasos/filosofia-central.md)
 
 ---
 
+#### 5. [Sistema de Baneos y Apelaciones](sistema-de-baneos.md)
+**Audiencia**: Desarrolladores de sistemas, administradores
+**Contenido**:
+- Baneos temporales y permanentes
+- Sistema de apelaciones (una por cuenta)
+- Verificación automática de expiración
+- Auditoría completa (quién, cuándo, por qué)
+- Integración con dispatcher
+- Comandos de moderación
+
+**Cuándo leer**: Para entender el sistema de moderación y baneos del juego.
+
+---
+
 ### Sistemas de Interacción
 
-#### 5. [Sistema de Canales](sistema-de-canales.md)
+#### 6. [Sistema de Canales](sistema-de-canales.md)
 **Audiencia**: Desarrolladores, creadores de contenido
 **Contenido**:
 - Canales estáticos (definidos en prototipos)
@@ -100,7 +114,7 @@ Ver: [Filosofía del Proyecto](../primeros-pasos/filosofia-central.md)
 
 ---
 
-#### 6. [Sistema de Presencia Online](presencia-en-linea.md)
+#### 7. [Sistema de Presencia Online](presencia-en-linea.md)
 **Audiencia**: Desarrolladores de comandos, diseñadores de sistemas
 **Contenido**:
 - Detección de actividad (heartbeat)
@@ -113,7 +127,7 @@ Ver: [Filosofía del Proyecto](../primeros-pasos/filosofia-central.md)
 
 ---
 
-#### 7. [Sistemas Sociales](sistemas-sociales.md)
+#### 8. [Sistemas Sociales](sistemas-sociales.md)
 **Audiencia**: Desarrolladores de comandos de interacción
 **Contenido**:
 - Comandos sociales (`/decir`, `/susurrar`)
@@ -126,7 +140,7 @@ Ver: [Filosofía del Proyecto](../primeros-pasos/filosofia-central.md)
 
 ---
 
-#### 8. [Sistema de Desambiguación de Items](desambiguacion-de-items.md)
+#### 9. [Sistema de Desambiguación de Items](desambiguacion-de-items.md)
 **Audiencia**: Desarrolladores de comandos de interacción
 **Contenido**:
 - Sintaxis ordinal (`1.espada`, `2.espada`)
@@ -141,7 +155,7 @@ Ver: [Filosofía del Proyecto](../primeros-pasos/filosofia-central.md)
 
 ### Sistemas Avanzados
 
-#### 9. [Sistema de Scripts](sistema-de-scripts.md)
+#### 10. [Sistema de Scripts](sistema-de-scripts.md)
 **Audiencia**: Desarrolladores, creadores de contenido avanzados
 **Contenido**:
 - Scripts reactivos (`on_look`, `on_get`)
@@ -154,7 +168,7 @@ Ver: [Filosofía del Proyecto](../primeros-pasos/filosofia-central.md)
 
 ---
 
-#### 10. [Sistema de Pulse Global](sistema-de-pulso.md)
+#### 11. [Sistema de Pulse Global](sistema-de-pulso.md)
 **Audiencia**: Desarrolladores de sistemas, diseñadores de eventos periódicos
 **Contenido**:
 - Corazón temporal (tick cada 2 segundos)
@@ -167,7 +181,7 @@ Ver: [Filosofía del Proyecto](../primeros-pasos/filosofia-central.md)
 
 ---
 
-#### 11. [Sistema de Narrativa](sistema-de-narrativa.md)
+#### 12. [Sistema de Narrativa](sistema-de-narrativa.md)
 **Audiencia**: Desarrolladores, creadores de contenido
 **Contenido**:
 - 41 mensajes evocativos en 6 categorías
@@ -182,7 +196,7 @@ Ver: [Filosofía del Proyecto](../primeros-pasos/filosofia-central.md)
 
 ### Sistemas de Presentación
 
-#### 12. [Sistema de Categorías y Etiquetas](categorias-y-etiquetas.md)
+#### 13. [Sistema de Categorías y Etiquetas](categorias-y-etiquetas.md)
 **Audiencia**: Desarrolladores, creadores de contenido
 **Contenido**:
 - Category (una por objeto)
@@ -195,7 +209,7 @@ Ver: [Filosofía del Proyecto](../primeros-pasos/filosofia-central.md)
 
 ---
 
-#### 13. [Sistema de Botones Inline](botones-en-linea.md)
+#### 14. [Sistema de Botones Inline](botones-en-linea.md)
 **Audiencia**: Desarrolladores de UX, creadores de FSM
 **Contenido**:
 - Botones de navegación en salas
@@ -230,6 +244,16 @@ Si quieres crear nuevos comandos:
 3. **OBLIGATORIO**: Lee [Sistema de Presencia Online](presencia-en-linea.md)
 4. Lee [Sistema de Desambiguación de Items](desambiguacion-de-items.md)
 5. Revisa [Creando Comandos](../creacion-de-contenido/creacion-de-comandos.md) (guía práctica)
+
+### Para Administradores de Sistema
+
+Si administras el juego:
+
+1. Lee [Sistema de Permisos](sistema-de-permisos.md)
+2. Lee [Sistema de Presencia Online](presencia-en-linea.md)
+3. Lee [Sistema de Canales](sistema-de-canales.md)
+4. Lee [Sistema de Categorías y Etiquetas](categorias-y-etiquetas.md)
+5. Lee [Sistema de Baneos](sistema-de-baneos.md)
 
 ### Para Arquitectos de Sistemas
 
@@ -326,6 +350,7 @@ src/
 │   ├── narrative_service.py
 │   ├── pulse_service.py
 │   ├── online_service.py
+│   ├── ban_service.py
 │   └── script_service.py
 ├── models/                 # Modelos SQLAlchemy
 │   ├── account.py

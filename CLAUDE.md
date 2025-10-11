@@ -460,6 +460,31 @@ is_banned = await ban_service.is_account_banned(session, account)
 
 Ver: `src/services/ban_service.py`, `docs/sistemas-del-motor/sistema-de-baneos.md`
 
+### 15. Sistema de Filtrado de Audiencia en Canales
+Doble validación (suscripción + broadcast) para controlar no solo quién puede escribir, sino quién puede recibir mensajes de canales.
+
+```python
+# game_data/channel_prototypes.py
+"moderacion": {
+    "lock": "rol(ADMIN)",      # Quién puede escribir
+    "audience": "rol(ADMIN)"    # Quién puede recibir mensajes
+}
+```
+
+**Implementación híbrida**:
+- **Validación en suscripción**: Previene suscripciones incorrectas (UX)
+- **Validación en broadcast**: Garantiza privacidad en tiempo real (seguridad)
+- **Reutiliza `permission_service.can_execute()`**: Sintaxis consistente con locks
+
+**Comportamiento**:
+- Sin `audience` → Sin restricción (backward compatible)
+- Con `audience` → Filtra destinatarios según lock expression
+- Maneja cambios de rol dinámicamente (admin degradado = deja de recibir)
+
+**Indicadores visuales**: `/canales` muestra 🔓 (tiene acceso) o 🔒 (restringido)
+
+Ver: `docs/sistemas-del-motor/sistema-de-canales.md`
+
 ---
 
 ## 🎮 Creación de Contenido (Resumen)
@@ -820,15 +845,17 @@ Después de CUALQUIER cambio:
 - **Pulse**: Corazón temporal (tick cada 2s)
 - **Offline**: Jugadores desconectados = ausentes del juego
 - **Baneos**: Moderación con baneos temporales/permanentes y apelaciones
+- **Filtrado de Audiencia**: Canales con restricción de destinatarios (campo `audience`)
 
 ### Objetivo Final
 Crear un juego masivo, funcional e inmersivo que aproveche las fortalezas únicas de Telegram.
 
 ---
 
-**Versión**: 2.0
+**Versión**: 2.1
 **Última actualización**: 2025-01-11
 **Changelog**:
+- v2.1 (2025-01-11): Sistema de Filtrado de Audiencia para Canales implementado
 - v2.0 (2025-01-11): Sistema de Baneos y Apelaciones implementado
 - v1.9 (2025-01-09): Compactación del archivo sin pérdida de información crítica (~64% reducción: 2057→744 líneas)
 - v1.8 (2025-01-09): Sistema de Narrativa implementado

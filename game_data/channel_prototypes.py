@@ -20,6 +20,9 @@ Estructura de un Prototipo de Canal:
                     automáticamente a este canal al ser creados.
     - "lock": (str, opcional) Un lock string que se aplica al comando de chat generado.
              Permite restringir quién puede hablar en el canal.
+    - "audience": (str, opcional) Un lock string que determina quién puede recibir/ver
+                  mensajes del canal. Si está vacío, no hay restricción de audiencia.
+                  Usa la misma sintaxis que "lock" (ej: "rol(ADMIN)", "tiene_objeto(pase_vip)").
 """
 
 CHANNEL_PROTOTYPES = {
@@ -31,6 +34,7 @@ CHANNEL_PROTOTYPES = {
         "type": "CHAT",
         "default_on": True,
         "lock": "", # Sin lock, cualquiera puede hablar.
+        "audience": "", # Sin restricción, todos pueden recibir mensajes.
     },
 
     # Canal para notificaciones automáticas del juego y comunicación de administradores.
@@ -41,7 +45,8 @@ CHANNEL_PROTOTYPES = {
         "type": "CHAT", # Es de tipo CHAT para que se genere el comando /sistema.
         "default_on": True,
         # Se añade un lock para que solo los ADMINS o superior puedan hablar en él.
-        "lock": "rol(ADMIN)"
+        "lock": "rol(ADMIN)",
+        "audience": "", # Todos pueden recibir mensajes del sistema (anuncios públicos).
     },
 
     # Canal privado para moderación (solo administradores).
@@ -52,8 +57,10 @@ CHANNEL_PROTOTYPES = {
         "description": "Canal privado para administradores (apelaciones, moderación).",
         "type": "CHAT",
         "default_on": False, # No activo por defecto
-        # Solo ADMINS y SUPERADMINS pueden ver y hablar en este canal
-        "lock": "rol(ADMIN)"
+        # Solo ADMINS y SUPERADMINS pueden hablar en este canal
+        "lock": "rol(ADMIN)",
+        # Solo ADMINS y SUPERADMINS pueden recibir mensajes (privacidad garantizada)
+        "audience": "rol(ADMIN)"
     },
 
     # --- Futuros canales podrían ir aquí ---

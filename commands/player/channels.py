@@ -22,13 +22,29 @@ class CmdChannels(Command):
 
     async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
         try:
+            from src.services import permission_service
+
             settings = await channel_service.get_or_create_settings(session, character)
             user_channels = settings.active_channels.get("active_channels", [])
 
             response = ["<pre>📡 <b>ESTADO DE TUS CANALES</b>"]
             for key, proto in CHANNEL_PROTOTYPES.items():
                 status = "✅ Activado" if key in user_channels else "❌ Desactivado"
-                response.append(f"    - <b>{proto['name']}</b> ({key}): {status}\n      <i>{proto['description']}</i>")
+
+                # Verificar si el canal tiene restricción de audiencia.
+                audience_filter = proto.get("audience", "")
+                restriction_icon = ""
+                if audience_filter:
+                    can_access, _ = await permission_service.can_execute(character, audience_filter)
+                    if can_access:
+                        restriction_icon = " 🔓"  # Tiene acceso al canal restringido
+                    else:
+                        restriction_icon = " 🔒"  # No tiene acceso
+
+                response.append(
+                    f"    - <b>{proto['name']}</b> ({key}): {status}{restriction_icon}\n"
+                    f"      <i>{proto['description']}</i>"
+                )
             response.append("</pre>")
 
             await message.answer("\n".join(response), parse_mode="HTML")

@@ -66,7 +66,8 @@ async def is_channel_active(settings: CharacterSetting, channel_key: str) -> boo
 
 async def broadcast_to_channel(session: AsyncSession, channel_key: str, message: str, exclude_character_id: int | None = None):
     """
-    Envía un mensaje a todos los jugadores que estén suscritos a un canal.
+    Envía un mensaje a todos los jugadores que estén suscritos a un canal
+    y que cumplan con los requisitos de audiencia.
     """
     try:
         if channel_key not in CHANNEL_PROTOTYPES:
@@ -77,29 +78,65 @@ async def broadcast_to_channel(session: AsyncSession, channel_key: str, message:
         proto = CHANNEL_PROTOTYPES[channel_key]
         formatted_message = f"{proto['icon']} <b>{proto['name']}:</b> {message}"
 
-        # 2. Obtener todos los personajes del juego.
+        # 2. Obtener filtro de audiencia (si existe).
+        audience_filter = proto.get("audience", "")
+
+        # 3. Obtener todos los personajes del juego.
         #    Precargamos sus settings y cuentas para evitar consultas adicionales en el bucle.
         query = select(Character).options(selectinload(Character.settings), selectinload(Character.account))
         result = await session.execute(query)
         all_characters = result.scalars().all()
 
-        # 3. Iterar y enviar el mensaje a los que estén suscritos.
+        # 4. Iterar y enviar el mensaje a los que estén suscritos y cumplan con audiencia.
         for char in all_characters:
             if char.id == exclude_character_id:
                 continue
 
             settings = await get_or_create_settings(session, char)
-            if await is_channel_active(settings, channel_key):
-                await broadcaster_service.send_message_to_character(char, formatted_message)
+            if not await is_channel_active(settings, channel_key):
+                continue
+
+            # Validar permiso de audiencia si existe filtro.
+            if audience_filter:
+                from src.services import permission_service
+                can_receive, _ = await permission_service.can_execute(char, audience_filter)
+                if not can_receive:
+                    logging.debug(
+                        f"Saltando mensaje de canal '{channel_key}' a {char.name}: "
+                        "no cumple filtro de audiencia"
+                    )
+                    continue
+
+            await broadcaster_service.send_message_to_character(char, formatted_message)
     except Exception:
         logging.exception(f"Error al transmitir al canal '{channel_key}'")
 
 async def set_channel_status(session: AsyncSession, character: Character, channel_key: str, activate: bool):
-    """Activa o desactiva un canal para un personaje."""
+    """
+    Activa o desactiva un canal para un personaje.
+
+    Al activar, valida que el personaje tenga permiso según el filtro de audiencia del canal.
+    """
     if channel_key not in CHANNEL_PROTOTYPES:
         raise ValueError("El canal especificado no existe.")
 
+    proto = CHANNEL_PROTOTYPES[channel_key]
     settings = await get_or_create_settings(session, character)
+
+    # Validar permiso de audiencia al activar.
+    if activate:
+        audience_filter = proto.get("audience", "")
+        if audience_filter:
+            from src.services import permission_service
+            can_subscribe, error_msg = await permission_service.can_execute(
+                character,
+                audience_filter
+            )
+            if not can_subscribe:
+                raise ValueError(
+                    f"No tienes permiso para suscribirte al canal '{proto['name']}'. "
+                    "Este canal está restringido a ciertos jugadores."
+                )
 
     # SQLAlchemy es capaz de detectar cambios en listas dentro de un JSONB "mutable".
     # Obtenemos la lista actual de canales activos.

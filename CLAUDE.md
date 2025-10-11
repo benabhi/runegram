@@ -238,7 +238,7 @@ if player.afk_time > settings.online_threshold.total_seconds():
 
 **Principio**: Si un valor podría necesitar ajustes, debe estar en `gameconfig.toml`, NO hardcodeado.
 
-Ver: `docs/architecture/configuration.md`
+Ver: `docs/arquitectura/configuracion.md`
 
 ---
 
@@ -285,7 +285,7 @@ Ver: `game_data/room_prototypes.py`, `game_data/item_prototypes.py`
 - **Tags**: Un objeto puede tener MÚLTIPLES tags (`["magica", "unica"]`)
 - Comandos: `/listarsalas [cat:X] [tag:Y]`, `/listaritems [cat:X] [tag:Y]`
 
-Ver: `docs/engine-systems/categories-and-tags.md`
+Ver: `docs/sistemas-del-motor/categorias-y-etiquetas.md`
 
 ### 5. Sistema de Broadcasting
 ```python
@@ -318,7 +318,7 @@ Ver: `src/services/broadcaster_service.py`
 ]
 ```
 
-Ver: `docs/engine-systems/pulse-system.md`
+Ver: `docs/sistemas-del-motor/sistema-de-pulso.md`
 
 ### 7. Sistema de Scripts
 Permite ejecutar código Python almacenado como string.
@@ -373,7 +373,7 @@ await message.answer(output, parse_mode="HTML")
 
 **Regla de Oro de Indentación**: En `<pre>`, TODAS las listas usan **4 espacios + guion** (`    - `). NO usar tabs literales.
 
-Ver: `docs/content-creation/output-style-guide.md` (OBLIGATORIO)
+Ver: `docs/creacion-de-contenido/guia-de-estilo-de-salida.md` (OBLIGATORIO)
 
 ### 10. Sistema de Presentación
 Funciones centralizadas para generar outputs formateados.
@@ -392,7 +392,7 @@ await message.answer(output, parse_mode="HTML")
 - Flujos FSM (creación de personaje)
 - Sistema de callback routing extensible
 
-Ver: `docs/engine-systems/inline-buttons.md`
+Ver: `docs/sistemas-del-motor/botones-en-linea.md`
 
 ### 12. Sistema de Ordinales para Objetos Duplicados
 Sintaxis estándar MUD: `N.nombre` donde N es el número ordinal.
@@ -408,7 +408,7 @@ Sintaxis estándar MUD: `N.nombre` donde N es el número ordinal.
 
 **Función principal**: `find_item_in_list_with_ordinal()` en `commands/player/interaction.py`
 
-Ver: `docs/engine-systems/item-disambiguation.md`
+Ver: `docs/sistemas-del-motor/desambiguacion-de-items.md`
 
 ### 13. Sistema de Narrativa
 Mensajes evocativos y aleatorios para eventos del juego.
@@ -426,7 +426,7 @@ message = narrative_service.get_random_narrative(
 
 **Tipos**: `item_spawn`, `item_destroy_room`, `item_destroy_inventory`, `teleport_departure`, `teleport_arrival`, `character_suicide`
 
-Ver: `docs/engine-systems/narrative-system.md`
+Ver: `docs/sistemas-del-motor/sistema-de-narrativa.md`
 
 ### 14. Sistema de Baneos y Apelaciones
 Sistema completo de moderación para administradores.
@@ -501,7 +501,7 @@ class CmdExampleAction(Command):
         await session.commit()
 ```
 
-Ver: `docs/content-creation/` para guías completas
+Ver: `docs/creacion-de-contenido/` para guías completas
 
 ---
 
@@ -533,7 +533,7 @@ docker exec -it runegram-bot-1 alembic upgrade head
 docker exec -it runegram-bot-1 alembic downgrade -1
 ```
 
-Ver: `docs/admin-guide/database-migrations.md`
+Ver: `docs/guia-de-administracion/migraciones-de-base-de-datos.md`
 
 ---
 
@@ -699,7 +699,7 @@ if not is_active:
     return
 ```
 
-Ver: `docs/engine-systems/social-systems.md`
+Ver: `docs/sistemas-del-motor/sistemas-sociales.md`
 
 ### Cuando el Usuario Pide Agregar Funcionalidad
 
@@ -749,32 +749,30 @@ Ver: `docs/engine-systems/social-systems.md`
 ## 📖 Recursos
 
 ### Documentación Interna (Completa)
-- `docs/getting-started/` - Primeros pasos
-  - `installation.md` - Instalación y configuración
-  - `core-philosophy.md` - Filosofía de diseño
-  - `quick-reference.md` - Referencia rápida
-  - `glossary.md` - Glosario de términos
-- `docs/engine-systems/` - Sistemas del motor detallados
-  - `command-system.md`, `permission-system.md`, `prototype-system.md`
-  - `pulse-system.md`, `narrative-system.md`, `online-presence.md`
-  - `ban-system.md` - **NUEVO** - Sistema de baneos
-  - Y más (14 documentos en total)
-- `docs/content-creation/` - Guías de creación
-  - `creating-commands.md`, `building-rooms.md`, `creating-items.md`
-  - `output-style-guide.md` - **OBLIGATORIO** para outputs
-  - `writing-scripts.md`, `inline-buttons.md`
-- `docs/admin-guide/` - Guía de administración
-  - `admin-commands.md` - Comandos de administración
-  - `database-migrations.md` - BD y migraciones
-- `docs/architecture/` - Arquitectura del sistema
-  - `core-architecture.md` - Arquitectura general
-  - `configuration.md` - Sistema de configuración TOML
-- `docs/roadmap/` - Hoja de ruta
-  - `vision-and-goals.md` - Visión del proyecto
-  - `planned-features.md`, `combat-system.md`, `skill-system.md`
-- `docs/reference/` - Referencias técnicas
-  - `command-reference.md` - **Referencia completa de comandos**
-  - `api-reference.md` - APIs y servicios
+- `docs/primeros-pasos/` - Primeros pasos
+  - `instalacion.md` - Instalación y configuración
+  - `filosofia-central.md` - Filosofía de diseño
+- `docs/sistemas-del-motor/` - Sistemas del motor detallados (15 documentos)
+  - `sistema-de-comandos.md`, `sistema-de-permisos.md`, `sistema-de-prototipos.md`
+  - `sistema-de-pulso.md`, `sistema-de-narrativa.md`, `presencia-en-linea.md`
+  - `sistema-de-baneos.md` - Sistema de baneos y apelaciones
+  - `sistema-de-canales.md`, `sistema-de-scripts.md`, `sistema-de-validacion.md`
+  - `servicio-de-broadcasting.md`, `categorias-y-etiquetas.md`, `sistemas-sociales.md`
+  - `botones-en-linea.md`, `desambiguacion-de-items.md`
+- `docs/creacion-de-contenido/` - Guías de creación
+  - `creacion-de-comandos.md`, `construccion-de-salas.md`, `creacion-de-items.md`
+  - `guia-de-estilo-de-salida.md` - **OBLIGATORIO** para outputs
+  - `escritura-de-scripts.md`
+- `docs/guia-de-administracion/` - Guía de administración
+  - `comandos-de-administracion.md` - Comandos de administración
+  - `migraciones-de-base-de-datos.md` - BD y migraciones
+- `docs/arquitectura/` - Arquitectura del sistema
+  - `configuracion.md` - Sistema de configuración TOML
+- `docs/hoja-de-ruta/` - Hoja de ruta
+  - `vision-y-objetivos.md` - Visión del proyecto
+  - `funcionalidades-planificadas.md`, `diseno-sistema-de-combate.md`, `diseno-sistema-de-habilidades.md`
+- `docs/referencia/` - Referencias técnicas
+  - `referencia-de-comandos.md` - **Referencia completa de comandos**
 
 ### Documentación Externa
 - [Aiogram 2.x](https://docs.aiogram.dev/en/v2.25.1/)

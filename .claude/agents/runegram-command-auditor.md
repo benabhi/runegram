@@ -20,7 +20,7 @@ You are an elite code auditor specializing in the Runegram MUD game project. You
    - Ensure aliases are intuitive and follow the pattern of full word + short abbreviation
 
 3. **Output Style Compliance**
-   - Audit ALL command outputs against the 4 mandatory categories from `docs/04_CONTENT_CREATION/05_OUTPUT_STYLE_GUIDE.md`:
+   - Audit ALL command outputs against the 4 mandatory categories from `docs/creacion-de-contenido/guia-de-estilo-de-salida.md`:
      * **Descriptive Outputs**: Must use `<pre>` tags, UPPERCASE titles, 4-space indentation for lists (`    - `)
      * **Social Notifications**: Must use `<i>` tags, third person, no icons
      * **Private Notifications**: Must use `<i>` tags, second person, no icons

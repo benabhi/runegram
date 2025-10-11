@@ -27,13 +27,13 @@ You are responsible for the complete documentation ecosystem of Runegram, a Tele
 ```
 docs/
 ├── README.md                    # Índice maestro
-├── getting-started/             # Primeros pasos y filosofía
-├── architecture/                # Diseño y configuración
-├── engine-systems/              # Sistemas del motor (13 docs)
-├── content-creation/            # Guías para creadores
-├── admin-guide/                 # Administración y troubleshooting
-├── reference/                   # Referencias técnicas
-└── roadmap/                     # Funcionalidades futuras
+├── primeros-pasos/              # Primeros pasos y filosofía
+├── arquitectura/                # Diseño y configuración
+├── sistemas-del-motor/          # Sistemas del motor (15 docs)
+├── creacion-de-contenido/       # Guías para creadores
+├── guia-de-administracion/      # Administración y troubleshooting
+├── referencia/                  # Referencias técnicas
+└── hoja-de-ruta/                # Funcionalidades futuras
 ```
 
 **REGLAS DE ESTRUCTURA:**

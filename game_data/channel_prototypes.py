@@ -44,6 +44,18 @@ CHANNEL_PROTOTYPES = {
         "lock": "rol(ADMIN)"
     },
 
+    # Canal privado para moderación (solo administradores).
+    # Recibe notificaciones de apelaciones de ban y comunicación interna de staff.
+    "moderacion": {
+        "name": "Moderación",
+        "icon": "🛡️",
+        "description": "Canal privado para administradores (apelaciones, moderación).",
+        "type": "CHAT",
+        "default_on": False, # No activo por defecto
+        # Solo ADMINS y SUPERADMINS pueden ver y hablar en este canal
+        "lock": "rol(ADMIN)"
+    },
+
     # --- Futuros canales podrían ir aquí ---
     # "comercio": {
     #     "name": "Comercio",

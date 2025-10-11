@@ -1,12 +1,14 @@
 ---
 título: "Sistema de Baneos y Apelaciones"
 categoría: "Sistemas del Motor"
-versión: "1.0"
+versión: "1.1"
 última_actualización: "2025-01-11"
 autor: "Proyecto Runegram"
-etiquetas: ["baneos", "moderacion", "apelaciones", "administracion"]
+etiquetas: ["baneos", "moderacion", "apelaciones", "administracion", "configuracion"]
 documentos_relacionados:
   - "sistema-de-permisos.md"
+  - "sistema-de-canales.md"
+  - "../arquitectura/configuracion.md"
   - "../guia-de-administracion/comandos-de-administracion.md"
   - "../referencia/referencia-de-comandos.md"
 referencias_código:
@@ -14,6 +16,8 @@ referencias_código:
   - "commands/admin/ban_management.py"
   - "commands/player/appeal.py"
   - "src/handlers/player/dispatcher.py"
+  - "game_data/channel_prototypes.py"
+  - "gameconfig.toml"
 estado: "actual"
 importancia: "alta"
 audiencia: "desarrollador"
@@ -185,7 +189,8 @@ expired_count = await check_and_expire_bans(session)
 
 **Comportamiento**:
 - Quita el ban completamente
-- Mantiene historial de apelación (auditoría)
+- **Resetea campos de apelación** (has_appealed, appeal_text, appealed_at)
+- Permite que el jugador pueda apelar de nuevo si es baneado en el futuro
 - Se notifica al admin del éxito
 
 ---
@@ -237,9 +242,10 @@ expired_count = await check_and_expire_bans(session)
 
 **Comportamiento**:
 - Solo disponible para jugadores baneados
-- Solo se puede enviar UNA vez
+- Solo se puede enviar UNA vez (hasta que sea desbaneado)
 - Máximo 1000 caracteres
 - Se notifica al jugador del éxito
+- **Notifica a administradores** según configuración (ver [Configuración](#⚙️-configuración))
 
 ---
 
@@ -312,13 +318,55 @@ if await ban_service.is_account_banned(session, account):
 
 ## ⚙️ Configuración
 
-**Actualmente hardcodeado** en el código:
+### Configuración en `gameconfig.toml`
+
+```toml
+[moderation]
+# Canal donde se envían notificaciones de apelaciones de ban
+# Si se deja vacío (""), las notificaciones se envían directamente a todos los admins
+# Debe ser una key válida de CHANNEL_PROTOTYPES (ej: "moderacion", "sistema")
+ban_appeal_channel = "moderacion"
+```
+
+**Opciones de `ban_appeal_channel`**:
+
+1. **Valor configurado con canal válido** (ej: `"moderacion"`):
+   - Las notificaciones de apelaciones se envían al canal especificado
+   - Solo los administradores suscritos a ese canal recibirán las notificaciones
+   - Recomendado para mantener la privacidad de las apelaciones
+
+2. **Valor vacío** (`""`):
+   - Las notificaciones se envían como **mensaje directo** a todos los administradores (ADMIN y SUPERADMIN)
+   - Asegura que todos los admins reciban la notificación
+   - Útil si no hay canal de moderación configurado
+
+**Canal de Moderación Recomendado**:
+
+El proyecto incluye un canal `"moderacion"` preconfigurado en `game_data/channel_prototypes.py`:
+
+```python
+"moderacion": {
+    "name": "Moderación",
+    "icon": "🛡️",
+    "description": "Canal privado para administradores (apelaciones, moderación).",
+    "type": "CHAT",
+    "default_on": False,  # Los admins deben activarlo manualmente
+    "lock": "rol(ADMIN)"  # Solo ADMINS y SUPERADMINS
+}
+```
+
+**Para activar el canal de moderación**:
+```
+/activarcanal moderacion
+```
+
+### Límites Hardcodeados
+
+Los siguientes valores están hardcodeados en el código:
 
 - **Razón de ban**: Máximo 500 caracteres
 - **Texto de apelación**: Máximo 1000 caracteres
-- **Paginación**: 30 cuentas por página
-
-**Futuro**: Mover a `gameconfig.toml`
+- **Paginación**: 30 cuentas por página en `/listabaneados`
 
 ---
 
@@ -367,8 +415,8 @@ logging.info(
 3. **Baneos por IP** (además de cuenta)
 4. **Auto-moderación** (detección automática de spam)
 5. **Panel web de moderación** para admins
-6. **Notificaciones a admins** cuando hay nueva apelación
-7. **Escalado de sanciones** (warn → 1 día → 7 días → permanente)
+6. **Escalado de sanciones** (warn → 1 día → 7 días → permanente)
+7. **Configurar límites** (razón, apelación) en gameconfig.toml
 
 ---
 
@@ -412,6 +460,25 @@ async def expire_bans_job():
 
 ---
 
-**Versión:** 1.0
+## 📝 Changelog
+
+### v1.1 (2025-01-11)
+- ✅ **Desbaneo resetea apelación**: Ahora `/desbanear` resetea los campos de apelación, permitiendo que el jugador pueda apelar de nuevo si es baneado en el futuro
+- ✅ **Canal de moderación**: Agregado canal "moderacion" en `channel_prototypes.py` con lock de ADMIN
+- ✅ **Configuración de notificaciones**: Agregado `moderation.ban_appeal_channel` en `gameconfig.toml`
+- ✅ **Fallback a mensajes directos**: Si no hay canal configurado, se envían mensajes directos a todos los administradores
+- ✅ **Documentación de configuración**: Sección completa sobre cómo configurar notificaciones de apelaciones
+
+### v1.0 (2025-01-11)
+- ✅ Sistema completo de baneos y apelaciones implementado
+- ✅ Baneos temporales y permanentes
+- ✅ Sistema de apelaciones (una por cuenta)
+- ✅ Comandos de admin y jugador
+- ✅ Integración con dispatcher
+- ✅ Auditoría completa
+
+---
+
+**Versión:** 1.1
 **Última actualización:** 2025-01-11
-**Estado:** Sistema completo y funcional
+**Estado:** Sistema completo y funcional con notificaciones configurables

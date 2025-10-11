@@ -165,8 +165,9 @@ async def unban_account(session: AsyncSession, character: Character) -> None:
     """
     Quita el ban de una cuenta asociada a un personaje.
 
-    Limpia todos los campos relacionados con el ban, pero mantiene el
-    historial de apelación si existiera (para auditoría).
+    Limpia todos los campos relacionados con el ban, incluyendo los campos
+    de apelación (has_appealed, appeal_text, appealed_at). Esto permite que
+    el jugador pueda apelar nuevamente si es baneado en el futuro.
 
     Args:
         session: Sesión de base de datos activa
@@ -187,13 +188,16 @@ async def unban_account(session: AsyncSession, character: Character) -> None:
         original_reason = account.ban_reason
         ban_type = "temporal" if account.ban_expires_at else "permanente"
 
-        # Quitar el ban
+        # Quitar el ban y resetear campos de apelación
+        # Esto permite que el jugador pueda apelar nuevamente si es baneado de nuevo
         account.is_banned = False
         account.ban_reason = None
         account.banned_at = None
         account.banned_by_account_id = None
         account.ban_expires_at = None
-        # Mantener has_appealed y appeal_text para historial
+        account.has_appealed = False
+        account.appeal_text = None
+        account.appealed_at = None
 
         await session.commit()
 

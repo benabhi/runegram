@@ -44,6 +44,13 @@ max_room_items = 10
 # (el jugador puede usar /personajes para ver listado completo con paginación)
 max_room_characters = 10
 
+# --- Sistema de Baneos y Moderación ---
+[moderation]
+# Canal donde se envían notificaciones de apelaciones de ban
+# Si se deja vacío (""), las notificaciones se envían directamente a todos los admins
+# Debe ser una key válida de CHANNEL_PROTOTYPES (ej: "moderacion", "sistema")
+ban_appeal_channel = "moderacion"
+
 # --- Gameplay General ---
 [gameplay]
 # Habilitar modo debug (logs extra, comandos de testing)

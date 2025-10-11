@@ -2,17 +2,19 @@
 título: "Sistema de Configuración de Runegram"
 categoría: "Arquitectura"
 audiencia: "desarrollador, administrador"
-versión: "1.0"
-última_actualización: "2025-01-09"
+versión: "1.1"
+última_actualización: "2025-01-11"
 autor: "Proyecto Runegram"
-etiquetas: ["configuración", "toml", "pydantic", "env", "settings"]
+etiquetas: ["configuración", "toml", "pydantic", "env", "settings", "moderacion"]
 documentos_relacionados:
   - "../primeros-pasos/instalacion.md"
   - "../guia-de-administracion/migraciones-de-base-de-datos.md"
+  - "../sistemas-del-motor/sistema-de-baneos.md"
 referencias_código:
   - "src/config.py"
   - "gameconfig.toml"
   - ".env.example"
+  - "game_data/channel_prototypes.py"
 estado: "actual"
 importancia: "crítica"
 ---
@@ -146,6 +148,13 @@ max_room_items = 10
 # (el jugador puede usar /personajes para ver listado completo con paginación)
 max_room_characters = 10
 
+# --- Sistema de Baneos y Moderación ---
+[moderation]
+# Canal donde se envían notificaciones de apelaciones de ban
+# Si se deja vacío (""), las notificaciones se envían directamente a todos los admins
+# Debe ser una key válida de CHANNEL_PROTOTYPES (ej: "moderacion", "sistema")
+ban_appeal_channel = "moderacion"
+
 # --- Gameplay General ---
 [gameplay]
 # Habilitar modo debug (logs extra, comandos de testing)
@@ -261,6 +270,50 @@ if len(items) > settings.display_limits_max_room_items:
     remaining = len(items) - settings.display_limits_max_room_items
     # Mostrar: "... y {remaining} más items. Usa /items para verlos todos."
 ```
+
+#### Sección `[moderation]`
+
+| Variable | Tipo | Default | Descripción |
+|----------|------|---------|-------------|
+| `ban_appeal_channel` | str | "moderacion" | Canal donde se envían notificaciones de apelaciones de ban |
+
+**Comportamiento:**
+
+1. **Canal configurado** (ej: `"moderacion"`):
+   - Las notificaciones de apelaciones se envían al canal especificado
+   - Solo administradores suscritos al canal las recibirán
+   - Mantiene privacidad de las apelaciones
+
+2. **Vacío** (`""`):
+   - Las notificaciones se envían como **mensaje directo** a todos los administradores
+   - Asegura que todos los admins sean notificados
+   - Útil si no hay canal de moderación configurado
+
+**Canal de moderación incluido:**
+
+El proyecto incluye un canal `"moderacion"` preconfigurado en `game_data/channel_prototypes.py`:
+- **Icon:** 🛡️
+- **Lock:** `rol(ADMIN)` (solo administradores)
+- **Default:** No activado por defecto (los admins deben activarlo con `/activarcanal moderacion`)
+
+**Uso en código:**
+```python
+from src.config import settings
+from game_data.channel_prototypes import CHANNEL_PROTOTYPES
+
+channel_key = settings.moderation_ban_appeal_channel
+
+# Si hay canal configurado y existe, enviar al canal
+if channel_key and channel_key in CHANNEL_PROTOTYPES:
+    await channel_service.broadcast_to_channel(session, channel_key, notification)
+else:
+    # Fallback: enviar mensaje directo a todos los admins
+    await notify_all_admins_directly(notification)
+```
+
+**Ver también:** [Sistema de Baneos](../sistemas-del-motor/sistema-de-baneos.md)
+
+---
 
 #### Sección `[gameplay]`
 

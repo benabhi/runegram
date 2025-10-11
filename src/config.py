@@ -71,6 +71,9 @@ class Settings(BaseSettings):
     display_limits_max_container: int = 15
     display_limits_max_who: int = 20
 
+    # Sistema de Baneos y Moderación
+    moderation_ban_appeal_channel: str = "moderacion"
+
     # Gameplay General
     gameplay_debug_mode: bool = False
 

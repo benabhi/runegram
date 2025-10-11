@@ -1,7 +1,7 @@
 ---
 título: "Sistema de Canales"
 categoría: "Sistemas del Motor"
-versión: "2.0"
+versión: "2.2"
 última_actualización: "2025-01-11"
 autor: "Proyecto Runegram"
 etiquetas: ["canales", "comunicación", "global", "canales-dinámicos", "audience", "filtrado"]
@@ -87,19 +87,44 @@ El sistema está preparado para soportar canales creados por jugadores:
 ### `/canales`
 Lista todos los canales disponibles y muestra el estado de suscripción.
 
-**Ejemplo de salida:**
+**Importante:** Este comando solo muestra canales a los que el jugador tiene acceso. Los canales con filtro de `audience` que el jugador no cumple **no se muestran en la lista**.
+
+**Ejemplo de salida (jugador común):**
 ```
-📻 CANALES DISPONIBLES
+📡 ESTADO DE TUS CANALES
 
-🌱 Canal Novato [ACTIVO]
-   Canal de ayuda para jugadores nuevos
+    - Novato (novato): ✅ Activado
+      Un canal para que los nuevos aventureros pidan ayuda.
 
-⚙️ Canal de Administración
-   Canal privado para administradores
+    - Comercio (comercio): ❌ Desactivado
+      Canal de compra-venta entre jugadores.
 
-Para activar: /activarcanal <nombre>
-Para desactivar: /desactivarcanal <nombre>
+    - Sistema (sistema): ✅ Activado
+      Anuncios del juego y notificaciones automáticas.
+
+Puedes usar /activarcanal o /desactivarcanal para gestionar tus canales.
 ```
+
+**Ejemplo de salida (administrador):**
+```
+📡 ESTADO DE TUS CANALES
+
+    - Novato (novato): ✅ Activado
+      Un canal para que los nuevos aventureros pidan ayuda.
+
+    - Comercio (comercio): ❌ Desactivado
+      Canal de compra-venta entre jugadores.
+
+    - Moderación (moderacion): ✅ Activado
+      Canal privado para administradores (apelaciones, moderación).
+
+    - Sistema (sistema): ✅ Activado
+      Anuncios del juego y notificaciones automáticas.
+
+Puedes usar /activarcanal o /desactivarcanal para gestionar tus canales.
+```
+
+**Nota:** Los administradores ven el canal "moderacion" porque tienen `rol(ADMIN)`, mientras que los jugadores comunes no lo ven en absoluto.
 
 ### `/activarcanal <nombre>`
 Suscribe al jugador a un canal específico.
@@ -366,38 +391,126 @@ for char in all_characters:
    → Ex-admin NO recibe el mensaje (validación en tiempo real)
 ```
 
-### Indicadores Visuales
+### Visibilidad de Canales
 
-El comando `/canales` muestra indicadores para canales con restricción de audiencia:
+El comando `/canales` **oculta completamente** los canales a los que el jugador no tiene permiso de acceso:
 
 ```python
 # En commands/player/channels.py
 
+# Verificar si el canal tiene restricción de audiencia
 audience_filter = proto.get("audience", "")
 if audience_filter:
     can_access, _ = await permission_service.can_execute(character, audience_filter)
-    restriction_icon = " 🔓" if can_access else " 🔒"
+    # Si no tiene acceso, no mostrar este canal en la lista
+    if not can_access:
+        continue
 ```
 
-**Ejemplo de salida:**
+**Comportamiento:**
+- **Jugador común**: Solo ve canales públicos (novato, comercio, sistema)
+- **Administrador**: Ve canales públicos + canales de administración (moderacion)
+- **Sin íconos 🔓/🔒**: Los canales restringidos simplemente no aparecen
 
+**Ventajas de este enfoque:**
+- ✅ **Simplicidad**: Lista más limpia, sin confundir al jugador
+- ✅ **Privacidad**: No revela la existencia de canales privados
+- ✅ **Mejor UX**: Jugador solo ve opciones relevantes
+- ✅ **Seguridad**: Canales sensibles (moderacion) no son visibles para jugadores comunes
+
+### Activación Automática por Permisos
+
+Los canales con filtro de `audience` configurado se **activan automáticamente** cuando un personaje se crea, SI el personaje cumple con los permisos necesarios.
+
+**Lógica de activación por defecto:**
+
+```python
+# En src/services/channel_service.get_default_channels()
+
+async def get_default_channels(character: Character) -> list[str]:
+    """
+    Determina qué canales deben estar activados por defecto para un personaje.
+
+    Los canales se activan por defecto si:
+    1. Tienen default_on=True, O
+    2. Tienen audience configurado Y el personaje tiene permisos para acceder
+    """
+    default_channels = []
+
+    for key, data in CHANNEL_PROTOTYPES.items():
+        # Activar si tiene default_on=True
+        if data.get("default_on", False):
+            default_channels.append(key)
+            continue
+
+        # Activar si tiene audience Y el personaje tiene permisos
+        audience_filter = data.get("audience", "")
+        if audience_filter:
+            can_access, _ = await permission_service.can_execute(
+                character,
+                audience_filter
+            )
+            if can_access:
+                default_channels.append(key)
+
+    return default_channels
 ```
-📡 ESTADO DE TUS CANALES
 
-    - Novato (novato): ✅ Activado
-      Un canal para que los nuevos aventureros pidan ayuda.
+**Ejemplo de comportamiento:**
 
-    - Sistema (sistema): ✅ Activado
-      Anuncios del juego y notificaciones automáticas.
+```python
+# game_data/channel_prototypes.py
 
-    - Moderación (moderacion): ❌ Desactivado 🔒
-      Canal privado para administradores (apelaciones, moderación).
+"moderacion": {
+    "name": "Moderación",
+    "icon": "🛡️",
+    "description": "Canal privado para administradores (apelaciones, moderación).",
+    "type": "CHAT",
+    "default_on": False,          # No activado por defecto para todos
+    "lock": "rol(ADMIN)",
+    "audience": "rol(ADMIN)"       # Solo admins pueden acceder
+}
 ```
 
-**Íconos:**
-- 🔓 = Canal restringido al que el jugador **tiene acceso**
-- 🔒 = Canal restringido al que el jugador **NO tiene acceso**
-- Sin ícono = Canal sin restricciones de audiencia
+**Resultado:**
+- **Jugador común creado**: Canal "moderacion" NO activado (no tiene `rol(ADMIN)`)
+- **Admin recién creado**: Canal "moderacion" **ACTIVADO AUTOMÁTICAMENTE** (tiene `rol(ADMIN)`)
+- **Jugador promovido a admin**: Debe activar manualmente con `/activarcanal moderacion` (solo aplica en creación)
+
+**Ventajas:**
+- ✅ **Mejor onboarding**: Admins nuevos tienen inmediatamente acceso a canales de administración
+- ✅ **Sin configuración manual**: No requiere que un Superadmin active canales para cada nuevo admin
+- ✅ **Consistencia**: Todos los usuarios con los mismos permisos tienen la misma experiencia inicial
+- ✅ **Intuitivo**: Si tienes permisos para un canal, está disponible desde el inicio
+
+**Interacción con `default_on`:**
+
+El sistema evalúa en este orden:
+1. Si `default_on=True` → Canal activado para TODOS (sin importar permisos)
+2. Si `default_on=False` pero hay `audience` → Canal activado solo si cumple permisos
+3. Si `default_on=False` y sin `audience` → Canal NO activado por defecto
+
+**Ejemplos de configuración:**
+
+```python
+# Canal público activado por defecto para todos
+"sistema": {
+    "default_on": True,      # Todos lo tienen activado
+    "audience": ""           # Todos pueden recibir
+}
+
+# Canal VIP activado solo para jugadores con pase
+"vip": {
+    "default_on": False,                    # No para todos
+    "audience": "tiene_objeto(pase_vip)"    # Activado si tiene pase_vip
+}
+
+# Canal público desactivado por defecto
+"comercio": {
+    "default_on": False,     # Nadie lo tiene activado inicialmente
+    "audience": ""           # Todos pueden activarlo manualmente
+}
+```
 
 ### Casos de Uso
 

@@ -480,8 +480,8 @@ Doble validación (suscripción + broadcast) para controlar no solo quién puede
 - Sin `audience` → Sin restricción (backward compatible)
 - Con `audience` → Filtra destinatarios según lock expression
 - Maneja cambios de rol dinámicamente (admin degradado = deja de recibir)
-
-**Indicadores visuales**: `/canales` muestra 🔓 (tiene acceso) o 🔒 (restringido)
+- `/canales` oculta canales sin permiso de acceso (no los muestra en la lista)
+- **Activación automática**: Canales con `audience` se activan automáticamente si el usuario tiene permisos
 
 Ver: `docs/sistemas-del-motor/sistema-de-canales.md`
 
@@ -852,9 +852,11 @@ Crear un juego masivo, funcional e inmersivo que aproveche las fortalezas única
 
 ---
 
-**Versión**: 2.1
+**Versión**: 2.1.2
 **Última actualización**: 2025-01-11
 **Changelog**:
+- v2.1.2 (2025-01-11): Canales con audience se activan automáticamente si hay permisos
+- v2.1.1 (2025-01-11): Mejora UX: /canales oculta canales sin permiso de acceso
 - v2.1 (2025-01-11): Sistema de Filtrado de Audiencia para Canales implementado
 - v2.0 (2025-01-11): Sistema de Baneos y Apelaciones implementado
 - v1.9 (2025-01-09): Compactación del archivo sin pérdida de información crítica (~64% reducción: 2057→744 líneas)

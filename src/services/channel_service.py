@@ -27,6 +27,10 @@ async def get_or_create_settings(session: AsyncSession, character: Character) ->
     Obtiene las configuraciones para un personaje. Si no existen, las crea con
     los valores por defecto definidos en los prototipos de canal.
 
+    Los canales se activan por defecto si:
+    1. Tienen default_on=True, O
+    2. Tienen audience configurado Y el personaje tiene permisos para acceder
+
     Args:
         session (AsyncSession): La sesión de base de datos activa.
         character (Character): El personaje para el que se obtienen las configuraciones.
@@ -41,10 +45,24 @@ async def get_or_create_settings(session: AsyncSession, character: Character) ->
     # Si no, las creamos.
     logging.info(f"Creando configuraciones por defecto para el personaje {character.name}")
 
-    # Leemos los prototipos para ver qué canales deben estar activados por defecto.
-    default_channels = [
-        key for key, data in CHANNEL_PROTOTYPES.items() if data.get("default_on", False)
-    ]
+    # Determinar qué canales deben estar activados por defecto.
+    default_channels = []
+
+    from src.services import permission_service
+
+    for key, data in CHANNEL_PROTOTYPES.items():
+        # Activar si tiene default_on=True
+        if data.get("default_on", False):
+            default_channels.append(key)
+            continue
+
+        # Activar si tiene audience Y el personaje tiene permisos
+        audience_filter = data.get("audience", "")
+        if audience_filter:
+            can_access, _ = await permission_service.can_execute(character, audience_filter)
+            if can_access:
+                default_channels.append(key)
+                logging.info(f"Canal '{key}' activado por defecto para {character.name} (tiene permisos de audience)")
 
     new_settings = CharacterSetting(
         character_id=character.id,

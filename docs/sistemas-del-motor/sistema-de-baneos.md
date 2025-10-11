@@ -350,12 +350,16 @@ El proyecto incluye un canal `"moderacion"` preconfigurado en `game_data/channel
     "icon": "🛡️",
     "description": "Canal privado para administradores (apelaciones, moderación).",
     "type": "CHAT",
-    "default_on": False,  # Los admins deben activarlo manualmente
-    "lock": "rol(ADMIN)"  # Solo ADMINS y SUPERADMINS
+    "default_on": False,
+    "lock": "rol(ADMIN)",       # Solo ADMINS y SUPERADMINS pueden escribir
+    "audience": "rol(ADMIN)"    # Se activa automáticamente para admins nuevos
 }
 ```
 
-**Para activar el canal de moderación**:
+**Nota de activación automática**:
+
+El canal "moderacion" se activa **automáticamente** para administradores nuevos gracias al campo `audience: "rol(ADMIN)"`. Los administradores existentes (antes de esta característica) deben activarlo manualmente con:
+
 ```
 /activarcanal moderacion
 ```

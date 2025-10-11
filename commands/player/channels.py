@@ -29,20 +29,18 @@ class CmdChannels(Command):
 
             response = ["<pre>📡 <b>ESTADO DE TUS CANALES</b>"]
             for key, proto in CHANNEL_PROTOTYPES.items():
-                status = "✅ Activado" if key in user_channels else "❌ Desactivado"
-
                 # Verificar si el canal tiene restricción de audiencia.
                 audience_filter = proto.get("audience", "")
-                restriction_icon = ""
                 if audience_filter:
                     can_access, _ = await permission_service.can_execute(character, audience_filter)
-                    if can_access:
-                        restriction_icon = " 🔓"  # Tiene acceso al canal restringido
-                    else:
-                        restriction_icon = " 🔒"  # No tiene acceso
+                    # Si no tiene acceso, no mostrar este canal en la lista
+                    if not can_access:
+                        continue
+
+                status = "✅ Activado" if key in user_channels else "❌ Desactivado"
 
                 response.append(
-                    f"    - <b>{proto['name']}</b> ({key}): {status}{restriction_icon}\n"
+                    f"    - <b>{proto['name']}</b> ({key}): {status}\n"
                     f"      <i>{proto['description']}</i>"
                 )
             response.append("</pre>")

@@ -1,7 +1,7 @@
 ---
 título: "Sistema de Baneos y Apelaciones"
 categoría: "Sistemas del Motor"
-versión: "1.1"
+versión: "1.2"
 última_actualización: "2025-01-11"
 autor: "Proyecto Runegram"
 etiquetas: ["baneos", "moderacion", "apelaciones", "administracion", "configuracion"]
@@ -18,6 +18,7 @@ referencias_código:
   - "src/handlers/player/dispatcher.py"
   - "game_data/channel_prototypes.py"
   - "gameconfig.toml"
+  - "src/config.py"
 estado: "actual"
 importancia: "alta"
 audiencia: "desarrollador"
@@ -364,13 +365,45 @@ El canal "moderacion" se activa **automáticamente** para administradores nuevos
 /activarcanal moderacion
 ```
 
-### Límites Hardcodeados
+### Límites Configurables
 
-Los siguientes valores están hardcodeados en el código:
+Todos los límites del sistema de baneos son configurables en `gameconfig.toml` bajo la sección `[moderation]`:
 
-- **Razón de ban**: Máximo 500 caracteres
-- **Texto de apelación**: Máximo 1000 caracteres
-- **Paginación**: 30 cuentas por página en `/listabaneados`
+```toml
+[moderation]
+ban_appeal_channel = "moderacion"
+ban_reason_max_length = 500
+appeal_max_length = 1000
+appeal_preview_length = 100
+banned_accounts_per_page = 10
+```
+
+**Campos configurables:**
+
+| Campo | Default | Descripción |
+|-------|---------|-------------|
+| `ban_reason_max_length` | 500 | Máximo de caracteres para la razón del ban |
+| `appeal_max_length` | 1000 | Máximo de caracteres para el texto de apelación |
+| `appeal_preview_length` | 100 | Caracteres mostrados en vista previa de apelaciones |
+| `banned_accounts_per_page` | 10 | Número de cuentas por página en `/listabaneados` |
+
+**Uso en código:**
+```python
+from src.config import settings
+
+# Validar longitud de razón
+if len(reason) > settings.moderation_ban_reason_max_length:
+    await message.answer(f"❌ La razón no puede exceder {settings.moderation_ban_reason_max_length} caracteres.")
+
+# Validar longitud de apelación
+if len(appeal_text) > settings.moderation_appeal_max_length:
+    await message.answer(f"❌ La apelación no puede exceder {settings.moderation_appeal_max_length} caracteres.")
+
+# Paginación
+per_page = settings.moderation_banned_accounts_per_page
+```
+
+Para modificar estos valores, edita `gameconfig.toml` y reinicia el bot. Ver [documentación de configuración](../arquitectura/configuracion.md#sección-moderation) para más detalles.
 
 ---
 
@@ -420,7 +453,7 @@ logging.info(
 4. **Auto-moderación** (detección automática de spam)
 5. **Panel web de moderación** para admins
 6. **Escalado de sanciones** (warn → 1 día → 7 días → permanente)
-7. **Configurar límites** (razón, apelación) en gameconfig.toml
+7. ~~**Configurar límites** (razón, apelación) en gameconfig.toml~~ ✅ **IMPLEMENTADO en v1.2**
 
 ---
 
@@ -466,6 +499,15 @@ async def expire_bans_job():
 
 ## 📝 Changelog
 
+### v1.2 (2025-01-11)
+- ✅ **Límites configurables**: Migración completa de valores hardcodeados a `gameconfig.toml`
+  - `ban_reason_max_length` (500)
+  - `appeal_max_length` (1000)
+  - `appeal_preview_length` (100)
+  - `banned_accounts_per_page` (10)
+- ✅ **Documentación actualizada**: Sección "Límites Configurables" con ejemplos de uso
+- ✅ **Referencia cruzada**: Enlaces a documentación de configuración
+
 ### v1.1 (2025-01-11)
 - ✅ **Desbaneo resetea apelación**: Ahora `/desbanear` resetea los campos de apelación, permitiendo que el jugador pueda apelar de nuevo si es baneado en el futuro
 - ✅ **Canal de moderación**: Agregado canal "moderacion" en `channel_prototypes.py` con lock de ADMIN
@@ -483,6 +525,6 @@ async def expire_bans_job():
 
 ---
 
-**Versión:** 1.1
+**Versión:** 1.2
 **Última actualización:** 2025-01-11
-**Estado:** Sistema completo y funcional con notificaciones configurables
+**Estado:** Sistema completo y funcional con configuración centralizada

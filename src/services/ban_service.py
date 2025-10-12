@@ -26,6 +26,7 @@ from sqlalchemy.orm import selectinload
 
 from src.models.account import Account
 from src.models.character import Character
+from src.config import settings
 
 
 async def is_account_banned(session: AsyncSession, account: Account) -> bool:
@@ -131,8 +132,10 @@ async def ban_account(
         if not reason or not reason.strip():
             raise ValueError("Debes proporcionar una razón para el ban.")
 
-        if len(reason) > 500:
-            raise ValueError("La razón del ban no puede exceder 500 caracteres.")
+        if len(reason) > settings.moderation_ban_reason_max_length:
+            raise ValueError(
+                f"La razón del ban no puede exceder {settings.moderation_ban_reason_max_length} caracteres."
+            )
 
         # Aplicar el ban
         now = datetime.utcnow()
@@ -248,8 +251,10 @@ async def submit_appeal(
         if not appeal_text or not appeal_text.strip():
             raise ValueError("Debes proporcionar un texto para tu apelación.")
 
-        if len(appeal_text) > 1000:
-            raise ValueError("La apelación no puede exceder 1000 caracteres.")
+        if len(appeal_text) > settings.moderation_appeal_max_length:
+            raise ValueError(
+                f"La apelación no puede exceder {settings.moderation_appeal_max_length} caracteres."
+            )
 
         # Registrar apelación
         now = datetime.utcnow()
@@ -276,7 +281,7 @@ async def submit_appeal(
 async def get_banned_accounts(
     session: AsyncSession,
     page: int = 1,
-    per_page: int = 30
+    per_page: int = None
 ) -> tuple[list[Account], int]:
     """
     Obtiene lista paginada de cuentas baneadas.
@@ -293,6 +298,10 @@ async def get_banned_accounts(
         Tupla con (lista de cuentas baneadas, total de cuentas baneadas)
     """
     try:
+        # Usar valor por defecto desde configuración si no se especifica
+        if per_page is None:
+            per_page = settings.moderation_banned_accounts_per_page
+
         # Verificar y expirar baneos temporales antes de consultar
         await check_and_expire_bans(session)
 

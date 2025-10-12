@@ -24,6 +24,7 @@ from src.models import Character, Account
 from src.services import ban_service
 from src.services.permission_service import ROLE_HIERARCHY
 from src.templates import ICONS
+from src.config import settings
 
 
 class CmdBan(Command):
@@ -202,13 +203,14 @@ class CmdListBanned(Command):
                 return
 
         try:
-            # Obtener cuentas baneadas con paginación
-            per_page = 10
+            # Obtener cuentas baneadas con paginación (usa config por defecto)
             banned_accounts, total_count = await ban_service.get_banned_accounts(
                 session=session,
-                page=page,
-                per_page=per_page
+                page=page
+                # per_page usa el default de settings.moderation_banned_accounts_per_page
             )
+
+            per_page = settings.moderation_banned_accounts_per_page
 
             if total_count == 0:
                 await message.answer("✅ No hay cuentas baneadas actualmente.")

@@ -72,11 +72,14 @@ async def handle_character_creation(
     state = dp.current_state(user=callback.from_user.id)
     await state.set_state(CharacterCreationStates.waiting_for_name)
 
+    from src.config import settings
+
     await callback.message.edit_text(
         "✨ <b>Creación de Personaje</b>\n\n"
         "Por favor, escribe el nombre que deseas para tu personaje.\n\n"
         "<i>Ejemplo: Aragorn</i>\n\n"
-        "El nombre debe tener entre 3 y 15 caracteres y solo puede contener letras (sin espacios).",
+        f"El nombre debe tener entre {settings.characters_name_min_length} y {settings.characters_name_max_length} "
+        "caracteres y solo puede contener letras (sin espacios).",
         parse_mode="HTML"
     )
     await callback.answer()
@@ -488,6 +491,7 @@ async def handle_paginate_admin_items(
         callback_params['t'] = ",".join(tag_filters)
 
     from src.utils.paginated_output import send_paginated_list
+    from src.config import settings
 
     await send_paginated_list(
         message=callback.message,
@@ -495,7 +499,7 @@ async def handle_paginate_admin_items(
         page=page,
         template_name='item_list.html.j2',
         callback_action="pg_adminitems",
-        per_page=20,
+        per_page=settings.pagination_items_per_page,
         edit=True,
         filters=bool(category_filter or tag_filters),
         cat=category_filter,
@@ -679,19 +683,21 @@ async def process_character_name(message: types.Message, state: FSMContext):
     """
     async with async_session_factory() as session:
         try:
+            from src.config import settings
+
             name = message.text.strip()
 
             # Validar nombre
-            if len(name) < 3:
+            if len(name) < settings.characters_name_min_length:
                 await message.answer(
-                    "❌ El nombre debe tener al menos 3 caracteres.\n"
+                    f"❌ El nombre debe tener al menos {settings.characters_name_min_length} caracteres.\n"
                     "Por favor, intenta con otro nombre:"
                 )
                 return
 
-            if len(name) > 15:
+            if len(name) > settings.characters_name_max_length:
                 await message.answer(
-                    "❌ El nombre es demasiado largo (máximo 15 caracteres).\n"
+                    f"❌ El nombre es demasiado largo (máximo {settings.characters_name_max_length} caracteres).\n"
                     "Por favor, intenta con otro nombre:"
                 )
                 return

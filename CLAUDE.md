@@ -238,6 +238,11 @@ if player.afk_time > settings.online_threshold.total_seconds():
 
 **Principio**: Si un valor podría necesitar ajustes, debe estar en `gameconfig.toml`, NO hardcodeado.
 
+**Mejoras recientes (2025-01-11)**:
+- ✅ Límites de longitud de nombres de personajes (`characters.name_min_length`, `characters.name_max_length`)
+- ✅ Límites del sistema de baneos (`moderation.ban_reason_max_length`, `moderation.appeal_max_length`, etc.)
+- ✅ Resolución de inconsistencias históricas (50 vs 15 caracteres en nombres)
+
 Ver: `docs/arquitectura/configuracion.md`
 
 ---

@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from commands.command import Command
 from src.models import Character, Item
 from src.services import tag_service
+from src.config import settings
 
 
 class CmdListItems(Command):
@@ -71,7 +72,7 @@ class CmdListItems(Command):
                 page=page,
                 template_name='item_list.html.j2',
                 callback_action="pg_adminitems",
-                per_page=20,
+                per_page=settings.pagination_items_per_page,
                 filters=bool(filter_args),
                 cat=category_filter,
                 tags=tag_filters,

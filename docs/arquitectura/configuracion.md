@@ -2,10 +2,10 @@
 título: "Sistema de Configuración de Runegram"
 categoría: "Arquitectura"
 audiencia: "desarrollador, administrador"
-versión: "1.1"
+versión: "1.3"
 última_actualización: "2025-01-11"
 autor: "Proyecto Runegram"
-etiquetas: ["configuración", "toml", "pydantic", "env", "settings", "moderacion"]
+etiquetas: ["configuración", "toml", "pydantic", "env", "settings", "moderacion", "personajes", "paginacion"]
 documentos_relacionados:
   - "../primeros-pasos/instalacion.md"
   - "../guia-de-administracion/migraciones-de-base-de-datos.md"
@@ -15,6 +15,8 @@ referencias_código:
   - "gameconfig.toml"
   - ".env.example"
   - "game_data/channel_prototypes.py"
+  - "src/services/ban_service.py"
+  - "commands/admin/ban_management.py"
 estado: "actual"
 importancia: "crítica"
 ---
@@ -148,12 +150,32 @@ max_room_items = 10
 # (el jugador puede usar /personajes para ver listado completo con paginación)
 max_room_characters = 10
 
+# --- Personajes ---
+[characters]
+# Longitud mínima del nombre del personaje
+name_min_length = 3
+
+# Longitud máxima del nombre del personaje
+name_max_length = 15
+
 # --- Sistema de Baneos y Moderación ---
 [moderation]
 # Canal donde se envían notificaciones de apelaciones de ban
 # Si se deja vacío (""), las notificaciones se envían directamente a todos los admins
 # Debe ser una key válida de CHANNEL_PROTOTYPES (ej: "moderacion", "sistema")
 ban_appeal_channel = "moderacion"
+
+# Longitud máxima de la razón del ban
+ban_reason_max_length = 500
+
+# Longitud máxima del texto de apelación
+appeal_max_length = 1000
+
+# Caracteres mostrados de vista previa de apelaciones en listados
+appeal_preview_length = 100
+
+# Número de cuentas baneadas por página en /listabaneados
+banned_accounts_per_page = 10
 
 # --- Gameplay General ---
 [gameplay]
@@ -271,13 +293,46 @@ if len(items) > settings.display_limits_max_room_items:
     # Mostrar: "... y {remaining} más items. Usa /items para verlos todos."
 ```
 
+#### Sección `[characters]`
+
+| Variable | Tipo | Default | Descripción |
+|----------|------|---------|-------------|
+| `name_min_length` | int | 3 | Longitud mínima del nombre del personaje |
+| `name_max_length` | int | 15 | Longitud máxima del nombre del personaje |
+
+**Nota histórica:**
+
+Esta sección resuelve una inconsistencia histórica en el código. Anteriormente:
+- El modelo `Character` tenía hardcodeado `max_length=50` en el campo `name`
+- El FSM de creación de personajes validaba con `max_length=15`
+
+Ahora ambos usan el valor centralizado de `gameconfig.toml` (15 caracteres), garantizando consistencia.
+
+**Uso en código:**
+```python
+from src.config import settings
+
+# Validación en FSM de creación
+if len(name) < settings.characters_name_min_length:
+    await message.answer(f"El nombre debe tener al menos {settings.characters_name_min_length} caracteres.")
+
+if len(name) > settings.characters_name_max_length:
+    await message.answer(f"El nombre no puede exceder {settings.characters_name_max_length} caracteres.")
+```
+
+---
+
 #### Sección `[moderation]`
 
 | Variable | Tipo | Default | Descripción |
 |----------|------|---------|-------------|
 | `ban_appeal_channel` | str | "moderacion" | Canal donde se envían notificaciones de apelaciones de ban |
+| `ban_reason_max_length` | int | 500 | Longitud máxima de la razón del ban |
+| `appeal_max_length` | int | 1000 | Longitud máxima del texto de apelación |
+| `appeal_preview_length` | int | 100 | Caracteres mostrados en vista previa de apelaciones |
+| `banned_accounts_per_page` | int | 10 | Número de cuentas baneadas por página en `/listabaneados` |
 
-**Comportamiento:**
+**Comportamiento de `ban_appeal_channel`:**
 
 1. **Canal configurado** (ej: `"moderacion"`):
    - Las notificaciones de apelaciones se envían al canal especificado
@@ -301,9 +356,15 @@ El proyecto incluye un canal `"moderacion"` preconfigurado en `game_data/channel
 from src.config import settings
 from game_data.channel_prototypes import CHANNEL_PROTOTYPES
 
-channel_key = settings.moderation_ban_appeal_channel
+# Validación de longitud de razón de ban
+if len(reason) > settings.moderation_ban_reason_max_length:
+    await message.answer(f"La razón no puede exceder {settings.moderation_ban_reason_max_length} caracteres.")
 
-# Si hay canal configurado y existe, enviar al canal
+# Paginación en listado de baneados
+per_page = settings.moderation_banned_accounts_per_page
+
+# Notificación de apelaciones
+channel_key = settings.moderation_ban_appeal_channel
 if channel_key and channel_key in CHANNEL_PROTOTYPES:
     await channel_service.broadcast_to_channel(session, channel_key, notification)
 else:
@@ -505,3 +566,29 @@ threshold_minutes = 5  # Int
 **Documentación Relacionada:**
 - [Guía de Instalación](../primeros-pasos/instalacion.md)
 - [Migraciones de Base de Datos](../guia-de-administracion/migraciones-de-base-de-datos.md)
+
+---
+
+## 📝 Changelog
+
+### v1.3 (2025-01-11)
+- ✅ **Nueva sección `[characters]`**: Agregados `name_min_length` y `name_max_length` para validación centralizada
+- ✅ **Corrección de inconsistencia histórica**: Resuelto conflicto entre límites hardcodeados (50 vs 15) para longitud de nombres
+- ✅ **Expansión de `[moderation]`**: Agregados 4 nuevos campos configurables:
+  - `ban_reason_max_length` (500)
+  - `appeal_max_length` (1000)
+  - `appeal_preview_length` (100)
+  - `banned_accounts_per_page` (10)
+- ✅ **Migración de hardcoded a configuración**: Todos los límites del sistema de baneos ahora son configurables
+- ✅ **Documentación completa**: Ejemplos de uso en código para todas las nuevas configuraciones
+
+### v1.2 (2025-01-11)
+- ✅ Documentación de paginación universal consolidada
+- ✅ Explicación de diferencia entre `pagination` y `display_limits`
+
+### v1.1 (2025-01-11)
+- ✅ Agregado sistema de configuración de notificaciones de apelaciones (`moderation.ban_appeal_channel`)
+- ✅ Canal de moderación preconfigurado
+
+### v1.0 (2025-01-09)
+- ✅ Documentación inicial del sistema de configuración

@@ -50,11 +50,14 @@ async def _notify_admins_of_appeal(
         character: Personaje del jugador (puede ser None)
     """
     # Construir mensaje de notificación (sin <pre>, es notificación privada/directa)
+    preview_length = settings.moderation_appeal_preview_length
+    appeal_preview = appeal_text[:preview_length] + ("..." if len(appeal_text) > preview_length else "")
+
     notification = (
         f"{ICONS['appeal']} <b>Nueva apelación de ban</b>\n\n"
         f"<b>Jugador:</b> {player_name}\n"
         f"<b>Ver detalles:</b> /verapelacion {player_name if character else 'N/A'}\n\n"
-        f"<i>Fragmento:</i> {appeal_text[:100]}..."
+        f"<i>Fragmento:</i> {appeal_preview}"
     )
 
     # Leer configuración del canal

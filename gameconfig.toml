@@ -44,12 +44,34 @@ max_room_items = 10
 # (el jugador puede usar /personajes para ver listado completo con paginación)
 max_room_characters = 10
 
+# --- Validación de Personajes ---
+[characters]
+# Longitud mínima del nombre de personaje
+name_min_length = 3
+
+# Longitud máxima del nombre de personaje
+# Decisión: usar 15 (del FSM moderno) como estándar para mejor UX móvil
+name_max_length = 15
+
 # --- Sistema de Baneos y Moderación ---
 [moderation]
 # Canal donde se envían notificaciones de apelaciones de ban
 # Si se deja vacío (""), las notificaciones se envían directamente a todos los admins
 # Debe ser una key válida de CHANNEL_PROTOTYPES (ej: "moderacion", "sistema")
 ban_appeal_channel = "moderacion"
+
+# Longitud máxima de la razón del ban (en caracteres)
+ban_reason_max_length = 500
+
+# Longitud máxima del texto de apelación (en caracteres)
+appeal_max_length = 1000
+
+# Longitud del fragmento de apelación mostrado en notificaciones (en caracteres)
+appeal_preview_length = 100
+
+# Items por página en el listado de cuentas baneadas
+# Valor menor que pagination.items_per_page para listas críticas de moderación
+banned_accounts_per_page = 10
 
 # --- Gameplay General ---
 [gameplay]

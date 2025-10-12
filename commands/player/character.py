@@ -40,9 +40,14 @@ class CmdCreateCharacter(Command):
             return
 
         # 2. Validar el nombre proporcionado por el usuario.
+        from src.config import settings
+
         character_name = " ".join(args)
-        if not character_name or len(character_name) > 50:
-            await message.answer("Por favor, proporciona un nombre válido (máx 50 caracteres). Uso: /crearpersonaje [nombre]")
+        if not character_name or len(character_name) > settings.characters_name_max_length:
+            await message.answer(
+                f"Por favor, proporciona un nombre válido (máx {settings.characters_name_max_length} caracteres). "
+                f"Uso: /crearpersonaje [nombre]"
+            )
             return
 
         try:

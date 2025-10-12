@@ -71,8 +71,16 @@ class Settings(BaseSettings):
     display_limits_max_container: int = 15
     display_limits_max_who: int = 20
 
+    # Sistema de Validación de Personajes
+    characters_name_min_length: int = 3
+    characters_name_max_length: int = 15
+
     # Sistema de Baneos y Moderación
     moderation_ban_appeal_channel: str = "moderacion"
+    moderation_ban_reason_max_length: int = 500
+    moderation_appeal_max_length: int = 1000
+    moderation_appeal_preview_length: int = 100
+    moderation_banned_accounts_per_page: int = 10
 
     # Gameplay General
     gameplay_debug_mode: bool = False

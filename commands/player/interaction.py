@@ -306,6 +306,19 @@ class CmdDrop(Command):
                 await message.answer("No llevas eso.")
                 return
 
+            # Verificar locks con access type "drop"
+            locks = item_to_drop.prototype.get("locks", "")
+            lock_messages = item_to_drop.prototype.get("lock_messages", {})
+            can_pass, error_message = await permission_service.can_execute(
+                character,
+                locks,
+                access_type="drop",
+                lock_messages=lock_messages
+            )
+            if not can_pass:
+                await message.answer(error_message or "No puedes dejar eso.")
+                return
+
             await item_service.move_item_to_room(session, item_to_drop.id, character.room_id)
 
             if item_to_drop.prototype.get("grants_command_sets"):

@@ -1,7 +1,7 @@
 ---
 título: "Sistema de Permisos (Locks)"
 categoría: "Sistemas del Motor"
-versión: "2.0"
+versión: "2.0.1"
 última_actualización: "2025-01-16"
 autor: "Proyecto Runegram"
 etiquetas: ["permisos", "locks", "seguridad", "roles", "contextuales"]
@@ -15,6 +15,7 @@ referencias_código:
   - "commands/player/movement.py"
 estado: "actual"
 importancia: "crítica"
+notas_de_version: "v2.0.1: CmdDrop ahora verifica locks con access_type='drop'"
 ---
 
 # Sistema de Permisos (Locks) - Versión 2.0
@@ -447,7 +448,7 @@ Este diseño hace que el Sistema de Permisos sea una de las herramientas más po
 
 **Archivos Afectados:**
 - `src/services/permission_service.py` - Core del sistema
-- `commands/player/interaction.py` - Usa access types (get, put, take)
+- `commands/player/interaction.py` - Usa access types (get, drop, put, take)
 - `commands/player/movement.py` - Usa access type (traverse)
 - `game_data/item_prototypes.py` - Ejemplos de locks contextuales
 

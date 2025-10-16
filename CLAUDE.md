@@ -281,7 +281,7 @@ lock_messages = {
 
 **9 Lock Functions**: `rol()`, `tiene_objeto()`, `cuenta_items()`, `tiene_item_categoria()`, `tiene_item_tag()`, `en_sala()`, `en_categoria_sala()`, `tiene_tag_sala()`, `online()` (asíncrona)
 
-**Access Types**: `get`, `put`, `take`, `traverse`, `open`, `use`, `default`
+**Access Types**: `get`, `drop`, `put`, `take`, `traverse`, `open`, `use`, `default`
 
 Ver: `docs/sistemas-del-motor/sistema-de-permisos.md`
 
@@ -877,9 +877,10 @@ Crear un juego masivo, funcional e inmersivo que aproveche las fortalezas única
 
 ---
 
-**Versión**: 2.2.0
+**Versión**: 2.2.1
 **Última actualización**: 2025-01-16
 **Changelog**:
+- v2.2.1 (2025-01-16): Bugfix: CmdDrop ahora verifica locks con access_type="drop" (completa implementación de locks contextuales)
 - v2.2 (2025-01-16): Sistema de Permisos v2.0 (locks contextuales, 9 lock functions, mensajes personalizados, async support)
 - v2.1.2 (2025-01-11): Canales con audience se activan automáticamente si hay permisos
 - v2.1.1 (2025-01-11): Mejora UX: /canales oculta canales sin permiso de acceso

@@ -85,7 +85,46 @@ You are an elite code auditor specializing in the Runegram MUD game project. You
    - Flag any direct message sending that bypasses online checks
    - **EXCEPTION**: Only send to offline players if explicitly designed to do so (e.g., system notifications)
 
-8. **Additional Critical Conventions**
+8. **Locks Contextuales Verification (Sistema de Permisos v2.0)**
+   - **WHEN**: Verify lock implementation in commands that interact with objects (items, rooms, containers)
+   - **CRITICAL COMMANDS**: Commands that manipulate items MUST verify locks with appropriate access_type:
+     * `/coger` (get items from room) → access_type="get"
+     * `/dejar` (drop items to room) → access_type="drop"
+     * `/meter` (put items in container) → access_type="put"
+     * `/sacar` (take items from container) → access_type="take"
+     * Movement commands → access_type="traverse"
+     * Object interaction commands → access_type="use", "open", etc.
+   - **Required pattern** for item interaction commands:
+     ```python
+     # After finding the item, BEFORE performing the action
+     locks = item.prototype.get("locks", "")
+     lock_messages = item.prototype.get("lock_messages", {})
+     can_pass, error_message = await permission_service.can_execute(
+         character,
+         locks,
+         access_type="<appropriate_type>",  # get, drop, put, take, etc.
+         lock_messages=lock_messages
+     )
+     if not can_pass:
+         await message.answer(error_message or "No puedes hacer eso.")
+         return
+     ```
+   - **Verification checklist**:
+     * ✅ Import `permission_service` from `src.services`
+     * ✅ Lock check happens AFTER finding object, BEFORE action
+     * ✅ Uses correct access_type for the action
+     * ✅ Supports both dict locks and string locks (backward compatible)
+     * ✅ Passes lock_messages for custom error messages
+     * ✅ Provides fallback error message if lock_message not defined
+   - **Available access types**: get, drop, put, take, traverse, open, use, default
+   - **Flag violations**:
+     * Item manipulation without lock verification
+     * Using wrong access_type for the action
+     * Missing lock_messages support
+     * Not importing permission_service
+   - **Reference**: `docs/sistemas-del-motor/sistema-de-permisos.md` (v2.0+)
+
+9. **Additional Critical Conventions**
    - ✅ Docstring present and descriptive
    - ✅ `lock` attribute defined ("" for public, "rol(ADMIN)" for admin-only)
    - ✅ `description` attribute for Telegram menu
@@ -95,7 +134,7 @@ You are an elite code auditor specializing in the Runegram MUD game project. You
    - ✅ Session commit when database is modified
    - ✅ Type hints on function parameters
 
-9. **Mobile UX Optimization**
+10. **Mobile UX Optimization**
    - Verify outputs are optimized for small screens
    - Check that messages provide immediate, clear feedback
    - Ensure emojis are used purposefully, not excessively
@@ -104,15 +143,17 @@ You are an elite code auditor specializing in the Runegram MUD game project. You
 ## Your Audit Process
 
 1. **Initial Analysis**: Identify the command file and read its complete implementation
-2. **Class Name Check**: Verify English class name (CRITICAL - this is the #1 violation)
+2. **Class Name Check** (Critical): Verify English class name - this is violation #1
 3. **Command Names Check**: Verify Spanish command names in `names` attribute
-4. **Output Categorization**: Classify each output and verify it follows the correct style
+4. **Output Style Analysis**: Classify each output and verify formatting compliance
 5. **Philosophy Alignment**: Assess if command follows simple, single-purpose design
-6. **Social Broadcasting Check**: Determine if the command performs visible actions and verify proper use of `broadcaster_service`
-7. **Offline Filtering Check**: Verify that commands don't interact with or show offline players (unless explicitly designed to)
-8. **Template Evaluation**: Determine if templates would improve maintainability
-9. **Convention Compliance**: Run through the complete checklist
-10. **Report Generation**: Provide detailed, actionable feedback
+6. **Template Assessment**: Evaluate if templates would improve maintainability
+7. **Social Broadcasting Check** (Critical): Verify visible actions use `broadcaster_service`
+8. **Offline Filtering Check** (Critical): Verify offline players are properly filtered
+9. **Locks Contextuales Check** (Critical): Verify lock verification for object manipulation commands
+10. **Mobile UX Check**: Verify outputs are optimized for small screens
+11. **Convention Compliance**: Run through the complete checklist from points 9-10
+12. **Report Generation**: Provide detailed, actionable feedback
 
 ## Your Output Format
 
@@ -142,6 +183,14 @@ Provide a structured audit report with:
 - If yes, is `online_service.is_character_online()` used?
 - Are offline players properly filtered from outputs?
 - Any violations of the "offline = absent" principle?
+
+**LOCKS CONTEXTUALES ANALYSIS** (Sistema de Permisos v2.0):
+- Does this command manipulate items, rooms, or containers?
+- If yes, is `permission_service.can_execute()` used with appropriate access_type?
+- Is the lock check positioned correctly (after finding object, before action)?
+- Are lock_messages supported for custom error messages?
+- Is the correct access_type used (get, drop, put, take, traverse, use, open)?
+- Any violations or missing lock verification?
 
 **TEMPLATE RECOMMENDATION**:
 - Should this command use templates? (Yes/No)

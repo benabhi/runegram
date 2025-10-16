@@ -2,12 +2,13 @@
 título: "Creando Comandos en Runegram"
 categoría: "Creación de Contenido"
 audiencia: "creador-de-contenido"
-versión: "1.0"
-última_actualización: "2025-01-09"
+versión: "1.1"
+última_actualización: "2025-01-16"
 autor: "Proyecto Runegram"
-etiquetas: ["comandos", "desarrollo", "python", "aiogram"]
+etiquetas: ["comandos", "desarrollo", "python", "aiogram", "locks"]
 documentos_relacionados:
   - "sistemas-del-motor/sistema-de-comandos.md"
+  - "sistemas-del-motor/sistema-de-permisos.md"
   - "primeros-pasos/filosofia-central.md"
   - "creacion-de-contenido/guia-de-estilo-de-salida.md"
 referencias_código:
@@ -296,13 +297,29 @@ class CmdTeleport(Command):
             logging.exception(f"Error en /tp para {character.name}")
 ```
 
-**Funciones de lock disponibles:**
+**Funciones de lock disponibles (v2.0):**
+
+Basadas en Roles:
 - `rol(ADMIN)` - Admin o superior
 - `rol(SUPERADMIN)` - Solo superadmin
-- `tiene_objeto(item_key)` - Tiene objeto específico
-- Combinar con `and`, `or`: `"rol(ADMIN) and tiene_objeto(llave_maestra)"`
 
-Ver: `docs/sistemas-del-motor/sistema-de-permisos.md` para documentación completa sobre locks.
+Basadas en Inventario:
+- `tiene_objeto(item_key)` - Tiene objeto específico
+- `cuenta_items(N)` - Tiene al menos N items
+- `tiene_item_categoria(cat)` - Tiene item de categoría
+- `tiene_item_tag(tag)` - Tiene item con tag
+
+Basadas en Ubicación:
+- `en_sala(key)` - Está en sala específica
+- `en_categoria_sala(cat)` - Está en sala de categoría
+- `tiene_tag_sala(tag)` - Sala tiene tag
+
+Basadas en Estado:
+- `online()` - Personaje está conectado
+
+Combinar con operadores: `"rol(ADMIN) and tiene_objeto(llave_maestra)"`, `"not cuenta_items(10)"`
+
+Ver: `docs/sistemas-del-motor/sistema-de-permisos.md` para documentación completa sobre locks contextuales y mensajes personalizados.
 
 ## Guía de Estilo de Output
 

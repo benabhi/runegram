@@ -2,10 +2,10 @@
 título: "Creando Items en Runegram"
 categoría: "Creación de Contenido"
 audiencia: "creador-de-contenido"
-versión: "1.0"
-última_actualización: "2025-01-09"
+versión: "2.0"
+última_actualización: "2025-01-16"
 autor: "Proyecto Runegram"
-etiquetas: ["items", "prototipos", "contenedores", "locks", "objetos"]
+etiquetas: ["items", "prototipos", "contenedores", "locks", "locks-contextuales", "objetos"]
 documentos_relacionados:
   - "sistemas-del-motor/sistema-de-prototipos.md"
   - "creacion-de-contenido/construccion-de-salas.md"
@@ -119,7 +119,11 @@ if item.attributes.get("element") == "fuego":
 
 ## Items con Locks (Restricciones)
 
-Usa locks para restringir quién puede coger un objeto:
+El sistema de locks permite restringir quién puede interactuar con un objeto y cómo. La versión 2.0 introduce **locks contextuales** que permiten restricciones diferentes según la acción.
+
+### Locks Simples (String)
+
+Para restricciones que se aplican a todas las acciones:
 
 ```python
 "espada_sagrada": {
@@ -139,12 +143,63 @@ Usa locks para restringir quién puede coger un objeto:
 }
 ```
 
-**Locks disponibles**:
-- `"rol(ADMIN)"` - Solo admin o superior
-- `"rol(SUPERADMIN)"` - Solo superadmin
-- `"tiene_objeto(llave_especial)"` - Requiere objeto específico
-- `"rol(ADMIN) or tiene_objeto(permiso)"` - Combinar condiciones
-- `""` - Sin restricciones (por defecto)
+### Locks Contextuales (Diccionario) - Versión 2.0
+
+Para restricciones diferentes según el tipo de acción:
+
+```python
+"cofre_magico": {
+    "name": "un cofre mágico",
+    "keywords": ["cofre", "magico"],
+    "description": "Un cofre ornamentado con runas brillantes.",
+    "is_container": True,
+    "capacity": 10,
+
+    # Locks contextuales: diferentes restricciones por acción
+    "locks": {
+        "get": "rol(SUPERADMIN)",              # Solo SUPERADMIN puede cogerlo (muy pesado)
+        "put": "tiene_objeto(llave_magica)",   # Necesita llave para meter cosas
+        "take": "tiene_objeto(llave_magica)"   # Necesita llave para sacar cosas
+    },
+
+    # Mensajes de error personalizados (opcional)
+    "lock_messages": {
+        "get": "El cofre está encantado y firmemente fijado al suelo.",
+        "put": "El cofre está sellado con magia. Necesitas la llave mágica.",
+        "take": "El cofre está sellado con magia. Necesitas la llave mágica."
+    },
+
+    "display": {
+        "icon": "📦✨"
+    }
+}
+```
+
+### Funciones de Lock Disponibles
+
+**Basadas en Roles:**
+- `rol(ADMIN)` - Solo admin o superior
+- `rol(SUPERADMIN)` - Solo superadmin
+
+**Basadas en Inventario:**
+- `tiene_objeto(llave_especial)` - Requiere objeto específico
+- `cuenta_items(5)` - Requiere tener al menos N items
+- `tiene_item_categoria(arma)` - Requiere tener item de categoría
+- `tiene_item_tag(magico)` - Requiere tener item con tag
+
+**Basadas en Ubicación:**
+- `en_sala(plaza_central)` - Solo en sala específica
+- `en_categoria_sala(templo)` - Solo en salas de categoría
+- `tiene_tag_sala(sagrado)` - Solo en salas con tag
+
+**Basadas en Estado:**
+- `online()` - Solo si el personaje está conectado
+
+**Combinaciones:**
+- `rol(ADMIN) or tiene_objeto(permiso)` - Operador OR
+- `rol(ADMIN) and tiene_objeto(llave)` - Operador AND
+- `not cuenta_items(10)` - Operador NOT
+- `(rol(ADMIN) or tiene_objeto(llave)) and online()` - Expresiones complejas
 
 Ver: `docs/sistemas-del-motor/sistema-de-permisos.md` para documentación completa sobre locks.
 
@@ -181,18 +236,29 @@ Los contenedores permiten a los jugadores almacenar objetos dentro de otros obje
 
 ### Contenedor Fijo (Cofre)
 
-Para crear un contenedor que NO se puede coger (permanece en la sala):
+Para crear un contenedor que NO se puede coger pero es accesible:
 
 ```python
 "cofre_roble": {
     "name": "un cofre de roble",
     "keywords": ["cofre", "roble", "cofre de roble"],
-    "description": "Un pesado cofre de madera con refuerzos de hierro. Parece estar cerrado con llave.",
+    "description": "Un pesado cofre de madera con refuerzos de hierro.",
     "category": "contenedor",
     "tags": ["contenedor", "cofre", "fijo"],
     "is_container": True,
     "capacity": 20,
-    "locks": "rol(SUPERADMIN)",  # Lock impide cogerlo = lo hace inamovible
+
+    # Locks contextuales: fijo pero accesible
+    "locks": {
+        "get": "rol(SUPERADMIN)",  # No se puede coger (muy pesado)
+        "put": "",                  # Todos pueden meter cosas
+        "take": ""                  # Todos pueden sacar cosas
+    },
+
+    "lock_messages": {
+        "get": "El cofre es demasiado pesado para levantarlo. Está firmemente anclado al suelo."
+    },
+
     "display": {
         "icon": "📦"
     }
@@ -200,13 +266,14 @@ Para crear un contenedor que NO se puede coger (permanece en la sala):
 ```
 
 **Resultado**:
-- `/coger cofre` → Falla (el lock lo impide)
-- `/meter espada cofre` → Funciona (puedes interactuar con él)
+- `/coger cofre` → "El cofre es demasiado pesado para levantarlo..."
+- `/meter espada cofre` → Funciona (sin restricción)
+- `/sacar espada cofre` → Funciona (sin restricción)
 - El cofre permanece en la sala
 
-### Contenedor con Lock de Acceso
+### Contenedor con Llave
 
-Para crear un cofre que también requiere una llave para abrirlo:
+Para crear un cofre que requiere una llave para acceder:
 
 ```python
 "cofre_cerrado": {
@@ -214,10 +281,23 @@ Para crear un cofre que también requiere una llave para abrirlo:
     "keywords": ["cofre", "cerrado"],
     "description": "Un cofre de hierro con una cerradura compleja.",
     "category": "contenedor",
-    "tags": ["contenedor", "cofre", "cerrado"],
+    "tags": ["contenedor", "cofre", "cerrado", "fijo"],
     "is_container": True,
     "capacity": 15,
-    "locks": "tiene_objeto(llave_cofre) or rol(ADMIN)",  # Requiere llave O ser admin
+
+    # Locks contextuales: fijo y cerrado
+    "locks": {
+        "get": "rol(SUPERADMIN)",                   # No se puede coger
+        "put": "tiene_objeto(llave_cofre) or rol(ADMIN)",   # Necesita llave para meter
+        "take": "tiene_objeto(llave_cofre) or rol(ADMIN)"   # Necesita llave para sacar
+    },
+
+    "lock_messages": {
+        "get": "El cofre está encadenado al suelo.",
+        "put": "El cofre está cerrado con llave. Necesitas la llave del cofre.",
+        "take": "El cofre está cerrado con llave. Necesitas la llave del cofre."
+    },
+
     "display": {
         "icon": "🔒"
     }
@@ -225,9 +305,9 @@ Para crear un cofre que también requiere una llave para abrirlo:
 ```
 
 **Uso**:
-- Sin llave: `/inv cofre` → "No tienes permiso para acceder a este contenedor"
-- Con llave: `/inv cofre` → Muestra contenido
-- Como admin: Acceso automático
+- Sin llave: `/meter espada cofre` → "El cofre está cerrado con llave..."
+- Con llave: `/meter espada cofre` → Funciona
+- Como admin: Acceso automático (bypass del lock)
 
 ---
 

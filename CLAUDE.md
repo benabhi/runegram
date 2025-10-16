@@ -256,14 +256,34 @@ Ver: `docs/arquitectura/configuracion.md`
 
 Ver: `src/services/command_service.py`
 
-### 2. Sistema de Permisos (Locks)
+### 2. Sistema de Permisos (Locks) - v2.0
+Sistema extensible de permisos con **9 lock functions** y soporte para **locks contextuales** (diferentes restricciones por tipo de acción).
+
 ```python
-lock = ""                    # Todos pueden acceder
-lock = "rol(ADMIN)"         # Solo admins
-lock = "rol(SUPERADMIN)"    # Solo superadmin
+# Lock simple (backward compatible)
+lock = ""                         # Todos pueden acceder
+lock = "rol(ADMIN)"               # Solo admins
+lock = "tiene_objeto(llave)"      # Necesita item específico
+
+# Locks contextuales (v2.0) - diferentes por access_type
+locks = {
+    "get": "rol(SUPERADMIN)",      # Solo SUPERADMIN puede coger
+    "put": "tiene_objeto(llave)",  # Necesita llave para meter
+    "take": ""                     # Todos pueden sacar
+}
+
+# Con mensajes personalizados
+lock_messages = {
+    "get": "El cofre está anclado al suelo.",
+    "put": "El cofre está cerrado con llave."
+}
 ```
 
-Ver: `src/services/permission_service.py`
+**9 Lock Functions**: `rol()`, `tiene_objeto()`, `cuenta_items()`, `tiene_item_categoria()`, `tiene_item_tag()`, `en_sala()`, `en_categoria_sala()`, `tiene_tag_sala()`, `online()` (asíncrona)
+
+**Access Types**: `get`, `put`, `take`, `traverse`, `open`, `use`, `default`
+
+Ver: `docs/sistemas-del-motor/sistema-de-permisos.md`
 
 ### 3. Sistema de Prototipos
 - **Prototipos**: Definen características estáticas (salas, items, canales)
@@ -857,9 +877,10 @@ Crear un juego masivo, funcional e inmersivo que aproveche las fortalezas única
 
 ---
 
-**Versión**: 2.1.2
-**Última actualización**: 2025-01-11
+**Versión**: 2.2.0
+**Última actualización**: 2025-01-16
 **Changelog**:
+- v2.2 (2025-01-16): Sistema de Permisos v2.0 (locks contextuales, 9 lock functions, mensajes personalizados, async support)
 - v2.1.2 (2025-01-11): Canales con audience se activan automáticamente si hay permisos
 - v2.1.1 (2025-01-11): Mejora UX: /canales oculta canales sin permiso de acceso
 - v2.1 (2025-01-11): Sistema de Filtrado de Audiencia para Canales implementado

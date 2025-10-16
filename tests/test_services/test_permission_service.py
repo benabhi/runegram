@@ -382,3 +382,212 @@ class TestRoleHierarchy:
 
         assert can_pass_player, "SUPERADMIN debería poder pasar rol(JUGADOR)"
         assert can_pass_admin, "SUPERADMIN debería poder pasar rol(ADMIN)"
+
+
+@pytest.mark.critical
+@pytest.mark.asyncio
+class TestContextualLocks:
+    """Tests para el sistema de locks contextuales (v2.0)."""
+
+    async def test_dict_locks_with_specific_access_type(self, db_session):
+        """
+        Test: Locks contextuales con access_type específico funcionan correctamente.
+        """
+        account = Account(telegram_id=12345, role="JUGADOR")
+        db_session.add(account)
+        await db_session.commit()
+
+        character = Character(name="TestChar", account_id=account.id, account=account)
+
+        locks = {
+            "get": "rol(ADMIN)",
+            "open": "",  # Sin restricción
+            "put": "rol(ADMIN)"
+        }
+
+        # get: requiere ADMIN (character es JUGADOR) → Debería fallar
+        can_get, _ = await permission_service.can_execute(character, locks, "get")
+        assert not can_get, "JUGADOR no debería poder pasar lock 'get' que requiere ADMIN"
+
+        # open: sin restricción → Debería pasar
+        can_open, _ = await permission_service.can_execute(character, locks, "open")
+        assert can_open, "Lock vacío debería siempre pasar"
+
+        # put: requiere ADMIN → Debería fallar
+        can_put, _ = await permission_service.can_execute(character, locks, "put")
+        assert not can_put, "JUGADOR no debería poder pasar lock 'put' que requiere ADMIN"
+
+    async def test_dict_locks_with_default_fallback(self, db_session):
+        """
+        Test: Si no existe access_type específico, usa 'default'.
+        """
+        account = Account(telegram_id=12345, role="JUGADOR")
+        db_session.add(account)
+        await db_session.commit()
+
+        character = Character(name="TestChar", account_id=account.id, account=account)
+
+        locks = {
+            "default": "rol(ADMIN)",
+            "open": ""
+        }
+
+        # get: no existe, usa default (requiere ADMIN) → Debería fallar
+        can_get, _ = await permission_service.can_execute(character, locks, "get")
+        assert not can_get, "Debería usar 'default' si no existe access_type específico"
+
+        # open: existe específico (vacío = sin restricción) → Debería pasar
+        can_open, _ = await permission_service.can_execute(character, locks, "open")
+        assert can_open, "Lock vacío específico debería pasar"
+
+    async def test_backward_compat_string_simple(self, db_session):
+        """
+        Test: String simple sigue funcionando (backward compatibility).
+        """
+        account = Account(telegram_id=12345, role="JUGADOR")
+        db_session.add(account)
+        await db_session.commit()
+
+        character = Character(name="TestChar", account_id=account.id, account=account)
+
+        lock_string = "rol(ADMIN)"
+
+        # Sin especificar access_type (default)
+        can_pass, _ = await permission_service.can_execute(character, lock_string)
+        assert not can_pass, "String simple debería funcionar como antes"
+
+        # Especificando access_type (debería usar el string como default)
+        can_pass, _ = await permission_service.can_execute(character, lock_string, "get")
+        assert not can_pass, "String simple con access_type debería funcionar"
+
+    async def test_custom_lock_messages(self, db_session):
+        """
+        Test: Mensajes de error personalizados funcionan correctamente.
+        """
+        account = Account(telegram_id=12345, role="JUGADOR")
+        db_session.add(account)
+        await db_session.commit()
+
+        character = Character(name="TestChar", account_id=account.id, account=account)
+
+        locks = {"get": "rol(SUPERADMIN)"}
+        lock_messages = {"get": "El cofre es demasiado pesado para levantarlo."}
+
+        can_pass, error_message = await permission_service.can_execute(
+            character,
+            locks,
+            "get",
+            lock_messages
+        )
+
+        assert not can_pass, "JUGADOR no debería pasar lock SUPERADMIN"
+        assert error_message == "El cofre es demasiado pesado para levantarlo.", \
+            "Debería retornar mensaje personalizado"
+
+    async def test_empty_dict_lock_always_passes(self, sample_character):
+        """
+        Test: Diccionario vacío debería siempre pasar.
+        """
+        can_pass, _ = await permission_service.can_execute(sample_character, {})
+        assert can_pass, "Diccionario vacío debería siempre permitir el acceso"
+
+
+@pytest.mark.asyncio
+class TestNewLockFunctions:
+    """Tests para las nuevas lock functions (v2.0)."""
+
+    async def test_en_sala(self, db_session, sample_room):
+        """
+        Test: Lock function en_sala() funciona correctamente.
+        """
+        account = Account(telegram_id=12345, role="JUGADOR")
+        db_session.add(account)
+        await db_session.commit()
+
+        # Configurar room.key
+        sample_room.key = "plaza_central"
+        db_session.add(sample_room)
+        await db_session.commit()
+
+        character = Character(
+            name="TestChar",
+            account_id=account.id,
+            account=account,
+            room_id=sample_room.id,
+            room=sample_room
+        )
+        db_session.add(character)
+        await db_session.commit()
+
+        # Character está en plaza_central → Debería pasar
+        can_pass, _ = await permission_service.can_execute(character, "en_sala(plaza_central)")
+        assert can_pass, "Debería pasar si está en la sala correcta"
+
+        # Character NO está en biblioteca → NO debería pasar
+        can_pass, _ = await permission_service.can_execute(character, "en_sala(biblioteca)")
+        assert not can_pass, "No debería pasar si NO está en la sala"
+
+    async def test_cuenta_items(self, db_session, sample_room):
+        """
+        Test: Lock function cuenta_items() funciona correctamente.
+        """
+        account = Account(telegram_id=12345, role="JUGADOR")
+        db_session.add(account)
+        await db_session.commit()
+
+        character = Character(
+            name="TestChar",
+            account_id=account.id,
+            account=account,
+            room_id=sample_room.id
+        )
+        db_session.add(character)
+        await db_session.commit()
+
+        # Agregar 3 items al character
+        for i in range(3):
+            item = Item(key=f"item_{i}", character_id=character.id)
+            db_session.add(item)
+        await db_session.commit()
+
+        await db_session.refresh(character, ["items"])
+
+        # Character tiene >= 2 items → Debería pasar
+        can_pass, _ = await permission_service.can_execute(character, "cuenta_items(2)")
+        assert can_pass, "Debería pasar si tiene suficientes items"
+
+        # Character NO tiene >= 10 items → NO debería pasar
+        can_pass, _ = await permission_service.can_execute(character, "cuenta_items(10)")
+        assert not can_pass, "No debería pasar si no tiene suficientes items"
+
+    async def test_tiene_item_categoria(self, db_session, sample_room):
+        """
+        Test: Lock function tiene_item_categoria() funciona correctamente.
+        """
+        account = Account(telegram_id=12345, role="JUGADOR")
+        db_session.add(account)
+        await db_session.commit()
+
+        character = Character(
+            name="TestChar",
+            account_id=account.id,
+            account=account,
+            room_id=sample_room.id
+        )
+        db_session.add(character)
+        await db_session.commit()
+
+        # Agregar espada (categoría "arma")
+        item = Item(key="espada_hierro", category="arma", character_id=character.id)
+        db_session.add(item)
+        await db_session.commit()
+
+        await db_session.refresh(character, ["items"])
+
+        # Character tiene item de categoría "arma" → Debería pasar
+        can_pass, _ = await permission_service.can_execute(character, "tiene_item_categoria(arma)")
+        assert can_pass, "Debería pasar si tiene item de la categoría"
+
+        # Character NO tiene item de categoría "armadura" → NO debería pasar
+        can_pass, _ = await permission_service.can_execute(character, "tiene_item_categoria(armadura)")
+        assert not can_pass, "No debería pasar si no tiene item de la categoría"

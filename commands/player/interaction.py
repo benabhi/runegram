@@ -242,8 +242,15 @@ class CmdGet(Command):
                 await message.answer("No ves eso por aquí.")
                 return
 
-            lock_string = item_to_get.prototype.get("locks", "")
-            can_pass, error_message = await permission_service.can_execute(character, lock_string)
+            # Verificar locks con access type "get"
+            locks = item_to_get.prototype.get("locks", "")
+            lock_messages = item_to_get.prototype.get("lock_messages", {})
+            can_pass, error_message = await permission_service.can_execute(
+                character,
+                locks,
+                access_type="get",
+                lock_messages=lock_messages
+            )
             if not can_pass:
                 await message.answer(error_message or "No puedes coger eso.")
                 return
@@ -353,10 +360,17 @@ class CmdPut(Command):
                 await message.answer(f"{container.get_name().capitalize()} no es un contenedor.")
                 return
 
-            lock_string = container.prototype.get("locks", "")
-            can_pass, _ = await permission_service.can_execute(character, lock_string)
+            # Verificar locks con access type "put"
+            locks = container.prototype.get("locks", "")
+            lock_messages = container.prototype.get("lock_messages", {})
+            can_pass, error_message = await permission_service.can_execute(
+                character,
+                locks,
+                access_type="put",
+                lock_messages=lock_messages
+            )
             if not can_pass:
-                await message.answer(f"No puedes meter nada en {container.get_name()}.")
+                await message.answer(error_message or f"No puedes meter nada en {container.get_name()}.")
                 return
 
             capacity = container.prototype.get("capacity", 999)
@@ -433,10 +447,17 @@ class CmdTake(Command):
                 await message.answer(f"No ves ningún '{container_name}' por aquí.")
                 return
 
-            lock_string = container.prototype.get("locks", "")
-            can_pass, _ = await permission_service.can_execute(character, lock_string)
+            # Verificar locks con access type "take"
+            locks = container.prototype.get("locks", "")
+            lock_messages = container.prototype.get("lock_messages", {})
+            can_pass, error_message = await permission_service.can_execute(
+                character,
+                locks,
+                access_type="take",
+                lock_messages=lock_messages
+            )
             if not can_pass:
-                await message.answer(f"No puedes sacar nada de {container.get_name()}.")
+                await message.answer(error_message or f"No puedes sacar nada de {container.get_name()}.")
                 return
 
             # Buscar item con soporte para ordinales

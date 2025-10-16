@@ -61,9 +61,13 @@ class CmdMove(Command):
                 await message.answer("No puedes ir en esa dirección.")
                 return
 
-            # 3. Comprobar permisos (Locks).
-            #    Llamamos al permission_service para evaluar el lock_string de la salida.
-            can_pass, error_message = await permission_service.can_execute(character, target_exit.locks)
+            # 3. Comprobar permisos (Locks) con access type "traverse".
+            #    Llamamos al permission_service para evaluar el lock de la salida.
+            can_pass, error_message = await permission_service.can_execute(
+                character,
+                target_exit.locks,
+                access_type="traverse"
+            )
             if not can_pass:
                 # Si `can_execute` devuelve un mensaje personalizado, lo usamos.
                 # Si no, usamos un mensaje genérico.

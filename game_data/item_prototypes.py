@@ -69,7 +69,7 @@ ITEM_PROTOTYPES = {
         }
     },
 
-    # Un contenedor fijo que no se puede coger y necesita una llave (futuro).
+    # Un contenedor fijo con locks contextuales y mensajes personalizados.
     "cofre_roble": {
         "name": "un cofre de roble",
         "keywords": ["cofre", "roble"],
@@ -78,12 +78,92 @@ ITEM_PROTOTYPES = {
         "tags": ["cofre", "fijo", "madera", "cerrado"],
         "is_container": True,
         "capacity": 20,
-        # Este lock evita que el objeto sea cogido con `/coger`.
-        "locks": "rol(SUPERADMIN)",
-        # Futuro: Podríamos tener un lock específico para abrir/cerrar.
-        # "open_lock": "tiene_objeto(llave_cofre_roble)"
+        # Sistema de locks contextuales (v2.0)
+        "locks": {
+            "get": "rol(SUPERADMIN)",  # Solo SUPERADMIN puede cogerlo (muy pesado)
+            "put": "",                  # Todos pueden meter cosas (sin lock)
+            "take": ""                  # Todos pueden sacar cosas (sin lock)
+        },
+        # Mensajes de error personalizados por access type
+        "lock_messages": {
+            "get": "El cofre es demasiado pesado para levantarlo. Está firmemente anclado al suelo."
+        },
         "display": {
             "icon": "📦",  # Icono de cofre/caja
+        }
+    },
+
+    # Ejemplo de contenedor con llave (locks contextuales avanzados)
+    "cofre_magico": {
+        "name": "un cofre mágico",
+        "keywords": ["cofre", "magico"],
+        "description": "Un cofre ornamentado con runas brillantes. Parece necesitar una llave especial para abrirlo.",
+        "category": "contenedor",
+        "tags": ["cofre", "magico", "cerrado", "fijo"],
+        "is_container": True,
+        "capacity": 10,
+        "locks": {
+            "get": "rol(SUPERADMIN)",  # Demasiado pesado para cogerlo
+            "put": "tiene_objeto(llave_magica)",  # Necesita llave para meter
+            "take": "tiene_objeto(llave_magica)"  # Necesita llave para sacar
+        },
+        "lock_messages": {
+            "get": "El cofre está encantado y firmemente fijado al suelo.",
+            "put": "El cofre está sellado con magia. Necesitas la llave mágica.",
+            "take": "El cofre está sellado con magia. Necesitas la llave mágica."
+        },
+        "display": {
+            "icon": "📦✨",
+        }
+    },
+
+    # Llave mágica para el cofre
+    "llave_magica": {
+        "name": "una llave de cristal",
+        "keywords": ["llave", "cristal", "magica"],
+        "description": "Una llave hecha de cristal translúcido que emite un suave brillo azul.",
+        "category": "llave",
+        "tags": ["llave", "magica", "unica"],
+        "display": {
+            "icon": "🔑",
+        }
+    },
+
+    # Objeto que solo puede cogerse en ciertas salas
+    "reliquia_sagrada": {
+        "name": "una reliquia sagrada",
+        "keywords": ["reliquia", "sagrada"],
+        "description": "Un objeto de poder divino que solo puede ser tocado en lugares sagrados.",
+        "category": "quest",
+        "tags": ["quest", "unica", "sagrada"],
+        "locks": {
+            "get": "en_categoria_sala(templo) or rol(ADMIN)",
+            "drop": "en_categoria_sala(templo) or rol(ADMIN)"
+        },
+        "lock_messages": {
+            "get": "La reliquia rechaza tu toque. Solo puede ser recogida en un lugar sagrado.",
+            "drop": "La reliquia rechaza ser abandonada aquí. Debe permanecer en un lugar sagrado."
+        },
+        "display": {
+            "icon": "✨",
+        }
+    },
+
+    # Objeto con límite de inventario
+    "saco_pesado": {
+        "name": "un saco pesado",
+        "keywords": ["saco", "pesado"],
+        "description": "Un saco lleno de piedras. Muy pesado.",
+        "category": "objeto",
+        "tags": ["pesado"],
+        "locks": {
+            "get": "not cuenta_items(10)"  # Solo si tiene menos de 10 items
+        },
+        "lock_messages": {
+            "get": "Ya llevas demasiadas cosas. No puedes cargar más peso."
+        },
+        "display": {
+            "icon": "💼",
         }
     },
 }

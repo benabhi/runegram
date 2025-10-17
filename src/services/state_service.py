@@ -19,9 +19,10 @@ import json
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
+import redis.asyncio as redis
 
 from src.models import Item, Room, Character
-from src.bot import redis_client
+from src.config import settings
 
 
 class StateService:
@@ -56,6 +57,15 @@ class StateService:
             ttl=timedelta(minutes=5)
         )
     """
+
+    def __init__(self):
+        """Inicializa el cliente de Redis."""
+        self.redis_client = redis.Redis(
+            host=settings.redis_host,
+            port=settings.redis_port,
+            db=settings.redis_db,
+            decode_responses=False  # Manejamos serialización manualmente
+        )
 
     # =================== ESTADO PERSISTENTE (PostgreSQL) ===================
 
@@ -198,7 +208,7 @@ class StateService:
         redis_key = self._make_redis_key(entity, key)
 
         try:
-            value_json = await redis_client.get(redis_key)
+            value_json = await self.redis_client.get(redis_key)
 
             if value_json is None:
                 return default
@@ -235,13 +245,13 @@ class StateService:
 
             # Establecer en Redis con TTL opcional
             if ttl:
-                await redis_client.setex(
+                await self.redis_client.setex(
                     redis_key,
                     int(ttl.total_seconds()),
                     value_json
                 )
             else:
-                await redis_client.set(redis_key, value_json)
+                await self.redis_client.set(redis_key, value_json)
 
             logging.debug(
                 f"Estado transiente actualizado: {entity.__class__.__name__}#{entity.id} "
@@ -266,7 +276,7 @@ class StateService:
         redis_key = self._make_redis_key(entity, key)
 
         try:
-            await redis_client.delete(redis_key)
+            await self.redis_client.delete(redis_key)
         except Exception:
             logging.exception(f"Error eliminando estado transiente: {redis_key}")
 
@@ -286,7 +296,7 @@ class StateService:
         redis_key = self._make_redis_key(entity, key)
 
         try:
-            exists = await redis_client.exists(redis_key)
+            exists = await self.redis_client.exists(redis_key)
             return bool(exists)
         except Exception:
             logging.exception(f"Error verificando existencia transiente: {redis_key}")
@@ -306,7 +316,7 @@ class StateService:
         redis_key = self._make_redis_key(entity, key)
 
         try:
-            ttl = await redis_client.ttl(redis_key)
+            ttl = await self.redis_client.ttl(redis_key)
 
             # -2 = no existe, -1 = sin expiración
             if ttl == -2 or ttl == -1:

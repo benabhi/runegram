@@ -138,19 +138,24 @@ class SchedulerService:
         """
         Procesa tick_scripts (sistema v1.0 - mantenido por retrocompatibilidad).
 
-        OPTIMIZACIÓN v2.0: Solo cargar items que tienen tick_scripts.
+        NOTA: Carga todos los items y filtra en Python, ya que prototype es una
+        propiedad Python, no una columna JSONB en la BD.
         """
         try:
-            # Optimización: Filtrar items CON tick_scripts usando query JSON
-            query = select(Item).where(
-                Item.prototype['tick_scripts'].astext.is_not(None)
-            ).options(
+            # Cargar todos los items con sus relaciones
+            query = select(Item).options(
                 selectinload(Item.room),
                 selectinload(Item.character).selectinload(Character.room)
             )
 
             result = await session.execute(query)
-            items_with_scripts = result.scalars().all()
+            all_items = result.scalars().all()
+
+            # Filtrar items que tienen tick_scripts (en Python)
+            items_with_scripts = [
+                item for item in all_items
+                if item.prototype.get("tick_scripts")
+            ]
 
             for item in items_with_scripts:
                 tick_scripts = item.prototype.get("tick_scripts", [])

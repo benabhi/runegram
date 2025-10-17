@@ -43,6 +43,11 @@ class Character(Base):
         default=["general", "character_creation", "interaction", "movement", "channels", "dynamic_channels", "settings", "appeal"]
     )
 
+    # --- Estado de Scripts v2.0 ---
+    # Estado persistente para scripts de personaje (quests, achievements, stats, etc.)
+    # Gestionado por state_service
+    script_state = Column(JSONB, nullable=True, default=dict)
+
     # --- Relaciones de SQLAlchemy ---
     account = relationship("Account", back_populates="character")
     room = relationship("Room", back_populates="characters")

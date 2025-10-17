@@ -37,6 +37,11 @@ class Item(Base):
     # Almacena el estado de tracking para tick_scripts (cuándo se ejecutaron, etc.)
     tick_data = Column(JSONB, nullable=True, default=dict)
 
+    # --- Estado de Scripts v2.0 ---
+    # Estado persistente para scripts (quest progress, contadores, flags, etc.)
+    # Gestionado por state_service
+    script_state = Column(JSONB, nullable=True, default=dict)
+
     # --- Ubicación del Objeto ---
     # Un objeto solo puede estar en una ubicación a la vez. Por lo tanto,
     # solo una de las siguientes tres columnas (`room_id`, `character_id`,

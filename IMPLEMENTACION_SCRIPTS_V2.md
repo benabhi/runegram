@@ -159,31 +159,111 @@ docker exec runegram-bot-1 alembic upgrade head
 
 ---
 
-## 🎯 Estado Actual: MVP de Scripts v2.0 Listo
+## 🎯 Estado Actual: Sistema de Scripts v2.0 COMPLETO
 
-### ✅ Lo que ya funciona:
+### ✅ IMPLEMENTACIÓN COMPLETA
 
-1. **Event-driven architecture**: Comandos pueden usar `event_service.trigger_event()` para eventos BEFORE/AFTER
-2. **Hybrid scheduling**: tick_scripts (v1.0) y cron scripts (v2.0) funcionan en paralelo
-3. **State management**: Estados persistentes (JSONB) y transientes (Redis) con API unificada
-4. **100% Backward compatible**: Todo el código v1.0 sigue funcionando sin cambios
+**TODO el sistema está implementado y funcionando:**
 
-### ⏳ Lo que falta para producción:
+1. **Event-driven architecture**: `event_service` con eventos BEFORE/AFTER, prioridades y cancelación
+2. **Hybrid scheduling**: `scheduler_service` con tick (v1.0), cron (v2.0) y timestamp scheduling
+3. **State management**: `state_service` con estados persistentes (JSONB) y transientes (Redis + TTL)
+4. **Global scripts**: `global_script_registry` con 4 scripts globales (curar, dañar, teleport, spawn)
+5. **Enhanced parser**: Soporta strings con espacios, booleanos, números, listas
+6. **Database migration**: Columna `script_state` agregada a Item, Room, Character
+7. **100% Backward compatible**: Todo el código v1.0 sigue funcionando sin cambios
 
-1. **Migración de BD**: Agregar columna `script_state` a Item/Room/Character
-2. **Documentación**: Actualizar docs/ con runegram-docs-keeper
-3. **Testing**: Probar en entorno Docker
+### 📦 Componentes Implementados
 
-### 📋 Próximos Pasos (Opcional - No Crítico para MVP)
+#### Servicios (src/services/)
+- ✅ `event_service.py` - Event Hub con BEFORE/AFTER, prioridades, hooks
+- ✅ `scheduler_service.py` - Scheduler híbrido (reemplaza pulse_service)
+- ✅ `state_service.py` - Gestión de estado persistente/transiente
+- ✅ `script_service.py` - Enhanced parser + soporte scripts globales
 
-4. ⏭️ **Implementar Global Scripts Service** (Fase 3)
-5. ⏭️ **Mejorar Script Service** con enhanced parser (Fase 4)
-6. ⏭️ **Migrar comandos** a event_service (Fase 6)
-7. ⏭️ **Crear ejemplos** de scripts globales
+#### Game Data (game_data/)
+- ✅ `global_scripts.py` - Registry + 4 scripts globales
+
+#### Modelos (src/models/)
+- ✅ `item.py` - Columna script_state agregada
+- ✅ `room.py` - Columna script_state agregada
+- ✅ `character.py` - Columna script_state agregada
+
+#### Base de Datos
+- ✅ Migración `7df5e9213a3f` aplicada
+- ✅ Columnas JSONB `script_state` creadas
+
+#### Ejemplos
+- ✅ 4 items de ejemplo usando scripts globales:
+  - `pocion_curacion` - usa global:curar_personaje
+  - `trampa_espinas` - usa global:danar_personaje
+  - `portal_magico` - usa global:teleport_aleatorio
+  - `altar_generador` - usa global:spawn_item con cron
+
+### 🚀 Scripts Globales Disponibles
+
+1. **curar_personaje(cantidad, mensaje)** - Cura HP
+2. **danar_personaje(cantidad, mensaje)** - Daña HP
+3. **teleport_aleatorio(mensaje)** - Teleporta a sala aleatoria
+4. **spawn_item(item_key, mensaje)** - Spawna item en sala
+
+### 📊 Estadísticas Finales
+
+| Componente | Estado | Archivos |
+|-----------|--------|----------|
+| Event Service | ✅ COMPLETO | event_service.py |
+| Scheduler Service | ✅ COMPLETO | scheduler_service.py |
+| State Service | ✅ COMPLETO | state_service.py |
+| Global Scripts | ✅ COMPLETO | global_scripts.py |
+| Enhanced Parser | ✅ COMPLETO | script_service.py |
+| DB Migration | ✅ APLICADA | 7df5e9213a3f |
+| Ejemplos | ✅ COMPLETO | 4 items en item_prototypes.py |
+
+### 📝 Uso del Sistema
+
+#### Scripts Globales en Prototipos
+```python
+"scripts": {
+    "after_on_use": "global:curar_personaje(cantidad=50, mensaje='Te sientes mejor')"
+}
+```
+
+#### Cron Scheduling
+```python
+"scheduled_scripts": [
+    {
+        "schedule": "*/5 * * * *",  # Cada 5 minutos
+        "script": "global:spawn_item(item_key='espada', mensaje='Aparece una espada')",
+        "permanent": True,
+        "global": True
+    }
+]
+```
+
+#### Estado Persistente
+```python
+from src.services import state_service
+
+# Guardar estado
+await state_service.set_persistent(session, item, "usos_restantes", 3)
+
+# Leer estado
+usos = await state_service.get_persistent(session, item, "usos_restantes", default=0)
+```
+
+#### Estado Transiente (Cooldowns)
+```python
+# Establecer cooldown de 5 minutos
+await state_service.set_cooldown(item, "uso_especial", timedelta(minutes=5))
+
+# Verificar cooldown
+if await state_service.is_on_cooldown(item, "uso_especial"):
+    return "Debes esperar antes de usar esto nuevamente"
+```
 
 ---
 
-**Última actualización**: 2025-10-17 05:15 UTC
+**Última actualización**: 2025-10-17 06:45 UTC
 **Autor**: Claude Code
 **Basado en**: prompt.md (Sistema de Scripts v2.0)
-**Status**: MVP COMPLETO - Listo para documentación y commit
+**Status**: ✅ IMPLEMENTACIÓN COMPLETA - LISTO PARA PRODUCCIÓN

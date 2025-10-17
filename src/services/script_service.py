@@ -1,6 +1,6 @@
 # src/services/script_service.py
 """
-Módulo de Servicio para la Ejecución de Scripts.
+Servicio de Ejecución de Scripts v2.0.
 
 Este servicio actúa como el "traductor" entre el contenido del juego (definido
 como strings en los archivos de prototipos) y la lógica del motor (código Python).
@@ -13,11 +13,17 @@ Funciona con un sistema de registro:
 3.  Los archivos de prototipos en `game_data` usan ese nombre para referirse a ellas.
 4.  El método `execute_script` se encarga de parsear el string, buscar la
     función en el registro y ejecutarla con el contexto adecuado.
+
+Mejoras v2.0:
+- Enhanced parser con soporte de argumentos complejos (strings con espacios, listas)
+- Soporte de scripts globales con prefijo "global:"
+- Integración con global_script_registry
 """
 
 import re
 import random
 import logging
+import shlex
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.character import Character
@@ -91,47 +97,136 @@ def _parse_script_string(script_string: str) -> tuple[str, dict]:
     Parsea un string de script como 'nombre(clave=valor, ...)' y devuelve
     el nombre de la función y un diccionario de argumentos.
 
-    Limitación actual: solo soporta argumentos simples de tipo `clave=valor`.
+    v2.0 Enhanced Parser:
+    - Soporta strings con espacios: script(msg="Hola mundo")
+    - Soporta booleanos: script(activo=true)
+    - Soporta números: script(cantidad=50)
+    - Soporta listas: script(items=[espada,escudo])
+    - Usa shlex para parsing robusto
     """
-    match = re.match(r"(\w+)\((.*)\)", script_string)
+    # Detectar si es un script global (prefijo "global:")
+    is_global = script_string.startswith("global:")
+    if is_global:
+        script_string = script_string[7:]  # Remover "global:"
+
+    match = re.match(r"([\w:]+)\((.*)\)", script_string)
     if not match:
         # Si el script no tiene paréntesis, se asume que no tiene argumentos.
-        return script_string, {}
+        return (script_string, {}), is_global
 
     name, args_str = match.groups()
     kwargs = {}
+
     if args_str:
         try:
-            kwargs = dict(arg.strip().split('=') for arg in args_str.split(','))
-        except ValueError:
-            logging.warning(f"Argumentos de script mal formados en '{script_string}'. Ignorando argumentos.")
-    return name, kwargs
+            # Usar shlex para parsing robusto de argumentos
+            tokens = shlex.split(args_str, posix=False)
+
+            for token in tokens:
+                if '=' not in token:
+                    logging.warning(f"Argumento mal formado en '{script_string}': '{token}' (esperado clave=valor)")
+                    continue
+
+                key, value = token.split('=', 1)
+                key = key.strip()
+                value = value.strip()
+
+                # Remover comillas si existen
+                if (value.startswith('"') and value.endswith('"')) or \
+                   (value.startswith("'") and value.endswith("'")):
+                    value = value[1:-1]
+
+                # Convertir tipos
+                kwargs[key] = _parse_value(value)
+
+        except Exception as e:
+            logging.warning(f"Error parseando argumentos en '{script_string}': {e}")
+
+    return (name, kwargs), is_global
+
+
+def _parse_value(value: str):
+    """
+    Convierte un string a su tipo Python apropiado.
+
+    Soporta:
+    - Booleanos: true/false
+    - Números: 123, 45.6
+    - Listas: [item1,item2,item3]
+    - Strings: cualquier otra cosa
+    """
+    # Booleanos
+    if value.lower() == "true":
+        return True
+    if value.lower() == "false":
+        return False
+
+    # Listas
+    if value.startswith('[') and value.endswith(']'):
+        items = value[1:-1].split(',')
+        return [item.strip() for item in items if item.strip()]
+
+    # Números
+    try:
+        if '.' in value:
+            return float(value)
+        return int(value)
+    except ValueError:
+        pass
+
+    # String por defecto
+    return value
 
 
 async def execute_script(script_string: str, session: AsyncSession, **context):
     """
-    El corazón del motor de scripts. Parsea el string, busca la función en
-    el registro y la ejecuta con el contexto proporcionado.
+    El corazón del motor de scripts v2.0. Parsea el string, busca la función en
+    el registro (local o global) y la ejecuta con el contexto proporcionado.
+
+    v2.0 Mejoras:
+    - Soporte de scripts globales con prefijo "global:"
+    - Enhanced parser con argumentos complejos
+    - Integración con global_script_registry
 
     Args:
-        script_string (str): El string del script a ejecutar (ej: "mi_script(arg=val)").
+        script_string (str): El string del script a ejecutar
+            - Local: "script_name(arg=val)"
+            - Global: "global:script_name(arg=val)"
         session (AsyncSession): La sesión de base de datos activa.
         **context: Un diccionario con las entidades relevantes al evento
                    (ej: `character`, `target`, `room`).
+
+    Returns:
+        Resultado del script (puede ser None, bool, o cualquier valor)
     """
     if not script_string:
         return
 
-    script_name, kwargs = _parse_script_string(script_string)
+    (script_name, kwargs), is_global = _parse_script_string(script_string)
 
+    # Scripts globales (nuevo en v2.0)
+    if is_global:
+        from game_data.global_scripts import global_script_registry
+
+        try:
+            result = await global_script_registry.execute(
+                name=script_name,
+                context={**context, "session": session},
+                params=kwargs
+            )
+            return result
+        except Exception:
+            logging.exception(f"Error ejecutando script global '{script_name}'")
+            return None
+
+    # Scripts locales (v1.0 - retrocompatibilidad)
     if script_name in SCRIPT_REGISTRY:
         script_function = SCRIPT_REGISTRY[script_name]
         try:
-            # Ejecutamos la función encontrada, pasando el contexto y los argumentos parseados.
-            await script_function(session=session, **context, **kwargs)
+            result = await script_function(session=session, **context, **kwargs)
+            return result
         except Exception:
-            # Si un script falla, registramos el error con un traceback completo
-            # pero no detenemos la ejecución del resto del juego.
-            logging.exception(f"Ocurrió un error al ejecutar el script '{script_name}'")
+            logging.exception(f"Error ejecutando script local '{script_name}'")
+            return None
     else:
-        logging.warning(f"ADVERTENCIA: Se intentó ejecutar un script desconocido: '{script_name}'")
+        logging.warning(f"Script desconocido: '{script_name}' (no está en SCRIPT_REGISTRY ni en global_script_registry)")

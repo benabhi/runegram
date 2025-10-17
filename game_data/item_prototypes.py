@@ -166,4 +166,72 @@ ITEM_PROTOTYPES = {
             "icon": "💼",
         }
     },
+
+    # --- EJEMPLOS DE SCRIPTS GLOBALES (Sistema v2.0) ---
+
+    # Poción de curación que usa script global
+    "pocion_curacion": {
+        "name": "una poción de curación",
+        "keywords": ["pocion", "curacion", "pocima"],
+        "description": "Un frasco de cristal con un líquido rojo brillante. Huele a hierbas medicinales.",
+        "category": "consumible",
+        "tags": ["pocion", "curacion", "consumible"],
+        "scripts": {
+            "after_on_use": "global:curar_personaje(cantidad=50, mensaje='La poción te restaura la salud')"
+        },
+        "display": {
+            "icon": "🧪",
+        }
+    },
+
+    # Trampa que daña al personaje
+    "trampa_espinas": {
+        "name": "una trampa de espinas",
+        "keywords": ["trampa", "espinas"],
+        "description": "Una trampa oculta con espinas afiladas. Parece peligrosa.",
+        "category": "trampa",
+        "tags": ["trampa", "peligroso"],
+        "scripts": {
+            "after_on_look": "global:danar_personaje(cantidad=10, mensaje='¡Te pinchas con las espinas!')"
+        },
+        "display": {
+            "icon": "🦔",
+        }
+    },
+
+    # Portal mágico que teleporta
+    "portal_magico": {
+        "name": "un portal mágico",
+        "keywords": ["portal", "magico"],
+        "description": "Un portal resplandeciente que distorsiona el espacio. ¿A dónde llevará?",
+        "category": "portal",
+        "tags": ["portal", "magico", "transporte"],
+        "scripts": {
+            "after_on_use": "global:teleport_aleatorio(mensaje='El portal te absorbe y te transporta a otro lugar')"
+        },
+        "display": {
+            "icon": "🌀",
+        }
+    },
+
+    # Altar que spawna items periódicamente
+    "altar_generador": {
+        "name": "un altar antiguo",
+        "keywords": ["altar", "antiguo", "generador"],
+        "description": "Un altar de piedra cubierto de runas. Irradia poder mágico.",
+        "category": "altar",
+        "tags": ["altar", "magico", "generador"],
+        "scheduled_scripts": [
+            {
+                "schedule": "*/5 * * * *",  # Cada 5 minutos
+                "script": "global:spawn_item(item_key='pocion_curacion', mensaje='El altar brilla y materializa una poción')",
+                "permanent": True,
+                "global": True,
+                "category": "ambient"
+            }
+        ],
+        "display": {
+            "icon": "⛩️",
+        }
+    },
 }

@@ -70,10 +70,14 @@ async def on_startup(dispatcher):
         #    Si hay errores de configuración, el bot no debe arrancar.
         validation_service.validate_all()
 
-        # 1. Inicia el sistema de scheduling (tick + cron).
+        # 1. Registrar scripts globales (Sistema de Scripts v2.0)
+        from game_data.global_scripts import register_all_global_scripts
+        register_all_global_scripts()
+
+        # 2. Inicia el sistema de scheduling (tick + cron).
         scheduler_service.start()
 
-        # 2. Crea una sesión de base de datos para las tareas de inicialización.
+        # 3. Crea una sesión de base de datos para las tareas de inicialización.
         async with async_session_factory() as session:
             # Asegura que la cuenta del Superadmin exista y tenga el rol correcto.
             await _ensure_superadmin_exists(session)
@@ -81,7 +85,7 @@ async def on_startup(dispatcher):
             # Sincroniza el mundo estático (salas, salidas) desde los archivos de prototipos.
             await world_loader_service.sync_world_from_prototypes(session)
 
-        # 3. Añade el job para el chequeo de inactividad.
+        # 4. Añade el job para el chequeo de inactividad.
         scheduler_service.scheduler.add_job(
             online_service.check_for_newly_offline_players,
             'interval',

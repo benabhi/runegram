@@ -11,6 +11,7 @@ es principalmente una instancia que se corresponde con un prototipo definido en
 """
 
 from sqlalchemy import BigInteger, Column, String, Text, Integer
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 
 from .base import Base
@@ -29,6 +30,11 @@ class Room(Base):
     name = Column(String(100), nullable=False)
     description = Column(Text, nullable=False, default="Esta es una sala sin describir.")
     locks = Column(String, nullable=False, default="")
+
+    # --- Estado de Scripts v2.0 ---
+    # Estado persistente para scripts de sala (eventos globales, timers, etc.)
+    # Gestionado por state_service
+    script_state = Column(JSONB, nullable=True, default=dict)
 
     # --- Relaciones de SQLAlchemy ---
 

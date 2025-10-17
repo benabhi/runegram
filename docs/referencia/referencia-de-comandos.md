@@ -1,13 +1,14 @@
 ---
 título: "Referencia Completa de Comandos"
 categoría: "Referencia"
-versión: "1.9"
+versión: "2.0"
 última_actualización: "2025-10-17"
 autor: "Proyecto Runegram"
-etiquetas: ["comandos", "referencia", "jugadores", "admin", "eventos"]
+etiquetas: ["comandos", "referencia", "jugadores", "admin", "eventos", "movimiento", "building"]
 documentos_relacionados:
   - "../creacion-de-contenido/creacion-de-comandos.md"
   - "../sistemas-del-motor/sistema-de-comandos.md"
+  - "../sistemas-del-motor/sistema-de-eventos.md"
   - "../primeros-pasos/player-guide.md"
 referencias_código:
   - "commands/player/"
@@ -221,6 +222,8 @@ Todos los comandos de movimiento siguen el mismo patrón: se mueven en la direcc
 - Las salidas pueden tener locks (candados) que requieran permisos específicos.
 - Al moverte, se notifica a la sala de origen que te fuiste y a la de destino que llegaste.
 - Solo los jugadores online recibirán estas notificaciones.
+- **Sistema de Eventos v3.0**: Los comandos de movimiento ahora usan eventos ON_ENTER y ON_LEAVE, permitiendo que las salas reaccionen al movimiento de jugadores (ej: trampas, iniciar combate, bloquear salida).
+- Ver: `docs/sistemas-del-motor/sistema-de-eventos.md` para salas reactivas.
 
 ---
 
@@ -455,6 +458,9 @@ Todos los comandos de administrador requieren el rol **ADMIN** o superior, a men
   - La clave debe existir en `game_data/item_prototypes.py`.
   - El objeto aparece en el suelo de la sala actual.
   - El mensaje de aparición varía aleatoriamente (ver Sistema de Narrativa).
+  - **Sistema de Eventos v3.0**: Ahora dispara eventos ON_SPAWN (BEFORE/AFTER) que permiten validar spawning o ejecutar inicialización especial del objeto.
+  - Los scripts BEFORE ON_SPAWN pueden cancelar la creación del objeto.
+  - Ver: `docs/sistemas-del-motor/sistema-de-eventos.md` para ejemplos.
 
 ### `/destruirobjeto <ID>`
 - **Alias:** `/delobj`
@@ -470,6 +476,10 @@ Todos los comandos de administrador requieren el rol **ADMIN** o superior, a men
   - Si el objeto es un contenedor, los items dentro quedan huérfanos (sin parent).
   - Los mensajes de destrucción varían aleatoriamente (ver Sistema de Narrativa).
   - El objeto se elimina permanentemente de la base de datos.
+  - **Sistema de Eventos v3.0**: Ahora dispara eventos ON_DESTROY (BEFORE/AFTER).
+  - Los scripts BEFORE ON_DESTROY pueden prevenir la eliminación (ej: objetos "indestructibles").
+  - Los scripts AFTER ON_DESTROY pueden ejecutar efectos secundarios (ej: explosión, maldición).
+  - Ver: `docs/sistemas-del-motor/sistema-de-eventos.md` para ejemplos.
 
 ---
 
@@ -485,6 +495,9 @@ Todos los comandos de administrador requieren el rol **ADMIN** o superior, a men
   - No está sujeto a las restricciones de salidas normales.
   - Actualiza automáticamente tus comandos disponibles según la nueva sala.
   - Los mensajes de teletransporte varían aleatoriamente (ver Sistema de Narrativa).
+  - **Sistema de Eventos v3.0**: Ahora usa eventos ON_ENTER/ON_LEAVE igual que el movimiento normal, pero con flag `teleport=True` en `context.extra`.
+  - Los scripts pueden diferenciar teletransporte de movimiento normal usando `context.extra.get("teleport")`.
+  - Ver: `docs/sistemas-del-motor/sistema-de-eventos.md` para ejemplos de salas que reaccionan diferente al teletransporte.
 
 ---
 
@@ -702,9 +715,10 @@ Todos los comandos de administrador requieren el rol **ADMIN** o superior, a men
 
 ---
 
-**Versión:** 1.9
+**Versión:** 2.0
 **Última actualización:** 2025-10-17
 **Changelog:**
+- v2.0 (2025-10-17): **SISTEMA DE EVENTOS v3.0 COMPLETO** - Todos los comandos significativos migrados (10 comandos totales). Agregados eventos ON_ENTER, ON_LEAVE, ON_SPAWN. Comandos de movimiento, `/teleport`, `/generarobjeto` y `/destruirobjeto` ahora usan sistema de eventos.
 - v1.9 (2025-10-17): Agregado comando `/usar` - Sistema de Eventos v2.0 (items usables 100% script-driven)
 - v1.8 (2025-01-11): Agregado sistema de baneos y apelaciones - comandos `/banear`, `/desbanear`, `/listabaneados`, `/verapelacion`, `/apelar`
 - v1.7 (2025-01-09): Implementado Sistema de Narrativa - mensajes evocativos aleatorios para `/generarobjeto`, `/destruirobjeto`, `/teleport` y `/suicidio`

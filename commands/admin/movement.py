@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from commands.command import Command
 from src.models.character import Character
 from src.services import player_service, command_service, narrative_service, broadcaster_service
+from src.services import event_service, EventType, EventPhase, EventContext
 from src.utils.presenters import show_current_room
 
 class CmdTeleport(Command):
@@ -42,23 +43,76 @@ class CmdTeleport(Command):
             return
 
         try:
-            # 2. Notificar a la sala de origen sobre la salida del admin (broadcast)
-            origin_room_id = character.room_id
+            # 2. Guardar la sala de origen para eventos
+            origin_room = character.room
+
+            # 3. EVENTO BEFORE ON_LEAVE - Puede cancelar el teletransporte
+            leave_context = EventContext(
+                session=session,
+                character=character,
+                target=None,
+                room=origin_room,
+                extra={"destination_room_id": to_room_id, "teleport": True}
+            )
+
+            leave_result = await event_service.trigger_event(
+                event_type=EventType.ON_LEAVE,
+                phase=EventPhase.BEFORE,
+                context=leave_context
+            )
+
+            # Si un script BEFORE cancela el teletransporte, detener
+            if leave_result.cancel_action:
+                await message.answer(leave_result.message or "No puedes salir de aquí ahora.")
+                return
+
+            # 4. Notificar a la sala de origen sobre la salida del admin
             departure_message = narrative_service.get_random_narrative(
                 "teleport_departure",
                 character_name=character.name
             )
             await broadcaster_service.send_message_to_room(
                 session=session,
-                room_id=origin_room_id,
+                room_id=origin_room.id,
                 message_text=departure_message,
-                exclude_character_id=character.id  # El admin no ve su propia salida
+                exclude_character_id=character.id
             )
 
-            # 3. Llamar al servicio que contiene la lógica de negocio.
+            # 5. EVENTO AFTER ON_LEAVE - Efectos al salir
+            await event_service.trigger_event(
+                event_type=EventType.ON_LEAVE,
+                phase=EventPhase.AFTER,
+                context=leave_context
+            )
+
+            # 6. Teletransportar al personaje
             await player_service.teleport_character(session, character.id, to_room_id)
 
-            # 4. Notificar a la sala de destino sobre la llegada del admin (broadcast)
+            # 7. Refrescar character para obtener la nueva sala
+            refreshed_character = await player_service.get_character_with_relations_by_id(session, character.id)
+            destination_room = refreshed_character.room
+
+            # 8. EVENTO BEFORE ON_ENTER - Puede cancelar la entrada
+            enter_context = EventContext(
+                session=session,
+                character=refreshed_character,
+                target=None,
+                room=destination_room,
+                extra={"origin_room_id": origin_room.id, "teleport": True}
+            )
+
+            enter_result = await event_service.trigger_event(
+                event_type=EventType.ON_ENTER,
+                phase=EventPhase.BEFORE,
+                context=enter_context
+            )
+
+            # Si un script BEFORE cancela la entrada
+            if enter_result.cancel_action:
+                await message.answer(enter_result.message or "No puedes entrar ahí.")
+                return
+
+            # 9. Notificar a la sala de destino sobre la llegada del admin
             arrival_message = narrative_service.get_random_narrative(
                 "teleport_arrival",
                 character_name=character.name
@@ -67,18 +121,23 @@ class CmdTeleport(Command):
                 session=session,
                 room_id=to_room_id,
                 message_text=arrival_message,
-                exclude_character_id=character.id  # El admin no ve su propia llegada
+                exclude_character_id=character.id
             )
 
-            # 5. Notificar al administrador del éxito.
+            # 10. EVENTO AFTER ON_ENTER - Efectos al entrar
+            await event_service.trigger_event(
+                event_type=EventType.ON_ENTER,
+                phase=EventPhase.AFTER,
+                context=enter_context
+            )
+
+            # 11. Notificar al administrador del éxito
             await message.answer(f"🚀 Teletransportado a la sala {to_room_id}.")
 
-            # 6. Actualizar los comandos de Telegram, ya que la nueva sala puede otorgar sets.
-            refreshed_character = await player_service.get_character_with_relations_by_id(session, character.id)
-            if refreshed_character:
-                 await command_service.update_telegram_commands(refreshed_character)
+            # 12. Actualizar los comandos de Telegram
+            await command_service.update_telegram_commands(refreshed_character)
 
-            # 7. Mostrar la nueva ubicación.
+            # 13. Mostrar la nueva ubicación
             await show_current_room(message)
 
         except Exception as e:

@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from commands.command import Command
 from src.models.character import Character
 from src.services import player_service, command_service, permission_service, broadcaster_service
+from src.services import event_service, EventType, EventPhase, EventContext
 from src.utils.presenters import show_current_room
 
 # Mapeo de direcciones opuestas para los mensajes de llegada
@@ -74,36 +75,93 @@ class CmdMove(Command):
                 await message.answer(error_message or "Esa salida está bloqueada.")
                 return
 
-            # 4. Guardar la sala de origen para notificar la salida.
-            old_room_id = character.room_id
+            # 4. Guardar la sala de origen y destino para eventos
+            origin_room = character.room
+            destination_room_id = target_exit.to_room_id
 
-            # 5. Notificar a la sala de origen que el personaje se fue.
+            # 5. EVENTO BEFORE ON_LEAVE - Puede cancelar el movimiento
+            leave_context = EventContext(
+                session=session,
+                character=character,
+                target=None,
+                room=origin_room,
+                extra={"destination_room_id": destination_room_id, "direction": direction}
+            )
+
+            leave_result = await event_service.trigger_event(
+                event_type=EventType.ON_LEAVE,
+                phase=EventPhase.BEFORE,
+                context=leave_context
+            )
+
+            # Si un script BEFORE cancela el movimiento, detener
+            if leave_result.cancel_action:
+                await message.answer(leave_result.message or "No puedes salir de aquí ahora.")
+                return
+
+            # 6. Notificar a la sala de origen que el personaje se fue
             await broadcaster_service.send_message_to_room(
                 session=session,
-                room_id=old_room_id,
+                room_id=origin_room.id,
                 message_text=f"<i>{character.name} se ha ido hacia el {direction}.</i>",
                 exclude_character_id=character.id
             )
 
-            # 6. Mover al personaje a la nueva sala.
-            await player_service.teleport_character(session, character.id, target_exit.to_room_id)
+            # 7. EVENTO AFTER ON_LEAVE - Efectos al salir
+            await event_service.trigger_event(
+                event_type=EventType.ON_LEAVE,
+                phase=EventPhase.AFTER,
+                context=leave_context
+            )
 
-            # 7. Notificar a la sala de destino que el personaje llegó.
-            #    Usamos la dirección opuesta para el mensaje de llegada.
+            # 8. Mover al personaje a la nueva sala
+            await player_service.teleport_character(session, character.id, destination_room_id)
+
+            # 9. Refrescar character para obtener la nueva sala
+            refreshed_character = await player_service.get_character_with_relations_by_id(session, character.id)
+            destination_room = refreshed_character.room
+
+            # 10. EVENTO BEFORE ON_ENTER - Puede cancelar la entrada (raro pero posible)
+            enter_context = EventContext(
+                session=session,
+                character=refreshed_character,
+                target=None,
+                room=destination_room,
+                extra={"origin_room_id": origin_room.id, "direction": direction}
+            )
+
+            enter_result = await event_service.trigger_event(
+                event_type=EventType.ON_ENTER,
+                phase=EventPhase.BEFORE,
+                context=enter_context
+            )
+
+            # Si un script BEFORE cancela la entrada, el personaje queda en el limbo
+            # (No implementamos rollback aquí por simplicidad)
+            if enter_result.cancel_action:
+                await message.answer(enter_result.message or "No puedes entrar ahí.")
+                return
+
+            # 11. Notificar a la sala de destino que el personaje llegó
             opposite_direction = OPPOSITE_DIRECTIONS.get(direction, "alguna parte")
             await broadcaster_service.send_message_to_room(
                 session=session,
-                room_id=target_exit.to_room_id,
+                room_id=destination_room_id,
                 message_text=f"<i>{character.name} ha llegado desde el {opposite_direction}.</i>",
                 exclude_character_id=character.id
             )
 
-            # 8. Actualizar la lista de comandos del jugador en Telegram.
-            refreshed_character = await player_service.get_character_with_relations_by_id(session, character.id)
-            if refreshed_character:
-                await command_service.update_telegram_commands(refreshed_character)
+            # 12. EVENTO AFTER ON_ENTER - Efectos al entrar
+            await event_service.trigger_event(
+                event_type=EventType.ON_ENTER,
+                phase=EventPhase.AFTER,
+                context=enter_context
+            )
 
-            # 9. Mostrar al jugador la descripción de su nueva ubicación.
+            # 13. Actualizar la lista de comandos del jugador en Telegram
+            await command_service.update_telegram_commands(refreshed_character)
+
+            # 14. Mostrar al jugador la descripción de su nueva ubicación
             await show_current_room(message)
 
         except Exception:

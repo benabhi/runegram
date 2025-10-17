@@ -236,6 +236,108 @@ Personaliza cómo se muestra una sala:
 
 Ver: `docs/creacion-de-contenido/guia-de-estilo-de-salida.md` para creación de templates.
 
+## Salas Reactivas con Scripts de Eventos
+
+Las salas pueden responder a las acciones de los jugadores usando el Sistema de Eventos v3.0. Esto permite crear salas dinámicas que reaccionan al movimiento de jugadores.
+
+### Scripts ON_ENTER y ON_LEAVE
+
+Las salas pueden ejecutar scripts cuando un jugador entra o sale:
+
+```python
+"arena_combate": {
+    "name": "Arena de Combate",
+    "description": "Un círculo de arena rodeado por gradas. No hay escapatoria una vez que entras.",
+    "scripts": {
+        "after_on_enter": [{
+            "script": """
+# Iniciar combate automáticamente
+await state_service.set_persistent(session, character, 'in_combat', True)
+await broadcaster_service.send_message_to_room(
+    session=session,
+    room_id=room.id,
+    message_text='<b>¡El combate ha comenzado! No puedes huir hasta que termine.</b>'
+)
+""",
+            "priority": 0
+        }],
+        "before_on_leave": [{
+            "script": """
+# Prevenir salida si está en combate
+in_combat = await state_service.get_persistent(session, character, 'in_combat', default=False)
+if in_combat:
+    return False  # Cancelar movimiento
+return True
+""",
+            "cancel_message": "¡No puedes huir del combate!",
+            "priority": 10
+        }]
+    }
+}
+```
+
+### Ejemplo: Sala con Trampa
+
+```python
+"cueva_oscura": {
+    "name": "Cueva Oscura",
+    "description": "Una cueva húmeda. Algo cruje bajo tus pies al entrar...",
+    "scripts": {
+        "after_on_enter": [{
+            "script": """
+# Verificar si la trampa ya fue activada
+trampa_activada = await state_service.get_persistent(session, room, 'trampa_activada', default=False)
+
+if not trampa_activada:
+    # Daño al personaje
+    character.attributes['hp'] = character.attributes.get('hp', 100) - 10
+    await session.flush()
+
+    # Marcar trampa como activada
+    await state_service.set_persistent(session, room, 'trampa_activada', True)
+
+    await broadcaster_service.send_message_to_room(
+        session=session,
+        room_id=room.id,
+        message_text='<i>¡Has activado una trampa! Pinchos emergen del suelo.</i>'
+    )
+""",
+            "priority": 0
+        }]
+    }
+}
+```
+
+### Ejemplo: Sala con Boss
+
+```python
+"camara_dragon": {
+    "name": "Cámara del Dragón",
+    "description": "Una vasta cámara llena de tesoros. Un dragón inmenso yace dormido.",
+    "scripts": {
+        "after_on_enter": [{
+            "script": """
+# Verificar si el dragón fue derrotado
+dragon_muerto = await state_service.get_persistent(session, room, 'dragon_muerto', default=False)
+
+if not dragon_muerto:
+    await state_service.set_persistent(session, character, 'in_combat', True)
+    await state_service.set_persistent(session, character, 'enemy', 'dragon_anciano')
+
+    await broadcaster_service.send_message_to_room(
+        session=session,
+        room_id=room.id,
+        message_text='<b>El dragón abre un ojo. "Intruso..." ruge con voz atronadora.</b>'
+    )
+""",
+            "priority": 0
+        }]
+    }
+}
+```
+
+**Ver:** `docs/sistemas-del-motor/sistema-de-eventos.md` para más ejemplos y detalles técnicos.
+
 ## Tick Scripts en Salas
 
 Las salas pueden tener eventos periódicos usando el sistema de pulse:

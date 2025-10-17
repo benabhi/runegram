@@ -32,6 +32,7 @@ class EventType(Enum):
     ON_CLOSE = "on_close"
     ON_PUT = "on_put"
     ON_TAKE = "on_take"
+    ON_SPAWN = "on_spawn"
     ON_DESTROY = "on_destroy"
 
     # Rooms

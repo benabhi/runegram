@@ -1,18 +1,22 @@
 ---
 título: "Sistema de Eventos"
 categoría: "Sistemas del Motor"
-versión: "2.1"
+versión: "3.0"
 última_actualización: "2025-10-17"
 autor: "Proyecto Runegram"
-etiquetas: ["eventos", "event-driven", "scripts", "hooks", "prioridades", "on_put", "on_take", "on_use"]
+etiquetas: ["eventos", "event-driven", "scripts", "hooks", "prioridades", "on_put", "on_take", "on_use", "on_enter", "on_leave", "on_spawn"]
 documentos_relacionados:
   - "sistemas-del-motor/sistema-de-scripts.md"
   - "sistemas-del-motor/sistema-de-scheduling.md"
   - "sistemas-del-motor/sistema-de-estado.md"
   - "creacion-de-contenido/escritura-de-scripts.md"
+  - "creacion-de-contenido/construccion-de-salas.md"
 referencias_código:
   - "src/services/event_service.py"
   - "src/services/script_service.py"
+  - "commands/player/movement.py"
+  - "commands/admin/movement.py"
+  - "commands/admin/building.py"
 estado: "actual"
 importancia: "crítica"
 audiencia: "desarrollador"
@@ -119,11 +123,12 @@ class EventType(Enum):
     ON_CLOSE = "on_close"
     ON_PUT = "on_put"
     ON_TAKE = "on_take"
+    ON_SPAWN = "on_spawn"      # ✅ NUEVO v3.0
     ON_DESTROY = "on_destroy"
 
     # Rooms
-    ON_ENTER = "on_enter"
-    ON_LEAVE = "on_leave"
+    ON_ENTER = "on_enter"      # ✅ USADO v3.0
+    ON_LEAVE = "on_leave"      # ✅ USADO v3.0
     ON_ROOM_LOOK = "on_room_look"
 
     # Characters
@@ -376,7 +381,7 @@ class CmdGet(Command):
 
 #### Comandos Migrados
 
-Los siguientes comandos han sido migrados al sistema de eventos:
+**ESTADO: COMPLETO** - Todos los comandos significativos han sido migrados al Sistema de Eventos v3.0.
 
 | Comando | Archivo | EventType | Fases | Notas |
 |---------|---------|-----------|-------|-------|
@@ -386,6 +391,12 @@ Los siguientes comandos han sido migrados al sistema de eventos:
 | `/meter` | `commands/player/interaction.py` | `ON_PUT` | BEFORE, AFTER | Migrado 2025-10-17 + extra container |
 | `/sacar` | `commands/player/interaction.py` | `ON_TAKE` | BEFORE, AFTER | Migrado 2025-10-17 + extra container |
 | `/usar` | `commands/player/interaction.py` | `ON_USE` | BEFORE, AFTER | Migrado 2025-10-17 (100% script-driven) |
+| `/norte`, `/sur`, etc. | `commands/player/movement.py` | `ON_ENTER`, `ON_LEAVE` | BEFORE, AFTER | Migrado 2025-10-17 (10 direcciones) |
+| `/teleport` | `commands/admin/movement.py` | `ON_ENTER`, `ON_LEAVE` | BEFORE, AFTER | Migrado 2025-10-17 + flag teleport |
+| `/generarobjeto` | `commands/admin/building.py` | `ON_SPAWN` | BEFORE, AFTER | Migrado 2025-10-17 (nuevo evento) |
+| `/destruirobjeto` | `commands/admin/building.py` | `ON_DESTROY` | BEFORE, AFTER | Migrado 2025-10-17 |
+
+**Total: 10 comandos migrados** (20 direcciones de movimiento cuentan como 1 comando CmdMove)
 
 #### Checklist de Migración
 
@@ -581,6 +592,197 @@ await session.flush()
 
 **Diseño de CmdUse**: Es 100% genérico. Nuevos objetos usables solo requieren definir scripts ON_USE en el prototipo. No necesitas modificar el comando.
 
+### ON_ENTER y ON_LEAVE (Eventos de Movimiento)
+
+Estos eventos se disparan cuando un jugador entra o sale de una sala. Permiten crear salas reactivas que responden al movimiento de jugadores.
+
+#### Flujo de Eventos en Movimiento
+
+Cuando un jugador se mueve de Sala A → Sala B:
+
+1. **BEFORE ON_LEAVE** (Sala A) - Puede cancelar el movimiento
+2. **AFTER ON_LEAVE** (Sala A) - Efectos al salir (si no fue cancelado)
+3. **BEFORE ON_ENTER** (Sala B) - Puede cancelar la entrada
+4. **AFTER ON_ENTER** (Sala B) - Efectos al entrar (si no fue cancelado)
+
+#### Ejemplo: Sala que previene salida durante combate
+
+```python
+"arena_combate": {
+    "name": "Arena de Combate",
+    "description": "Un círculo de arena rodeado por gradas. No hay escapatoria durante el combate.",
+    "scripts": {
+        "before_on_leave": [{
+            "script": """
+# Verificar si el personaje está en combate
+in_combat = await state_service.get_persistent(session, character, 'in_combat', default=False)
+if in_combat:
+    return False  # Cancelar movimiento
+return True
+""",
+            "cancel_message": "¡No puedes huir del combate!",
+            "priority": 10
+        }]
+    }
+}
+```
+
+#### Ejemplo: Sala con trampa en la entrada
+
+```python
+"cueva_oscura": {
+    "name": "Cueva Oscura",
+    "description": "Una cueva húmeda y peligrosa. Algo cruje bajo tus pies...",
+    "scripts": {
+        "after_on_enter": [{
+            "script": """
+# Verificar si la trampa ya fue activada
+trampa_activada = await state_service.get_persistent(session, room, 'trampa_activada', default=False)
+
+if not trampa_activada:
+    # Activar trampa (daño al personaje)
+    character.attributes['hp'] = character.attributes.get('hp', 100) - 10
+    await session.flush()
+
+    # Marcar trampa como activada
+    await state_service.set_persistent(session, room, 'trampa_activada', True)
+
+    # Notificar a la sala
+    await broadcaster_service.send_message_to_room(
+        session=session,
+        room_id=room.id,
+        message_text='<i>¡Has activado una trampa! Pinchos emergen del suelo.</i>'
+    )
+""",
+            "priority": 0
+        }]
+    }
+}
+```
+
+#### Ejemplo: Sala con boss que inicia combate automáticamente
+
+```python
+"camara_dragon": {
+    "name": "Cámara del Dragón",
+    "description": "Una vasta cámara llena de tesoros. Un dragón inmenso yace dormido en el centro.",
+    "scripts": {
+        "after_on_enter": [{
+            "script": """
+# Verificar si el dragón ya fue derrotado
+dragon_muerto = await state_service.get_persistent(session, room, 'dragon_muerto', default=False)
+
+if not dragon_muerto:
+    # Iniciar combate automáticamente
+    await state_service.set_persistent(session, character, 'in_combat', True)
+    await state_service.set_persistent(session, character, 'enemy', 'dragon_anciano')
+
+    # Mensaje dramático
+    await broadcaster_service.send_message_to_room(
+        session=session,
+        room_id=room.id,
+        message_text='<b>El dragón abre un ojo. "Intruso..." ruge con voz atronadora.</b>'
+    )
+""",
+            "priority": 0
+        }]
+    }
+}
+```
+
+#### Diferencia: Movimiento Normal vs. Teletransporte
+
+El comando `/teleport` (admin) usa los mismos eventos ON_ENTER/ON_LEAVE pero pasa un flag adicional en `extra`:
+
+```python
+# En CmdTeleport
+extra = {"teleport": True}
+```
+
+Los scripts pueden detectar si el movimiento fue teletransporte:
+
+```python
+"sala_protegida": {
+    "scripts": {
+        "before_on_enter": [{
+            "script": """
+# Permitir teletransporte de admins, bloquear entrada normal
+is_teleport = context.extra.get('teleport', False)
+if not is_teleport:
+    return False  # Bloquear entrada normal
+return True  # Permitir teletransporte
+""",
+            "cancel_message": "Una barrera invisible bloquea la entrada.",
+            "priority": 10
+        }]
+    }
+}
+```
+
+**Nota sobre context.extra**: Todos los scripts de movimiento pueden acceder a `context.extra.get("teleport")` para diferenciar teletransporte de movimiento normal.
+
+### ON_SPAWN (Evento de Generación)
+
+El evento ON_SPAWN se dispara cuando un admin usa `/generarobjeto` para crear un objeto en el mundo.
+
+#### Flujo de Eventos en Spawning
+
+1. **BEFORE ON_SPAWN** - Puede cancelar la creación del objeto
+2. Se crea el objeto en la base de datos
+3. **AFTER ON_SPAWN** - Efectos después de crear el objeto
+
+#### Ejemplo: Item que requiere condiciones especiales para spawnearse
+
+```python
+"reliquia_sagrada": {
+    "name": "Reliquia Sagrada",
+    "description": "Un artefacto de poder divino que solo puede manifestarse en lugares consagrados.",
+    "scripts": {
+        "before_on_spawn": [{
+            "script": """
+# Solo puede spawnearse en salas sagradas
+es_sala_sagrada = room.has_tag('sagrado')
+if not es_sala_sagrada:
+    return False  # Cancelar spawning
+return True
+""",
+            "cancel_message": "La Reliquia Sagrada solo puede manifestarse en lugares consagrados.",
+            "priority": 10
+        }]
+    }
+}
+```
+
+#### Ejemplo: Item que ejecuta inicialización especial al spawnearse
+
+```python
+"artefacto_antiguo": {
+    "name": "Artefacto Antiguo",
+    "description": "Un artefacto cubierto de runas misteriosas.",
+    "scripts": {
+        "after_on_spawn": [{
+            "script": """
+# Inicializar estado del artefacto
+import random
+poder = random.randint(50, 100)
+await state_service.set_persistent(session, target, 'poder', poder)
+await state_service.set_persistent(session, target, 'cargas', 10)
+
+# Notificar poder inicial
+await broadcaster_service.send_message_to_room(
+    session=session,
+    room_id=room.id,
+    message_text=f'<i>El artefacto zumba con poder. Sientes que tiene un nivel de energía de {poder}.</i>'
+)
+""",
+            "priority": 0
+        }]
+    }
+}
+```
+
+**Dato Importante**: Los scripts BEFORE ON_SPAWN reciben el prototipo completo en `context.extra['prototype']` para poder tomar decisiones antes de que el objeto exista.
+
 ## Definición de Scripts en Prototipos
 
 ### Formato v2.0 (con Prioridades)
@@ -641,7 +843,13 @@ Los eventos se nombran con el patrón: `{phase}_{event_type}`
 | `ON_LOOK` | `before_on_look` | `after_on_look` |
 | `ON_GET` | `before_on_get` | `after_on_get` |
 | `ON_DROP` | `before_on_drop` | `after_on_drop` |
+| `ON_PUT` | `before_on_put` | `after_on_put` |
+| `ON_TAKE` | `before_on_take` | `after_on_take` |
+| `ON_USE` | `before_on_use` | `after_on_use` |
 | `ON_ENTER` | `before_on_enter` | `after_on_enter` |
+| `ON_LEAVE` | `before_on_leave` | `after_on_leave` |
+| `ON_SPAWN` | `before_on_spawn` | `after_on_spawn` |
+| `ON_DESTROY` | `before_on_destroy` | `after_on_destroy` |
 
 ## Sistema de Prioridades
 

@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from commands.command import Command
 from src.models.character import Character
 from src.services import item_service, narrative_service
+from src.services import event_service, EventType, EventPhase, EventContext
 from game_data.item_prototypes import ITEM_PROTOTYPES
 
 class CmdSpawnItem(Command):
@@ -38,16 +39,36 @@ class CmdSpawnItem(Command):
         item_key = args[0].lower()
 
         try:
-            # Llama al servicio para crear la instancia del objeto en la base de datos.
+            # Obtener prototipo para eventos BEFORE
+            prototype = ITEM_PROTOTYPES.get(item_key)
+            if not prototype:
+                raise ValueError(f"No existe un prototipo con la clave '{item_key}'")
+
+            # EVENTO BEFORE ON_SPAWN - Puede cancelar el spawn
+            before_context = EventContext(
+                session=session,
+                character=character,
+                target=None,  # Item aún no existe
+                room=character.room,
+                extra={"item_key": item_key, "prototype": prototype}
+            )
+
+            before_result = await event_service.trigger_event(
+                event_type=EventType.ON_SPAWN,
+                phase=EventPhase.BEFORE,
+                context=before_context
+            )
+
+            # Si un script BEFORE cancela el spawn, detener
+            if before_result.cancel_action:
+                await message.answer(before_result.message or "No puedes generar ese objeto aquí.")
+                return
+
+            # Crear la instancia del objeto en la base de datos
             item = await item_service.spawn_item_in_room(session, character.room_id, item_key)
+            item_name = item.get_name()
 
-            # Obtenemos el nombre "bonito" del prototipo para el mensaje de confirmación.
-            item_name = ITEM_PROTOTYPES.get(item.key, {}).get("name", "un objeto desconocido")
-
-            # Mensaje al admin
-            await message.answer(f"✅ Objeto '{item_name}' generado en la sala actual.")
-
-            # Mensaje social a la sala (broadcaster_service filtra automáticamente jugadores desconectados)
+            # Mensaje social a la sala
             from src.services import broadcaster_service
             narrative_message = narrative_service.get_random_narrative(
                 "item_spawn",
@@ -57,8 +78,26 @@ class CmdSpawnItem(Command):
                 session=session,
                 room_id=character.room_id,
                 message_text=narrative_message,
-                exclude_character_id=None  # Todos los jugadores online lo ven, incluyendo el admin
+                exclude_character_id=None  # Todos los jugadores online lo ven
             )
+
+            # EVENTO AFTER ON_SPAWN - Efectos después de spawnar
+            after_context = EventContext(
+                session=session,
+                character=character,
+                target=item,  # Ahora el item existe
+                room=character.room,
+                extra={"item_key": item_key}
+            )
+
+            await event_service.trigger_event(
+                event_type=EventType.ON_SPAWN,
+                phase=EventPhase.AFTER,
+                context=after_context
+            )
+
+            # Mensaje al admin
+            await message.answer(f"✅ Objeto '{item_name}' generado en la sala actual.")
 
         except ValueError as e:
             # Este error se lanza desde `item_service` si la `item_key` no existe.
@@ -90,11 +129,59 @@ class CmdDestroyItem(Command):
             return
 
         try:
-            # Llama al servicio para eliminar el objeto de la base de datos.
+            # Cargar el item antes de eliminarlo (necesario para eventos)
+            from sqlalchemy import select
+            from src.models import Item
+            item_query = select(Item).where(Item.id == item_id)
+            result = await session.execute(item_query)
+            item_to_delete = result.scalar_one_or_none()
+
+            if not item_to_delete:
+                raise ValueError(f"No existe un objeto con el ID {item_id}")
+
+            # Guardar datos antes de eliminar
+            item_name = item_to_delete.get_name()
+            item_room_id = item_to_delete.room_id
+            item_character_id = item_to_delete.character_id
+
+            # EVENTO BEFORE ON_DESTROY - Puede cancelar la destrucción
+            before_context = EventContext(
+                session=session,
+                character=character,
+                target=item_to_delete,
+                room=character.room,
+                extra={"item_id": item_id}
+            )
+
+            before_result = await event_service.trigger_event(
+                event_type=EventType.ON_DESTROY,
+                phase=EventPhase.BEFORE,
+                context=before_context
+            )
+
+            # Si un script BEFORE cancela la destrucción, detener
+            if before_result.cancel_action:
+                await message.answer(before_result.message or "No puedes destruir ese objeto.")
+                return
+
+            # Eliminar el objeto de la base de datos
             deleted_item = await item_service.delete_item(session, item_id)
 
-            # Obtenemos el nombre del objeto eliminado para el mensaje de confirmación.
-            item_name = deleted_item.get_name()
+            # EVENTO AFTER ON_DESTROY - Efectos después de destruir
+            # NOTA: El item ya fue eliminado, pero deleted_item contiene los datos
+            after_context = EventContext(
+                session=session,
+                character=character,
+                target=deleted_item,  # Item eliminado (detached)
+                room=character.room,
+                extra={"item_id": item_id, "item_name": item_name}
+            )
+
+            await event_service.trigger_event(
+                event_type=EventType.ON_DESTROY,
+                phase=EventPhase.AFTER,
+                context=after_context
+            )
 
             # Mensaje al admin
             await message.answer(f"✅ Objeto '{item_name}' (ID: {item_id}) eliminado permanentemente.")
@@ -103,20 +190,20 @@ class CmdDestroyItem(Command):
             from src.services import broadcaster_service
 
             # Caso 1: El objeto estaba en una sala
-            if deleted_item.room_id:
+            if item_room_id:
                 narrative_message = narrative_service.get_random_narrative(
                     "item_destroy_room",
                     item_name=item_name
                 )
                 await broadcaster_service.send_message_to_room(
                     session=session,
-                    room_id=deleted_item.room_id,
+                    room_id=item_room_id,
                     message_text=narrative_message,
                     exclude_character_id=None  # Todos los jugadores online lo ven
                 )
 
             # Caso 2: El objeto estaba en el inventario de un personaje
-            elif deleted_item.character_id:
+            elif item_character_id:
                 # Cargar el personaje dueño manualmente (delete_item no precarga relaciones)
                 from sqlalchemy import select
                 from sqlalchemy.orm import selectinload
@@ -124,7 +211,7 @@ class CmdDestroyItem(Command):
 
                 owner_query = (
                     select(Character)
-                    .where(Character.id == deleted_item.character_id)
+                    .where(Character.id == item_character_id)
                     .options(selectinload(Character.account))
                 )
                 owner_result = await session.execute(owner_query)

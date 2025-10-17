@@ -119,7 +119,9 @@ runegram/
 │   │   ├── permission_service.py
 │   │   ├── broadcaster_service.py
 │   │   ├── narrative_service.py
-│   │   ├── pulse_service.py
+│   │   ├── scheduler_service.py  # v2.0 (reemplaza pulse_service)
+│   │   ├── event_service.py      # v2.0 (nuevo)
+│   │   ├── state_service.py      # v2.0 (nuevo)
 │   │   └── online_service.py
 │   ├── templates/                # Jinja2 templates + icons
 │   ├── utils/                    # Presenters, helpers
@@ -327,13 +329,13 @@ await broadcaster_service.send_message_to_room(
 
 Ver: `src/services/broadcaster_service.py`
 
-### 6. Sistema de Pulse Global
-- **Corazón temporal**: Tick cada 2 segundos
-- **Sincronización perfecta**: Todos los sistemas en la misma timeline
-- **Escalable**: O(1) jobs en lugar de O(n) jobs
+### 6. Sistema de Scheduling (v2.0 - reemplaza Pulse)
+Scheduler híbrido que soporta **tick-based** (v1.0) y **cron-based** (v2.0):
 
 ```python
-# En prototipos
+from src.services import scheduler_service
+
+# Tick scripts (v1.0 - retrocompatible)
 "tick_scripts": [
     {
         "interval_ticks": 60,  # Cada 120s (60 ticks * 2s)
@@ -341,33 +343,113 @@ Ver: `src/services/broadcaster_service.py`
         "permanent": True
     }
 ]
+
+# Cron scripts (v2.0 - nuevo)
+"scheduled_scripts": [
+    {
+        "schedule": "0 12 * * *",  # Diario a las 12:00
+        "script": "script_global",
+        "global": True  # Una ejecución vs por jugador
+    }
+]
 ```
 
-Ver: `docs/sistemas-del-motor/sistema-de-pulso.md`
+- **Retrocompatible**: `pulse_service` fue reemplazado por `scheduler_service` (API transparente)
+- **Optimizado**: Query solo items con scripts, cache de cron scripts
 
-### 7. Sistema de Scripts
-Permite ejecutar código Python almacenado como string.
+Ver: `docs/sistemas-del-motor/sistema-de-scheduling.md`
+
+### 7. Sistema de Eventos (v2.0 - nuevo)
+Event Hub centralizado para scripts reactivos con arquitectura event-driven:
+
+```python
+from src.services import event_service, EventType, EventPhase, EventContext
+
+# Disparar evento BEFORE (puede cancelar acción)
+result = await event_service.trigger_event(
+    event_type=EventType.ON_GET,
+    phase=EventPhase.BEFORE,
+    context=EventContext(session=session, character=character, target=item)
+)
+
+if result.cancel_action:
+    await message.answer(result.message or "Acción cancelada.")
+    return
+
+# Disparar evento AFTER (efectos)
+await event_service.trigger_event(
+    event_type=EventType.ON_GET,
+    phase=EventPhase.AFTER,
+    context=context
+)
+```
+
+**Características**:
+- Scripts BEFORE/AFTER con prioridades
+- Cancelación de acciones (scripts BEFORE retornan False)
+- Hooks globales para sistemas del motor
+- Normaliza formatos v1.0 y v2.0
+
+Ver: `docs/sistemas-del-motor/sistema-de-eventos.md`
+
+### 8. Sistema de Estado (v2.0 - nuevo)
+Gestión de estado persistente (PostgreSQL) y transiente (Redis) para scripts:
+
+```python
+from src.services import state_service
+from datetime import timedelta
+
+# Estado persistente (sobrevive reinicios)
+usos = await state_service.get_persistent(session, item, "usos_restantes", default=3)
+await state_service.decrement_persistent(session, item, "usos_restantes", min_value=0)
+await session.commit()
+
+# Estado transiente (cooldowns con TTL)
+await state_service.set_cooldown(item, "habilidad_especial", timedelta(minutes=1))
+if await state_service.is_on_cooldown(item, "habilidad_especial"):
+    segundos = await state_service.get_cooldown_remaining(item, "habilidad_especial")
+    # ...
+```
+
+**Casos de uso**:
+- Persistente: Usos de items, progreso de quests, contadores permanentes
+- Transiente: Cooldowns, buffs temporales, flags que expiran
+
+**Nota**: Requiere migración de BD para columna `script_state` (JSONB)
+
+Ver: `docs/sistemas-del-motor/sistema-de-estado.md`
+
+### 9. Sistema de Scripts (v2.0)
+Permite ejecutar código Python desde prototipos usando 4 servicios coordinados:
 
 ```python
 from src.services import script_service
 
 await script_service.execute_script(
-    script_string="character.hp += 10",
+    script_string="script_name(arg=valor)",
     session=session,
     character=character,
     target=item
 )
 ```
 
+**Arquitectura v2.0**:
+- `script_service`: Core (SCRIPT_REGISTRY, ejecutor)
+- `event_service`: Scripts reactivos (eventos)
+- `scheduler_service`: Scripts proactivos (tick + cron)
+- `state_service`: Estado persistente + transiente
+
 **⚠️ Seguridad**: NO implementa sandboxing real. Solo para contenido confiable.
 
-### 8. Sistema de Canales
+Ver: `docs/sistemas-del-motor/sistema-de-scripts.md`
+
+### 10. Sistema de Canales
 - **Estáticos**: Definidos en `channel_prototypes.py` (`/ayuda`, `/comercio`)
 - **Dinámicos**: Creados por jugadores (`/crearcanal`, `/invitar`)
 
 Ver: `commands/player/dynamic_channels.py`
 
-### 9. Sistema de Templates (Jinja2)
+### 11. Sistema de Templates (Jinja2)
 - **Consistencia visual**: Todos los outputs usan mismo estilo e íconos
 - **Separación presentación/lógica**: Templates `.html.j2` + Python
 
@@ -400,7 +482,7 @@ await message.answer(output, parse_mode="HTML")
 
 Ver: `docs/creacion-de-contenido/guia-de-estilo-de-salida.md` (OBLIGATORIO)
 
-### 10. Sistema de Presentación
+### 12. Sistema de Presentación
 Funciones centralizadas para generar outputs formateados.
 
 ```python
@@ -412,14 +494,14 @@ await message.answer(output, parse_mode="HTML")
 
 **Presenters disponibles**: `format_room()`, `format_inventory()`, `format_character()`, `format_item_look()`, `format_who_list()`
 
-### 11. Sistema de Botones Inline
+### 13. Sistema de Botones Inline
 - Botones de navegación en salas
 - Flujos FSM (creación de personaje)
 - Sistema de callback routing extensible
 
 Ver: `docs/sistemas-del-motor/botones-en-linea.md`
 
-### 12. Sistema de Ordinales para Objetos Duplicados
+### 14. Sistema de Ordinales para Objetos Duplicados
 Sintaxis estándar MUD: `N.nombre` donde N es el número ordinal.
 
 ```
@@ -435,7 +517,7 @@ Sintaxis estándar MUD: `N.nombre` donde N es el número ordinal.
 
 Ver: `docs/sistemas-del-motor/desambiguacion-de-items.md`
 
-### 13. Sistema de Narrativa
+### 15. Sistema de Narrativa
 Mensajes evocativos y aleatorios para eventos del juego.
 
 ```python
@@ -453,7 +535,7 @@ message = narrative_service.get_random_narrative(
 
 Ver: `docs/sistemas-del-motor/sistema-de-narrativa.md`
 
-### 14. Sistema de Baneos y Apelaciones
+### 16. Sistema de Baneos y Apelaciones
 Sistema completo de moderación para administradores.
 
 ```python
@@ -485,7 +567,7 @@ is_banned = await ban_service.is_account_banned(session, account)
 
 Ver: `src/services/ban_service.py`, `docs/sistemas-del-motor/sistema-de-baneos.md`
 
-### 15. Sistema de Filtrado de Audiencia en Canales
+### 17. Sistema de Filtrado de Audiencia en Canales
 Doble validación (suscripción + broadcast) para controlar no solo quién puede escribir, sino quién puede recibir mensajes de canales.
 
 ```python
@@ -802,11 +884,15 @@ Ver: `docs/sistemas-del-motor/sistemas-sociales.md`
 - `docs/primeros-pasos/` - Primeros pasos
   - `instalacion.md` - Instalación y configuración
   - `filosofia-central.md` - Filosofía de diseño
-- `docs/sistemas-del-motor/` - Sistemas del motor detallados (15 documentos)
+- `docs/sistemas-del-motor/` - Sistemas del motor detallados (18 documentos)
   - `sistema-de-comandos.md`, `sistema-de-permisos.md`, `sistema-de-prototipos.md`
-  - `sistema-de-pulso.md`, `sistema-de-narrativa.md`, `presencia-en-linea.md`
+  - `sistema-de-scheduling.md` (v2.0 - reemplaza sistema-de-pulso.md)
+  - `sistema-de-eventos.md` (v2.0 - nuevo)
+  - `sistema-de-estado.md` (v2.0 - nuevo)
+  - `sistema-de-scripts.md` (actualizado v2.0)
+  - `sistema-de-narrativa.md`, `presencia-en-linea.md`
   - `sistema-de-baneos.md` - Sistema de baneos y apelaciones
-  - `sistema-de-canales.md`, `sistema-de-scripts.md`, `sistema-de-validacion.md`
+  - `sistema-de-canales.md`, `sistema-de-validacion.md`
   - `servicio-de-broadcasting.md`, `categorias-y-etiquetas.md`, `sistemas-sociales.md`
   - `botones-en-linea.md`, `desambiguacion-de-items.md`
 - `docs/creacion-de-contenido/` - Guías de creación
@@ -867,7 +953,10 @@ Después de CUALQUIER cambio:
 - **Broadcasting**: Notificaciones automáticas (filtra offline)
 - **Narrativa**: Mensajes evocativos aleatorios (41 variantes)
 - **Ordinales**: Sistema `N.nombre` para objetos duplicados
-- **Pulse**: Corazón temporal (tick cada 2s)
+- **Scheduling (v2.0)**: Tick-based + cron-based híbrido (reemplaza Pulse)
+- **Eventos (v2.0)**: Event-driven architecture con BEFORE/AFTER y prioridades
+- **Estado (v2.0)**: Gestión de estado persistente (PostgreSQL) + transiente (Redis)
+- **Scripts (v2.0)**: 4 servicios coordinados (script, event, scheduler, state)
 - **Offline**: Jugadores desconectados = ausentes del juego
 - **Baneos**: Moderación con baneos temporales/permanentes y apelaciones
 - **Filtrado de Audiencia**: Canales con restricción de destinatarios (campo `audience`)
@@ -877,9 +966,10 @@ Crear un juego masivo, funcional e inmersivo que aproveche las fortalezas única
 
 ---
 
-**Versión**: 2.2.1
-**Última actualización**: 2025-01-16
+**Versión**: 2.3
+**Última actualización**: 2025-10-17
 **Changelog**:
+- v2.3 (2025-10-17): Sistema de Scripts v2.0 (event_service, scheduler_service, state_service) - Arquitectura event-driven completa
 - v2.2.1 (2025-01-16): Bugfix: CmdDrop ahora verifica locks con access_type="drop" (completa implementación de locks contextuales)
 - v2.2 (2025-01-16): Sistema de Permisos v2.0 (locks contextuales, 9 lock functions, mensajes personalizados, async support)
 - v2.1.2 (2025-01-11): Canales con audience se activan automáticamente si hay permisos

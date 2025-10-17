@@ -1,118 +1,597 @@
 ---
 título: "Sistema de Scripts"
 categoría: "Sistemas del Motor"
-versión: "1.0"
-última_actualización: "2025-10-09"
+versión: "2.0"
+última_actualización: "2025-10-17"
 autor: "Proyecto Runegram"
-etiquetas: ["scripts", "eventos", "tick-scripts", "automatización"]
+etiquetas: ["scripts", "eventos", "scheduling", "automatización", "v2.0"]
 documentos_relacionados:
-  - "sistemas-del-motor/sistema-de-pulso.md"
+  - "sistemas-del-motor/sistema-de-eventos.md"
+  - "sistemas-del-motor/sistema-de-scheduling.md"
+  - "sistemas-del-motor/sistema-de-estado.md"
   - "sistemas-del-motor/sistema-de-prototipos.md"
   - "creacion-de-contenido/escritura-de-scripts.md"
 referencias_código:
   - "src/services/script_service.py"
-  - "src/services/pulse_service.py"
+  - "src/services/event_service.py"
+  - "src/services/scheduler_service.py"
+  - "src/services/state_service.py"
 estado: "actual"
+importancia: "crítica"
 ---
 
-# Scripting System
+# Sistema de Scripts (v2.0)
 
-El Motor de Scripts es el sistema que permite que el **Contenido** del juego (definido en `game_data`) pueda ejecutar **Lógica** del juego (definida en el `src/services`). Es el mecanismo que da comportamiento a los objetos y al mundo.
+El Sistema de Scripts es el puente que conecta el **Contenido** del juego (prototipos en `game_data/`) con la **Lógica** del motor (servicios en `src/services/`). Permite que objetos, salas y el mundo tengan comportamiento dinámico.
 
-El motor tiene una arquitectura dual, separando las acciones que son una **reacción** a algo que hace el jugador (Eventos) de las acciones que ocurren de forma **proactiva** con el tiempo (Tick Scripts). Toda la lógica está centralizada en `src/services/script_service.py`.
+## Evolución del Sistema
 
-## 1. El `script_service`
+### v1.0 (Original)
+- Scripts reactivos (`on_look`)
+- Tick scripts (`tick_scripts`)
+- Formato simple (strings)
 
-Este servicio actúa como un "traductor" e "invocador" seguro. Su funcionamiento es análogo al del `permission_service`:
+### v2.0 (Actual)
+- ✅ **Event-driven architecture** (`event_service`)
+- ✅ **Hybrid scheduling** (`scheduler_service` con tick + cron)
+- ✅ **State management** (`state_service` persistente + transiente)
+- ✅ **Prioridades** en scripts de eventos
+- ✅ **Cancelación de acciones** (scripts BEFORE)
+- ✅ **Hooks globales** para sistemas del motor
+- ✅ **Retrocompatibilidad** completa con v1.0
 
-1.  **Registro de Funciones (`SCRIPT_REGISTRY`):** Es un diccionario que mapea nombres de script (en formato string, ej: `"script_espada_susurra_secreto"`) a las funciones de Python reales que contienen la lógica.
-2.  **Parser de Scripts (`_parse_script_string`):** Una función simple que toma un string como `"nombre_script(arg1=valor1)"` y lo descompone en el nombre de la función y un diccionario de argumentos.
-3.  **Ejecutor (`execute_script`):** Es el corazón del servicio. Recibe un `script_string` y un `contexto` (que contiene los objetos relevantes como `character`, `target`, `room`), busca la función en el registro y la ejecuta de forma segura, pasándole el contexto y los argumentos.
+## Arquitectura v2.0
 
-## 2. Scripts Reactivos (Eventos)
+El sistema de scripts v2.0 se compone de **4 servicios principales**:
 
-Estos scripts se ejecutan como respuesta directa a una acción del jugador.
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    SISTEMA DE SCRIPTS v2.0                  │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌────────────────┐  ┌────────────────┐  ┌──────────────┐ │
+│  │ event_service  │  │ scheduler_     │  │ state_       │ │
+│  │                │  │ service        │  │ service      │ │
+│  │ • Eventos      │  │ • Tick scripts │  │ • Persistente│ │
+│  │ • BEFORE/AFTER │  │ • Cron scripts │  │ • Transiente │ │
+│  │ • Prioridades  │  │ • Híbrido      │  │ • Cooldowns  │ │
+│  └────────────────┘  └────────────────┘  └──────────────┘ │
+│           │                   │                    │        │
+│           └───────────────────┴────────────────────┘        │
+│                              │                              │
+│                   ┌──────────▼──────────┐                  │
+│                   │   script_service    │                  │
+│                   │                     │                  │
+│                   │ • SCRIPT_REGISTRY   │                  │
+│                   │ • execute_script()  │                  │
+│                   └─────────────────────┘                  │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
 
-*   **Definición:** Se definen en la clave `"scripts"` de un prototipo. La clave del diccionario es el nombre del evento (el "trigger") y el valor es el `script_string`.
+### 1. script_service (Core)
 
-    ```python
-    # En game_data/item_prototypes.py
-    "espada_viviente": {
-        "scripts": {
-            "on_look": "script_notificar_brillo_magico(color=rojo)"
-        }
+El servicio central que:
+- Registra funciones de script (`SCRIPT_REGISTRY`)
+- Parsea script strings (`"script_name(arg=valor)"`)
+- Ejecuta scripts de forma segura
+- Proporciona contexto de ejecución
+
+**Archivo**: `src/services/script_service.py`
+
+### 2. event_service (Nuevo en v2.0)
+
+Event Hub para scripts reactivos:
+- Eventos BEFORE/AFTER
+- Sistema de prioridades
+- Cancelación de acciones
+- Hooks globales
+
+Ver: [Sistema de Eventos](sistema-de-eventos.md)
+
+### 3. scheduler_service (Nuevo en v2.0)
+
+Scheduler híbrido para scripts proactivos:
+- Tick-based (v1.0 - retrocompatible)
+- Cron-based (v2.0 - calendario real)
+- Scripts globales vs por jugador
+
+Ver: [Sistema de Scheduling](sistema-de-scheduling.md)
+
+### 4. state_service (Nuevo en v2.0)
+
+Gestión de estado para scripts:
+- Estado persistente (PostgreSQL JSONB)
+- Estado transiente (Redis con TTL)
+- Helpers para cooldowns
+
+Ver: [Sistema de Estado](sistema-de-estado.md)
+
+## Script Service (Core)
+
+### SCRIPT_REGISTRY
+
+Diccionario que mapea nombres de script a funciones:
+
+```python
+# En src/services/script_service.py
+
+SCRIPT_REGISTRY = {
+    "script_notificar_brillo_magico": script_notificar_brillo_magico,
+    "script_espada_susurra_secreto": script_espada_susurra_secreto,
+    "check_peso_maximo": check_peso_maximo,
+    "script_curacion_menor": script_curacion_menor,
+    # ...
+}
+```
+
+### Anatomía de una Función de Script
+
+```python
+async def script_ejemplo(
+    session: AsyncSession,      # Sesión de BD (SIEMPRE)
+    character: Character = None, # Quien dispara el evento (opcional)
+    target: Any = None,          # Entidad objetivo (opcional)
+    room: Room = None,           # Sala donde ocurre (opcional)
+    **kwargs                     # Argumentos adicionales
+):
+    """
+    Descripción del script.
+
+    Args en kwargs:
+        - arg1: Descripción
+        - arg2: Descripción
+    """
+    # Obtener argumentos
+    valor = kwargs.get("arg1", default_value)
+
+    # Lógica del script
+    # ...
+
+    # Retornar True/False si es un script BEFORE
+    return True  # Permite la acción
+    # return False  # Cancela la acción
+```
+
+### Ejecutar un Script
+
+```python
+from src.services import script_service
+
+result = await script_service.execute_script(
+    script_string="script_ejemplo(arg1=valor1, arg2=42)",
+    session=session,
+    character=character,
+    target=item,
+    room=room
+)
+```
+
+## Tipos de Scripts
+
+### 1. Scripts de Eventos (Reactivos)
+
+Se disparan cuando ocurre una acción del jugador.
+
+**Eventos soportados**:
+- `on_look`, `on_get`, `on_drop`, `on_use`
+- `on_put`, `on_take`, `on_open`, `on_close`
+- `on_enter`, `on_leave`, `on_room_look`
+- Y más (ver `EventType` en `event_service.py`)
+
+**Formato v2.0** (con prioridades):
+```python
+"espada_magica": {
+    "scripts": {
+        "before_on_get": [
+            {
+                "script": "check_fuerza_minima(fuerza_requerida=10)",
+                "priority": 10,
+                "phase": "before",
+                "cancel_message": "No eres lo suficientemente fuerte."
+            }
+        ],
+        "after_on_get": [
+            {
+                "script": "notificar_brillo_magico(color=azul)",
+                "priority": 0,
+                "phase": "after"
+            }
+        ]
     }
-    ```
+}
+```
 
-*   **Flujo de Ejecución (Ejemplo: `/mirar espada`):**
-    1.  El jugador ejecuta el comando `/mirar`.
-    2.  La lógica de `CmdLook.execute()` encuentra el objeto `Item` de la espada.
-    3.  Después de mostrar la descripción, el comando comprueba si el prototipo del objeto tiene una clave `"on_look"` dentro de `"scripts"`.
-    4.  Si la encuentra, llama a `script_service.execute_script()` pasándole el `script_string` `"script_notificar_brillo_magico(color=rojo)"` y el contexto (`character` y `target`).
-    5.  El `script_service` parsea el string, encuentra `script_notificar_brillo_magico` en su registro y la ejecuta.
+**Formato v1.0** (retrocompatible):
+```python
+"espada_magica": {
+    "scripts": {
+        "on_look": "script_notificar_brillo_magico(color=azul)"
+    }
+}
+```
 
-Actualmente, el único evento implementado es `on_look`, pero la arquitectura permite añadir fácilmente nuevos "triggers" en otros comandos (`on_get`, `on_drop`, `on_enter_room`, etc.).
+Ver: [Sistema de Eventos](sistema-de-eventos.md) para detalles completos.
 
-## 3. Scripts Proactivos (Tick Scripts)
+### 2. Scripts de Scheduling (Proactivos)
 
-Estos scripts se ejecutan de forma programada basándose en el sistema de pulse global, haciendo que el mundo se sienta vivo incluso cuando los jugadores no hacen nada. Están gestionados por el `pulse_service`.
+Se ejecutan automáticamente basados en tiempo.
 
-*   **Definición:** Se definen como una lista en la clave `"tick_scripts"` de un prototipo. Cada elemento es un diccionario que define cuándo y cómo se ejecuta el script.
+#### Tick Scripts (v1.0 - Retrocompatible)
 
-    ```python
-    # En game_data/item_prototypes.py
-    "espada_viviente": {
-        "tick_scripts": [{
-            "interval_ticks": 60,  # Cada 60 ticks (120 segundos con tick=2s)
-            "script": "script_espada_susurra_secreto",
+Basados en intervalos de ticks:
+
+```python
+"espada_viviente": {
+    "tick_scripts": [
+        {
+            "interval_ticks": 60,  # Cada 60 ticks (120s)
+            "script": "script_susurrar_secreto",
             "category": "ambient",
-            "permanent": True  # Se repite indefinidamente
-        }]
+            "permanent": True
+        }
+    ]
+}
+```
+
+#### Scheduled Scripts (v2.0 - Cron)
+
+Basados en calendario real:
+
+```python
+"campana_ciudad": {
+    "scheduled_scripts": [
+        {
+            "schedule": "0 12 * * *",  # Diario a las 12:00
+            "script": "script_sonar_campanadas",
+            "global": True,  # Ejecuta una sola vez
+            "category": "ambient",
+            "permanent": True
+        }
+    ]
+}
+```
+
+Ver: [Sistema de Scheduling](sistema-de-scheduling.md) para detalles completos.
+
+## Scripts con Estado
+
+Los scripts pueden almacenar y recuperar estado usando `state_service`.
+
+### Estado Persistente (sobrevive reinicios)
+
+```python
+async def script_usar_pocion_limitada(session, target, character, **kwargs):
+    """Poción con 3 usos."""
+    usos = await state_service.get_persistent(
+        session=session,
+        entity=target,
+        key="usos_restantes",
+        default=3
+    )
+
+    if usos <= 0:
+        await message.answer("La poción está vacía.")
+        return
+
+    # Usar poción
+    character.attributes["vida"] += 50
+
+    # Decrementar usos
+    await state_service.decrement_persistent(
+        session=session,
+        entity=target,
+        key="usos_restantes",
+        min_value=0
+    )
+
+    await session.commit()
+```
+
+### Estado Transiente (cooldowns)
+
+```python
+async def script_habilidad_con_cooldown(session, target, character, **kwargs):
+    """Habilidad con cooldown de 1 minuto."""
+    from datetime import timedelta
+
+    # Verificar cooldown
+    if await state_service.is_on_cooldown(target, "habilidad_especial"):
+        segundos = await state_service.get_cooldown_remaining(target, "habilidad_especial")
+        await message.answer(f"Debes esperar {segundos}s.")
+        return
+
+    # Ejecutar habilidad
+    # ...
+
+    # Establecer cooldown
+    await state_service.set_cooldown(
+        entity=target,
+        cooldown_name="habilidad_especial",
+        duration=timedelta(minutes=1)
+    )
+```
+
+Ver: [Sistema de Estado](sistema-de-estado.md) para detalles completos.
+
+## Flujo de Ejecución Completo
+
+### Ejemplo: Comando /coger con Scripts v2.0
+
+```
+1. Jugador ejecuta: /coger espada
+
+2. CmdGet.execute() dispara evento BEFORE
+   ↓
+   event_service.trigger_event(ON_GET, BEFORE, context)
+   ↓
+   Ejecuta scripts "before_on_get" en orden de prioridad:
+   - check_peso_maximo() [priority: 10]
+   - check_permisos() [priority: 5]
+   ↓
+   Si algún script retorna False → Cancelar acción
+
+3. Si no fue cancelado, ejecutar acción principal:
+   - item.character_id = character.id
+   - await session.commit()
+
+4. CmdGet.execute() dispara evento AFTER
+   ↓
+   event_service.trigger_event(ON_GET, AFTER, context)
+   ↓
+   Ejecuta scripts "after_on_get":
+   - notificar_sala()
+   - activar_trampa()
+   - log_accion()
+
+5. Feedback al jugador
+```
+
+## Crear un Nuevo Script
+
+### Paso 1: Escribir la Función
+
+```python
+# En src/services/script_service.py
+
+async def script_activar_trampa(
+    session: AsyncSession,
+    target: Item,
+    character: Character,
+    room: Room,
+    **kwargs
+):
+    """
+    Activa una trampa cuando se coge el item.
+    """
+    danio = kwargs.get("danio", 10)
+
+    # Aplicar daño
+    character.attributes["vida"] -= danio
+
+    # Notificar
+    mensaje = f"<i>¡Una trampa se activa y {character.name} recibe {danio} puntos de daño!</i>"
+    await broadcaster_service.send_message_to_room(
+        session=session,
+        room_id=room.id,
+        message_text=mensaje
+    )
+
+    await session.commit()
+```
+
+### Paso 2: Registrar la Función
+
+```python
+# En src/services/script_service.py
+
+SCRIPT_REGISTRY = {
+    # ... otros scripts ...
+    "script_activar_trampa": script_activar_trampa,
+}
+```
+
+### Paso 3: Usar en Prototipo
+
+```python
+# En game_data/item_prototypes.py
+
+"idolo_maldito": {
+    "name": "un ídolo maldito",
+    "description": "Una figura dorada que emana maldad...",
+    "scripts": {
+        "after_on_get": [
+            {
+                "script": "script_activar_trampa(danio=20)",
+                "priority": 0,
+                "phase": "after"
+            }
+        ]
     }
-    ```
+}
+```
 
-*   **Flujo de Ejecución:**
-    1.  **Arranque del Bot:** El `pulse_service` inicia un job global que se ejecuta cada 2 segundos (el "pulse").
-    2.  **Cada Pulse:** El sistema procesa TODAS las entidades con `tick_scripts` y determina cuáles deben ejecutarse en el tick actual.
-    3.  **Creación de Entidad:** Cuando se crea un nuevo objeto (`/generarobjeto`), **NO** requiere registro especial - el pulse lo detecta automáticamente en el siguiente tick.
-    4.  **Verificación de Intervalo:** Para cada tick_script, se verifica si han pasado suficientes ticks desde la última ejecución (`current_tick - last_executed_tick >= interval_ticks`).
-    5.  **Contextualización y Filtrado (en `pulse_service`):**
-        *   Se recupera la entidad (la espada) y su ubicación (la sala, o la sala del personaje que la lleva).
-        *   Se obtienen todos los personajes en esa sala.
-        *   Se itera sobre cada personaje y se comprueba si está "online" (`online_service`). Si el tick_script es de categoría `"ambient"` y el jugador está inactivo, se le ignora.
-    6.  **Ejecución Final:** Por cada personaje que pasa el filtro, se llama a `script_service.execute_script()` con el `script_string` y el contexto (`target`, `room`, y el `character` específico que va a recibir el efecto).
-    7.  **Tracking:** El sistema actualiza `item.tick_data` con el tick actual y marca el script como ejecutado.
+## Mejores Prácticas
 
-**Ventajas sobre el sistema antiguo de tickers:**
-- ✅ Escalable: Un solo job procesa todas las entidades
-- ✅ Sincronizado: Todos los scripts operan en la misma timeline
-- ✅ Simple: "60 ticks" es más claro que `*/2 * * * *`
-- ✅ Flexible: Soporta scripts one-shot (`permanent: False`)
+### 1. Nomenclatura de Scripts
 
-Ver: [Pulse System](sistema-de-pulso.md) para más detalles.
+```python
+# ✅ CORRECTO: Nombres descriptivos
+script_espada_susurra_secreto
+check_peso_maximo
+notificar_brillo_magico
 
-## 4. Cómo Crear una Nueva "Habilidad" de Script
+# ❌ INCORRECTO: Nombres genéricos
+script_1
+do_thing
+handler
+```
 
-Para dar a los diseñadores de contenido una nueva herramienta (ej: un script que haga que un objeto se mueva a una sala aleatoria), un desarrollador del motor debe seguir estos pasos:
+### 2. Usar BEFORE para Validaciones
 
-1.  **Escribir la Lógica:** Añadir una nueva función `async` en `src/services/script_service.py`. Debe aceptar `session` y `**context` como argumentos.
-    ```python
-    async def script_teleport_aleatorio(session: AsyncSession, target: Item, **kwargs):
-        # Lógica para encontrar una sala aleatoria y mover el 'target' (el objeto).
+```python
+# ✅ CORRECTO
+"before_on_get": [
+    {"script": "check_peso()"},
+    {"script": "check_permisos()"}
+]
+
+# ❌ INCORRECTO: Validaciones en AFTER (no pueden cancelar)
+"after_on_get": [
+    {"script": "check_peso()"}  # Demasiado tarde
+]
+```
+
+### 3. Documentar Scripts
+
+```python
+async def script_ejemplo(session, **kwargs):
+    """
+    Descripción clara de qué hace el script.
+
+    Args en kwargs:
+        - danio (int): Cantidad de daño a aplicar
+        - color (str): Color del efecto visual
+
+    Retorna:
+        bool: True si permite la acción (scripts BEFORE)
+    """
+```
+
+### 4. Manejo de Errores
+
+```python
+async def script_con_errores(session, **kwargs):
+    """Script robusto con manejo de errores."""
+    try:
+        valor = kwargs.get("valor_requerido")
+        if not valor:
+            logging.warning("Script llamado sin valor_requerido")
+            return
+
+        # Lógica del script
         # ...
-        await broadcaster_service.send_message_to_room(...)
-    ```
-2.  **Registrar la Función:** Añadir la nueva función y su nombre en string al diccionario `SCRIPT_REGISTRY`.
-    ```python
-    SCRIPT_REGISTRY = {
-        # ...
-        "script_teleport_aleatorio": script_teleport_aleatorio,
-    }
-    ```
-3.  **Documentar para Diseñadores:** ¡Listo! Ahora un diseñador puede usar `"script": "script_teleport_aleatorio"` en un `tick_script` o en un `evento` para hacer que los objetos se teletransporten.
+
+    except Exception:
+        logging.exception("Error en script_con_errores")
+        # No propagar la excepción (para no romper el flujo)
+```
+
+### 5. Separar Lógica Compleja
+
+```python
+# ✅ CORRECTO: Scripts pequeños y enfocados
+async def check_peso():
+    # Solo verificar peso
+    pass
+
+async def check_espacio_inventario():
+    # Solo verificar espacio
+    pass
+
+# ❌ INCORRECTO: Script monolítico
+async def check_todo():
+    # Hace demasiadas cosas
+    pass
+```
+
+## Migración v1.0 → v2.0
+
+El sistema es 100% retrocompatible. No es necesario migrar scripts v1.0.
+
+### Prototipos v1.0 Siguen Funcionando
+
+```python
+# v1.0 - Sigue funcionando perfectamente
+"espada": {
+    "scripts": {
+        "on_look": "script_brillo()"
+    },
+    "tick_scripts": [
+        {
+            "interval_ticks": 60,
+            "script": "script_susurro()"
+        }
+    ]
+}
+```
+
+### Migrar a v2.0 es Opcional
+
+Para aprovechar las nuevas funcionalidades:
+
+```python
+# v2.0 - Con prioridades y fases
+"espada": {
+    "scripts": {
+        "before_on_get": [
+            {"script": "check_fuerza()", "priority": 10, "cancel_message": "..."}
+        ],
+        "after_on_look": [
+            {"script": "script_brillo()", "priority": 0}
+        ]
+    },
+    "tick_scripts": [...],  # Sin cambios
+    "scheduled_scripts": [  # Nuevo en v2.0
+        {"schedule": "0 12 * * *", "script": "...", "global": True}
+    ]
+}
+```
+
+## Debugging
+
+### Ver Scripts Ejecutados
+
+```python
+# Agregar logging en scripts
+async def mi_script(session, **kwargs):
+    logging.info(f"Ejecutando mi_script con kwargs: {kwargs}")
+    # ...
+```
+
+### Verificar Registro de Scripts
+
+```python
+# En script_service.py
+logging.info(f"Scripts registrados: {list(SCRIPT_REGISTRY.keys())}")
+```
+
+### Probar Scripts Manualmente
+
+```python
+# En un comando de admin
+result = await script_service.execute_script(
+    script_string="mi_script(arg=valor)",
+    session=session,
+    character=character,
+    target=item
+)
+
+await message.answer(f"Resultado: {result}")
+```
+
+## Limitaciones
+
+### 1. Sin Sandboxing Real
+
+Los scripts tienen acceso completo a sesión de BD y contexto. Solo usar scripts confiables.
+
+### 2. Scripts Deben Estar Registrados
+
+Scripts referenciados en prototipos DEBEN existir en `SCRIPT_REGISTRY`.
+
+### 3. Parsing Simple
+
+El parser de scripts es básico. Argumentos complejos pueden requerir escaping.
+
+### 4. Sin Type Safety
+
+Los argumentos no son validados. Scripts deben manejar valores incorrectos.
 
 ## Ver También
 
-- [Pulse System](sistema-de-pulso.md) - Sistema de ticks global
-- [Writing Scripts](../creacion-de-contenido/escritura-de-scripts.md) - Guía para crear scripts
-- [Prototype System](sistema-de-prototipos.md) - Usar scripts en prototipos
+- [Sistema de Eventos](sistema-de-eventos.md) - Event-driven architecture completa
+- [Sistema de Scheduling](sistema-de-scheduling.md) - Tick y cron scripts
+- [Sistema de Estado](sistema-de-estado.md) - Estado persistente y transiente
+- [Escritura de Scripts](../creacion-de-contenido/escritura-de-scripts.md) - Guía práctica
+- [Sistema de Prototipos](sistema-de-prototipos.md) - Definir scripts en prototipos

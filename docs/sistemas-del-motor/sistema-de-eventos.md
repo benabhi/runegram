@@ -1,0 +1,625 @@
+---
+título: "Sistema de Eventos"
+categoría: "Sistemas del Motor"
+versión: "2.0"
+última_actualización: "2025-10-17"
+autor: "Proyecto Runegram"
+etiquetas: ["eventos", "event-driven", "scripts", "hooks", "prioridades"]
+documentos_relacionados:
+  - "sistemas-del-motor/sistema-de-scripts.md"
+  - "sistemas-del-motor/sistema-de-scheduling.md"
+  - "sistemas-del-motor/sistema-de-estado.md"
+  - "creacion-de-contenido/escritura-de-scripts.md"
+referencias_código:
+  - "src/services/event_service.py"
+  - "src/services/script_service.py"
+estado: "actual"
+importancia: "crítica"
+audiencia: "desarrollador"
+---
+
+# Sistema de Eventos (v2.0)
+
+El Sistema de Eventos es el núcleo de la arquitectura **event-driven** de Runegram MUD. Permite que las acciones del jugador (y del sistema) disparen scripts de forma centralizada, sin que los comandos necesiten conocer qué scripts existen.
+
+## Visión General
+
+### Filosofía Event-Driven
+
+En lugar de que cada comando ejecute scripts manualmente:
+
+```python
+# ❌ ANTIPATRÓN (hardcoded)
+class CmdLook(Command):
+    async def execute(self, character, session, message, args):
+        # ... mostrar descripción ...
+
+        # Hardcoded: el comando CONOCE los scripts
+        if item.prototype.get("scripts", {}).get("on_look"):
+            await script_service.execute_script(...)
+```
+
+El sistema de eventos desacopla comandos y scripts:
+
+```python
+# ✅ PATRÓN EVENT-DRIVEN (desacoplado)
+class CmdLook(Command):
+    async def execute(self, character, session, message, args):
+        # ... mostrar descripción ...
+
+        # El comando DISPARA un evento, sin conocer scripts
+        result = await event_service.trigger_event(
+            event_type=EventType.ON_LOOK,
+            phase=EventPhase.AFTER,
+            context=EventContext(
+                session=session,
+                character=character,
+                target=item,
+                room=room
+            )
+        )
+```
+
+### Beneficios
+
+- ✅ **Desacoplamiento**: Comandos no conocen scripts
+- ✅ **Extensibilidad**: Agregar scripts sin modificar comandos
+- ✅ **Prioridades**: Control fino sobre orden de ejecución
+- ✅ **Cancelación**: Scripts BEFORE pueden cancelar acciones
+- ✅ **Hooks globales**: Sistemas del motor pueden escuchar eventos
+- ✅ **Normalización**: Soporta formatos v1.0 y v2.0
+
+## Componentes del Sistema
+
+### 1. Event Service
+
+**Archivo**: `src/services/event_service.py`
+**Singleton**: `event_service`
+
+Hub centralizado para manejo de eventos.
+
+#### API Principal
+
+```python
+from src.services import event_service, EventType, EventPhase, EventContext, EventResult
+
+# Disparar un evento
+context = EventContext(
+    session=session,
+    character=character,
+    target=item,
+    room=room,
+    extra={"cantidad": 5}  # Datos adicionales opcionales
+)
+
+result = await event_service.trigger_event(
+    event_type=EventType.ON_GET,
+    phase=EventPhase.BEFORE,
+    context=context
+)
+
+# Verificar si la acción fue cancelada
+if result.cancel_action:
+    await message.answer(result.message or "La acción fue cancelada.")
+    return
+```
+
+### 2. Event Types (Enum)
+
+Tipos de eventos soportados:
+
+```python
+class EventType(Enum):
+    # Items
+    ON_LOOK = "on_look"
+    ON_GET = "on_get"
+    ON_DROP = "on_drop"
+    ON_USE = "on_use"
+    ON_OPEN = "on_open"
+    ON_CLOSE = "on_close"
+    ON_PUT = "on_put"
+    ON_TAKE = "on_take"
+    ON_DESTROY = "on_destroy"
+
+    # Rooms
+    ON_ENTER = "on_enter"
+    ON_LEAVE = "on_leave"
+    ON_ROOM_LOOK = "on_room_look"
+
+    # Characters
+    ON_LOGIN = "on_login"
+    ON_LOGOUT = "on_logout"
+    ON_DEATH = "on_death"
+    ON_RESPAWN = "on_respawn"
+    ON_LEVEL_UP = "on_level_up"
+
+    # Combat (futuro)
+    ON_ATTACK = "on_attack"
+    ON_DEFEND = "on_defend"
+    ON_DAMAGE = "on_damage"
+    ON_KILL = "on_kill"
+    ON_DIE = "on_die"
+```
+
+### 3. Event Phases (Enum)
+
+Las fases determinan CUÁNDO se ejecutan los scripts:
+
+```python
+class EventPhase(Enum):
+    BEFORE = "before"  # Antes de la acción (puede cancelar)
+    AFTER = "after"    # Después de la acción
+```
+
+#### BEFORE vs AFTER
+
+**BEFORE**: Validación y prevención
+- ✅ Puede cancelar la acción retornando `False`
+- ✅ Útil para checks de permisos, peso, espacio, etc.
+- ✅ Se ejecuta ANTES de que ocurra la acción
+
+**AFTER**: Efectos y notificaciones
+- ❌ NO puede cancelar la acción
+- ✅ Útil para efectos secundarios, notificaciones, logging
+- ✅ Se ejecuta DESPUÉS de que ocurrió la acción
+
+### 4. Event Context
+
+Contenedor de información del evento:
+
+```python
+@dataclass
+class EventContext:
+    session: AsyncSession          # Sesión de BD
+    character: Optional[Character] = None  # Quién dispara el evento
+    target: Optional[Any] = None           # Entidad objetivo (Item, Room, etc.)
+    room: Optional[Room] = None            # Sala donde ocurre
+    extra: Dict[str, Any] = field(default_factory=dict)  # Datos adicionales
+```
+
+### 5. Event Result
+
+Resultado de ejecutar un evento:
+
+```python
+@dataclass
+class EventResult:
+    success: bool                  # ¿Se ejecutó correctamente?
+    cancel_action: bool = False    # ¿Cancelar la acción? (solo BEFORE)
+    message: Optional[str] = None  # Mensaje opcional para el jugador
+    data: Dict[str, Any] = field(default_factory=dict)  # Datos adicionales
+```
+
+## Uso en Comandos
+
+### Patrón Básico
+
+```python
+class CmdExampleAction(Command):
+    async def execute(self, character, session, message, args):
+        # 1. Obtener entidades relevantes
+        item = await find_item(...)
+        room = character.room
+
+        # 2. Disparar evento BEFORE (validación)
+        context = EventContext(
+            session=session,
+            character=character,
+            target=item,
+            room=room
+        )
+
+        result_before = await event_service.trigger_event(
+            event_type=EventType.ON_GET,
+            phase=EventPhase.BEFORE,
+            context=context
+        )
+
+        # 3. Verificar si fue cancelado
+        if result_before.cancel_action:
+            await message.answer(result_before.message or "No puedes hacer eso.")
+            return
+
+        # 4. Ejecutar la acción principal
+        item.character_id = character.id
+        await session.commit()
+
+        # 5. Disparar evento AFTER (efectos)
+        await event_service.trigger_event(
+            event_type=EventType.ON_GET,
+            phase=EventPhase.AFTER,
+            context=context
+        )
+
+        # 6. Feedback al jugador
+        await message.answer(f"Coges {item.get_name()}.")
+```
+
+### Ejemplo Real: CmdGet con Eventos
+
+```python
+class CmdGet(Command):
+    names = ["coger", "tomar", "get"]
+
+    async def execute(self, character, session, message, args):
+        # ... búsqueda del item ...
+
+        # Evento BEFORE: Verificar si puede coger el item
+        context = EventContext(
+            session=session,
+            character=character,
+            target=item,
+            room=character.room
+        )
+
+        result_before = await event_service.trigger_event(
+            event_type=EventType.ON_GET,
+            phase=EventPhase.BEFORE,
+            context=context
+        )
+
+        if result_before.cancel_action:
+            await message.answer(result_before.message or "No puedes coger ese objeto.")
+            return
+
+        # Ejecutar acción
+        item.room_id = None
+        item.character_id = character.id
+        await session.commit()
+
+        # Evento AFTER: Efectos al coger
+        await event_service.trigger_event(
+            event_type=EventType.ON_GET,
+            phase=EventPhase.AFTER,
+            context=context
+        )
+
+        await message.answer(f"Coges {item.get_name()}.")
+```
+
+## Definición de Scripts en Prototipos
+
+### Formato v2.0 (con Prioridades)
+
+```python
+# En game_data/item_prototypes.py
+"cofre_pesado": {
+    "name": "un cofre pesado",
+    "description": "Un cofre de hierro macizo...",
+    "scripts": {
+        "before_on_get": [
+            {
+                "script": "check_peso_maximo()",
+                "priority": 10,  # Mayor prioridad = ejecuta primero
+                "phase": "before",
+                "cancel_message": "El cofre es demasiado pesado para levantarlo."
+            },
+            {
+                "script": "check_fuerza_minima(fuerza_requerida=15)",
+                "priority": 5,
+                "phase": "before",
+                "cancel_message": "No eres lo suficientemente fuerte para levantarlo."
+            }
+        ],
+        "after_on_get": [
+            {
+                "script": "notificar_sala_pickup()",
+                "priority": 0,
+                "phase": "after"
+            }
+        ]
+    }
+}
+```
+
+### Formato v1.0 (Retrocompatible)
+
+El sistema normaliza automáticamente el formato antiguo:
+
+```python
+# Formato v1.0 (sigue funcionando)
+"espada_magica": {
+    "scripts": {
+        "on_look": "script_notificar_brillo_magico(color=azul)"
+    }
+}
+
+# Se convierte internamente a:
+# "after_on_look": [{"script": "script_notificar_brillo_magico(color=azul)", "priority": 0}]
+```
+
+### Convenciones de Nomenclatura
+
+Los eventos se nombran con el patrón: `{phase}_{event_type}`
+
+| Event Type | Phase BEFORE | Phase AFTER |
+|-----------|--------------|-------------|
+| `ON_LOOK` | `before_on_look` | `after_on_look` |
+| `ON_GET` | `before_on_get` | `after_on_get` |
+| `ON_DROP` | `before_on_drop` | `after_on_drop` |
+| `ON_ENTER` | `before_on_enter` | `after_on_enter` |
+
+## Sistema de Prioridades
+
+Los scripts con **mayor prioridad** se ejecutan **primero**.
+
+### Orden de Ejecución
+
+```python
+"scripts": {
+    "before_on_get": [
+        {"script": "check_1()", "priority": 10},  # Ejecuta 1º
+        {"script": "check_2()", "priority": 10},  # Ejecuta 2º (mismo priority)
+        {"script": "check_3()", "priority": 5},   # Ejecuta 3º
+        {"script": "check_4()", "priority": 0}    # Ejecuta 4º (último)
+    ]
+}
+```
+
+### Casos de Uso de Prioridades
+
+**Alta prioridad (10+)**: Validaciones críticas
+```python
+{"script": "check_baneado()", "priority": 100}  # Verificar primero
+{"script": "check_permisos_admin()", "priority": 50}
+```
+
+**Media prioridad (5-9)**: Validaciones de negocio
+```python
+{"script": "check_peso()", "priority": 10}
+{"script": "check_espacio_inventario()", "priority": 9}
+```
+
+**Baja prioridad (0-4)**: Efectos secundarios
+```python
+{"script": "notificar_sala()", "priority": 1}
+{"script": "log_accion()", "priority": 0}
+```
+
+## Cancelación de Acciones
+
+Solo los scripts BEFORE pueden cancelar acciones.
+
+### Retornar False en Script
+
+```python
+# En src/services/script_service.py
+async def check_peso_maximo(session: AsyncSession, character: Character, target: Item, **kwargs):
+    """
+    Verifica si el personaje puede cargar el item.
+    Retorna False para cancelar la acción.
+    """
+    peso_actual = sum(i.attributes.get("peso", 0) for i in character.items)
+    peso_item = target.attributes.get("peso", 0)
+    peso_maximo = character.attributes.get("peso_maximo", 100)
+
+    if peso_actual + peso_item > peso_maximo:
+        return False  # Cancela la acción
+
+    return True  # Permite la acción
+```
+
+### Mensaje de Cancelación
+
+```python
+"before_on_get": [
+    {
+        "script": "check_peso_maximo()",
+        "priority": 10,
+        "cancel_message": "No puedes cargar más peso."  # Mensaje personalizado
+    }
+]
+```
+
+Si el script retorna `False`:
+1. El `EventResult.cancel_action` será `True`
+2. El comando debe verificar esto y abortar
+3. Se muestra `cancel_message` al jugador
+
+## Hooks Globales
+
+Los hooks globales permiten que sistemas del motor escuchen TODOS los eventos de un tipo.
+
+### Registrar un Hook Global
+
+```python
+from src.services import event_service, EventType
+
+async def log_all_gets(phase: EventPhase, context: EventContext):
+    """Hook que loggea todos los comandos /coger."""
+    if phase == EventPhase.AFTER:
+        logging.info(f"{context.character.name} cogió {context.target.get_name()}")
+
+# Registrar el hook al iniciar el bot
+event_service.register_global_hook(
+    event_type=EventType.ON_GET,
+    hook_func=log_all_gets
+)
+```
+
+### Casos de Uso de Hooks
+
+**Logging y Analytics**:
+```python
+async def track_item_pickups(phase, context):
+    # Enviar métricas a analytics
+    pass
+```
+
+**Sistema de Achievements**:
+```python
+async def check_achievement_pickup_legendary(phase, context):
+    if context.target.has_tag("legendary"):
+        # Otorgar achievement
+        pass
+```
+
+**Sistema de Combate**:
+```python
+async def trigger_combat_on_attack(phase, context):
+    # Iniciar combate cuando se dispara ON_ATTACK
+    pass
+```
+
+## Normalización de Formatos
+
+El event_service normaliza automáticamente scripts v1.0 y v2.0.
+
+### Conversiones Automáticas
+
+**String simple** → Lista con priority 0:
+```python
+# Entrada v1.0
+"on_look": "script_brillo()"
+
+# Normalizado internamente
+"after_on_look": [{"script": "script_brillo()", "priority": 0, "phase": "after"}]
+```
+
+**Lista de strings** → Lista con priority 0:
+```python
+# Entrada v1.0
+"on_get": ["script_1()", "script_2()"]
+
+# Normalizado internamente
+"after_on_get": [
+    {"script": "script_1()", "priority": 0, "phase": "after"},
+    {"script": "script_2()", "priority": 0, "phase": "after"}
+]
+```
+
+**Lista con dicts** → Ya en formato v2.0:
+```python
+# Ya normalizado
+"before_on_get": [
+    {"script": "check()", "priority": 10, "phase": "before"}
+]
+```
+
+## Mejores Prácticas
+
+### 1. Usar BEFORE para Validaciones
+
+```python
+# ✅ CORRECTO: Validaciones en BEFORE
+"before_on_get": [
+    {"script": "check_permisos()", "priority": 10},
+    {"script": "check_peso()", "priority": 9}
+]
+
+# ❌ INCORRECTO: Validaciones en AFTER (no pueden cancelar)
+"after_on_get": [
+    {"script": "check_permisos()"}  # Demasiado tarde, ya se ejecutó la acción
+]
+```
+
+### 2. Usar AFTER para Efectos
+
+```python
+# ✅ CORRECTO: Efectos en AFTER
+"after_on_get": [
+    {"script": "notificar_sala()"},
+    {"script": "activar_trampa()"},
+    {"script": "log_accion()"}
+]
+```
+
+### 3. Prioridades Lógicas
+
+```python
+# ✅ CORRECTO: Orden lógico de validaciones
+"before_on_get": [
+    {"script": "check_baneado()", "priority": 100},       # Primero
+    {"script": "check_permisos_admin()", "priority": 50},
+    {"script": "check_peso()", "priority": 10},
+    {"script": "check_espacio_inventario()", "priority": 9}  # Último
+]
+```
+
+### 4. Mensajes de Cancelación Descriptivos
+
+```python
+# ✅ CORRECTO: Mensaje claro
+{
+    "script": "check_llave()",
+    "cancel_message": "El cofre está cerrado con llave. Necesitas la llave de bronce."
+}
+
+# ❌ INCORRECTO: Mensaje genérico
+{
+    "script": "check_llave()",
+    "cancel_message": "No puedes hacer eso."
+}
+```
+
+### 5. Mantener Scripts Pequeños y Enfocados
+
+```python
+# ✅ CORRECTO: Scripts específicos
+"before_on_get": [
+    {"script": "check_peso()"},
+    {"script": "check_espacio()"},
+    {"script": "check_permisos()"}
+]
+
+# ❌ INCORRECTO: Script monolítico
+"before_on_get": [
+    {"script": "check_todo()"}  # Hace demasiadas cosas
+]
+```
+
+## Debugging
+
+### Logs del Event Service
+
+```python
+# Los errores se loggean automáticamente
+logging.exception(f"Error ejecutando script de evento {event_name}")
+```
+
+### Verificar Ejecución de Scripts
+
+```python
+# En scripts, agregar logging
+async def mi_script(session, **context):
+    logging.info(f"Ejecutando mi_script para {context['character'].name}")
+    # ... lógica ...
+```
+
+### Verificar Cancelación
+
+```python
+result = await event_service.trigger_event(...)
+
+if result.cancel_action:
+    logging.info(f"Acción cancelada: {result.message}")
+```
+
+## Limitaciones
+
+### 1. Scripts deben estar registrados
+
+Los scripts referenciados en prototipos DEBEN existir en `SCRIPT_REGISTRY`.
+
+```python
+# En src/services/script_service.py
+SCRIPT_REGISTRY = {
+    "check_peso": check_peso,
+    # ...
+}
+```
+
+### 2. EventTypes son fijos
+
+No se pueden agregar nuevos `EventType` sin modificar el enum en `event_service.py`.
+
+### 3. No hay sandboxing
+
+Los scripts tienen acceso completo a sesión de BD y contexto. Solo usar scripts confiables.
+
+## Ver También
+
+- [Sistema de Scripts](sistema-de-scripts.md) - Definición y ejecución de scripts
+- [Sistema de Estado](sistema-de-estado.md) - Estado persistente/transiente para scripts
+- [Sistema de Scheduling](sistema-de-scheduling.md) - Scheduling de scripts
+- [Escritura de Scripts](../creacion-de-contenido/escritura-de-scripts.md) - Guía práctica

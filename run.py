@@ -20,7 +20,7 @@ from aiogram import executor
 from sqlalchemy import select
 
 from src.bot.dispatcher import dp
-from src.services import world_loader_service, pulse_service, online_service, validation_service
+from src.services import world_loader_service, scheduler_service, online_service, validation_service
 from src.db import async_session_factory
 from src.config import settings
 from src.models import Account
@@ -70,8 +70,8 @@ async def on_startup(dispatcher):
         #    Si hay errores de configuración, el bot no debe arrancar.
         validation_service.validate_all()
 
-        # 1. Inicia el sistema de pulse global.
-        pulse_service.initialize_pulse_system()
+        # 1. Inicia el sistema de scheduling (tick + cron).
+        scheduler_service.start()
 
         # 2. Crea una sesión de base de datos para las tareas de inicialización.
         async with async_session_factory() as session:
@@ -82,7 +82,7 @@ async def on_startup(dispatcher):
             await world_loader_service.sync_world_from_prototypes(session)
 
         # 3. Añade el job para el chequeo de inactividad.
-        pulse_service.scheduler.add_job(
+        scheduler_service.scheduler.add_job(
             online_service.check_for_newly_offline_players,
             'interval',
             seconds=60,
@@ -107,7 +107,7 @@ async def on_shutdown(dispatcher):
     Se asegura de que los servicios se apaguen de forma limpia.
     """
     logging.warning("Iniciando secuencia de apagado del bot...")
-    pulse_service.shutdown_pulse_system()
+    scheduler_service.shutdown()
     logging.warning("Bot detenido.")
 
 

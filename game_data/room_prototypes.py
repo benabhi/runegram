@@ -35,10 +35,24 @@ ROOM_PROTOTYPES = {
         "category": "inicio",
         "tags": ["seguro", "spawn", "interior"],
         "exits": {
-            "norte": "plaza_central"
+            "norte": "plaza_central",
+            "sur": "templo"
         },
         "display": {
             "icon": "🌫️",  # Icono personalizado para el limbo
+        }
+    },
+
+    "templo": {
+        "name": "Templo del sol y la luna",
+        "description": "Te encuentras en un antiguo templo, en las paredes esta labrada la conjuncion del sol y la luna.",
+        "category": "templo",
+        "tags": ["seguro", "spawn", "interior"],
+        "exits": {
+            "norte": "limbo"
+        },
+        "display": {
+            "icon": "🌫️",
         }
     },
 

@@ -16,6 +16,7 @@ from collections import Counter
 from commands.command import Command
 from src.models.character import Character
 from src.services import item_service, command_service, player_service, permission_service, online_service
+from src.services import event_service, EventType, EventPhase, EventContext
 
 # --- Funciones de Ayuda (Compartidas en este módulo) ---
 
@@ -255,6 +256,26 @@ class CmdGet(Command):
                 await message.answer(error_message or "No puedes coger eso.")
                 return
 
+            # FASE BEFORE: Permite cancelar o modificar la acción de coger
+            before_context = EventContext(
+                session=session,
+                character=character,
+                target=item_to_get,
+                room=character.room
+            )
+
+            before_result = await event_service.trigger_event(
+                event_type=EventType.ON_GET,
+                phase=EventPhase.BEFORE,
+                context=before_context
+            )
+
+            # Si un script BEFORE cancela la acción, detener
+            if before_result.cancel_action:
+                await message.answer(before_result.message or "No puedes coger eso ahora.")
+                return
+
+            # Acción principal: mover item al inventario
             await item_service.move_item_to_character(session, item_to_get.id, character.id)
 
             if item_to_get.prototype.get("grants_command_sets"):
@@ -272,6 +293,21 @@ class CmdGet(Command):
                 message_text=f"<i>{character.name} ha cogido {item_to_get.get_name()} del suelo.</i>",
                 exclude_character_id=character.id
             )
+
+            # FASE AFTER: Ejecutar efectos después de coger
+            after_context = EventContext(
+                session=session,
+                character=character,
+                target=item_to_get,
+                room=character.room
+            )
+
+            await event_service.trigger_event(
+                event_type=EventType.ON_GET,
+                phase=EventPhase.AFTER,
+                context=after_context
+            )
+
         except Exception:
             await message.answer("❌ Ocurrió un error al intentar coger el objeto.")
             logging.exception(f"Fallo al ejecutar /coger para {character.name}")
@@ -319,6 +355,26 @@ class CmdDrop(Command):
                 await message.answer(error_message or "No puedes dejar eso.")
                 return
 
+            # FASE BEFORE: Permite cancelar o modificar la acción de dejar
+            before_context = EventContext(
+                session=session,
+                character=character,
+                target=item_to_drop,
+                room=character.room
+            )
+
+            before_result = await event_service.trigger_event(
+                event_type=EventType.ON_DROP,
+                phase=EventPhase.BEFORE,
+                context=before_context
+            )
+
+            # Si un script BEFORE cancela la acción, detener
+            if before_result.cancel_action:
+                await message.answer(before_result.message or "No puedes dejar eso ahora.")
+                return
+
+            # Acción principal: mover item a la sala
             await item_service.move_item_to_room(session, item_to_drop.id, character.room_id)
 
             if item_to_drop.prototype.get("grants_command_sets"):
@@ -336,6 +392,21 @@ class CmdDrop(Command):
                 message_text=f"<i>{character.name} ha dejado {item_to_drop.get_name()} en el suelo.</i>",
                 exclude_character_id=character.id
             )
+
+            # FASE AFTER: Ejecutar efectos después de dejar
+            after_context = EventContext(
+                session=session,
+                character=character,
+                target=item_to_drop,
+                room=character.room
+            )
+
+            await event_service.trigger_event(
+                event_type=EventType.ON_DROP,
+                phase=EventPhase.AFTER,
+                context=after_context
+            )
+
         except Exception:
             await message.answer("❌ Ocurrió un error al intentar dejar el objeto.")
             logging.exception(f"Fallo al ejecutar /dejar para {character.name}")

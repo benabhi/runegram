@@ -277,6 +277,142 @@ class CmdGet(Command):
         await message.answer(f"Coges {item.get_name()}.")
 ```
 
+### Migración de Comandos Existentes
+
+Esta sección documenta el patrón para migrar comandos que ejecutan scripts manualmente a usar el sistema de eventos.
+
+#### Patrón de Migración BEFORE/AFTER
+
+**Pasos para migrar un comando**:
+
+1. **Identificar puntos de evento**: ¿Dónde se debería disparar BEFORE y AFTER?
+2. **Agregar imports necesarios**: `event_service`, `EventType`, `EventPhase`, `EventContext`
+3. **Crear EventContext**: Con session, character, target, room
+4. **Disparar evento BEFORE**: Después de verificar locks, antes de la acción principal
+5. **Verificar cancelación**: Si `result.cancel_action`, abortar
+6. **Ejecutar acción principal**: Mover item, actualizar BD, etc.
+7. **Disparar evento AFTER**: Después de la acción, antes del commit final
+
+#### Ejemplo: Migración de CmdGet
+
+**Antes (v1.0 - Scripts hardcodeados)**:
+
+```python
+class CmdGet(Command):
+    async def execute(self, character, session, message, args):
+        # ... búsqueda del item ...
+
+        # Verificar locks
+        can_pass, error_message = await permission_service.can_execute(
+            character, locks, access_type="get"
+        )
+        if not can_pass:
+            await message.answer(error_message)
+            return
+
+        # Acción principal
+        await item_service.move_item_to_character(session, item.id, character.id)
+
+        # Mensajes
+        await message.answer(f"Has cogido: {item.get_name()}")
+```
+
+**Después (v2.0 - Sistema de eventos)**:
+
+```python
+from src.services import event_service, EventType, EventPhase, EventContext
+
+class CmdGet(Command):
+    async def execute(self, character, session, message, args):
+        # ... búsqueda del item ...
+
+        # Verificar locks
+        can_pass, error_message = await permission_service.can_execute(
+            character, locks, access_type="get"
+        )
+        if not can_pass:
+            await message.answer(error_message)
+            return
+
+        # FASE BEFORE: Permite cancelar o modificar la acción de coger
+        before_context = EventContext(
+            session=session,
+            character=character,
+            target=item_to_get,
+            room=character.room
+        )
+
+        before_result = await event_service.trigger_event(
+            event_type=EventType.ON_GET,
+            phase=EventPhase.BEFORE,
+            context=before_context
+        )
+
+        # Si un script BEFORE cancela la acción, detener
+        if before_result.cancel_action:
+            await message.answer(before_result.message or "No puedes coger eso ahora.")
+            return
+
+        # Acción principal: mover item al inventario
+        await item_service.move_item_to_character(session, item_to_get.id, character.id)
+
+        # Mensajes
+        await message.answer(f"Has cogido: {item_to_get.get_name()}")
+
+        # FASE AFTER: Ejecutar efectos después de coger
+        after_context = EventContext(
+            session=session,
+            character=character,
+            target=item_to_get,
+            room=character.room
+        )
+
+        await event_service.trigger_event(
+            event_type=EventType.ON_GET,
+            phase=EventPhase.AFTER,
+            context=after_context
+        )
+```
+
+#### Comandos Migrados
+
+Los siguientes comandos han sido migrados al sistema de eventos:
+
+| Comando | Archivo | EventType | Fases | Notas |
+|---------|---------|-----------|-------|-------|
+| `/mirar` | `commands/player/general.py` | `ON_LOOK` | BEFORE, AFTER | Migrado 2025-10-17 |
+| `/coger` | `commands/player/interaction.py` | `ON_GET` | BEFORE, AFTER | Migrado 2025-10-17 |
+| `/dejar` | `commands/player/interaction.py` | `ON_DROP` | BEFORE, AFTER | Migrado 2025-10-17 |
+
+#### Checklist de Migración
+
+Antes de considerar completa la migración de un comando:
+
+- [ ] Imports agregados: `event_service`, `EventType`, `EventPhase`, `EventContext`
+- [ ] Evento BEFORE disparado después de verificar locks
+- [ ] Cancelación verificada con `if result.cancel_action: return`
+- [ ] Acción principal ejecutada solo si BEFORE no canceló
+- [ ] Evento AFTER disparado después de la acción
+- [ ] Mensajes de error usan `result.message` si está disponible
+- [ ] Commits de sesión ocurren DESPUÉS de AFTER (para que scripts puedan modificar BD)
+
+#### Items de Ejemplo con Scripts BEFORE/AFTER
+
+Ver `game_data/item_prototypes.py` para ejemplos completos:
+
+**Orbe Maldito** (`orbe_maldito`):
+- BEFORE on_get: Cancela si HP < 50
+- AFTER on_get: Daña 20 HP
+- AFTER on_drop: Cura 30 HP
+
+**Gema Resonante** (`gema_resonante`):
+- BEFORE on_look: Cancela si HP < 30
+- AFTER on_look: Mensaje basado en HP actual
+
+**Anillo de los Deseos** (`anillo_deseos`):
+- BEFORE on_use: Verifica usos restantes (estado persistente)
+- AFTER on_use: Cura 100 HP
+
 ## Definición de Scripts en Prototipos
 
 ### Formato v2.0 (con Prioridades)

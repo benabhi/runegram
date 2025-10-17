@@ -18,6 +18,7 @@ from commands.command import Command
 from src.models import Character, Item, Exit, Room
 from src.utils.presenters import show_current_room, format_item_look, format_inventory, format_who_list
 from src.services import script_service, online_service, permission_service, broadcaster_service
+from src.services import event_service, EventType, EventPhase, EventContext
 from src.utils.pagination import paginate_list, format_pagination_footer
 from src.templates import ICONS
 from src.config import settings
@@ -62,20 +63,46 @@ class CmdLook(Command):
                 return
 
             if item_to_look:
+                # FASE BEFORE: Permite cancelar o modificar la acción de mirar
+                before_context = EventContext(
+                    session=session,
+                    character=character,
+                    target=item_to_look,
+                    room=character.room
+                )
+
+                before_result = await event_service.trigger_event(
+                    event_type=EventType.ON_LOOK,
+                    phase=EventPhase.BEFORE,
+                    context=before_context
+                )
+
+                # Si un script BEFORE cancela la acción, detener
+                if before_result.cancel_action:
+                    await message.answer(before_result.message or "No puedes mirar eso ahora.")
+                    return
+
                 # Cargar contained_items si es contenedor
                 if item_to_look.prototype.get("is_container"):
                     await session.refresh(item_to_look, attribute_names=['contained_items'])
 
-                # Usar el nuevo sistema de templates
+                # Usar el nuevo sistema de templates (acción principal)
                 response = format_item_look(item_to_look, can_interact=True)
                 await message.answer(response, parse_mode="HTML")
 
-                # Ejecutar script on_look si existe
-                if "on_look" in item_to_look.prototype.get("scripts", {}):
-                    await script_service.execute_script(
-                        script_string=item_to_look.prototype["scripts"]["on_look"],
-                        session=session, character=character, target=item_to_look
-                    )
+                # FASE AFTER: Ejecutar efectos después de mirar
+                after_context = EventContext(
+                    session=session,
+                    character=character,
+                    target=item_to_look,
+                    room=character.room
+                )
+
+                await event_service.trigger_event(
+                    event_type=EventType.ON_LOOK,
+                    phase=EventPhase.AFTER,
+                    context=after_context
+                )
                 return
 
             # 4. Buscar otros personajes en la sala (solo jugadores online).

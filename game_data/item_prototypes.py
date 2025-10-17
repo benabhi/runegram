@@ -234,4 +234,100 @@ ITEM_PROTOTYPES = {
             "icon": "⛩️",
         }
     },
+
+    # --- EJEMPLOS DE SCRIPTS BEFORE/AFTER CON CANCELACIÓN ---
+
+    # Item que demuestra cancelación en BEFORE phase
+    "orbe_maldito": {
+        "name": "un orbe maldito",
+        "keywords": ["orbe", "maldito", "esfera"],
+        "description": "Una esfera oscura que emite una energía siniestra. Algo te advierte que no deberías cogerla.",
+        "category": "maldito",
+        "tags": ["maldito", "peligroso", "magico"],
+        "scripts": {
+            # BEFORE: Cancela la acción si el personaje tiene poca salud
+            "before_on_get": """
+# Cancelar si el personaje tiene menos de 50 HP
+if character.hp < 50:
+    result.cancel_action = True
+    result.message = '❌ El orbe rechaza tu toque. Tu fuerza vital es demasiado débil.'
+else:
+    # Permitir, pero advertir
+    await context.send_message(character, '⚠️ Sientes una energía oscura fluir hacia ti al tocar el orbe.')
+""",
+            # AFTER: Daña al personaje después de cogerlo
+            "after_on_get": "global:danar_personaje(cantidad=20, mensaje='El orbe maldito drena tu energía vital')",
+
+            # AFTER: Cura al personaje cuando lo deja
+            "after_on_drop": "global:curar_personaje(cantidad=30, mensaje='Te sientes aliviado al soltar el orbe maldito')"
+        },
+        "display": {
+            "icon": "🔮",
+        }
+    },
+
+    # Item con múltiples scripts BEFORE/AFTER
+    "gema_resonante": {
+        "name": "una gema resonante",
+        "keywords": ["gema", "resonante", "cristal"],
+        "description": "Un cristal que vibra suavemente. Al mirarlo, sientes que resuena con tu presencia.",
+        "category": "gema",
+        "tags": ["gema", "magica", "curiosa"],
+        "scripts": {
+            # BEFORE on_look: Verifica estado del personaje
+            "before_on_look": """
+# Solo permite mirar si el personaje está en buena salud
+if character.hp < 30:
+    result.cancel_action = True
+    result.message = '⚠️ Tu visión se nubla. Estás demasiado débil para concentrarte en la gema.'
+""",
+            # AFTER on_look: Muestra mensaje especial basado en HP
+            "after_on_look": """
+if character.hp > 80:
+    await context.send_message(character, '✨ La gema brilla intensamente, respondiendo a tu fuerza vital.')
+elif character.hp > 50:
+    await context.send_message(character, '💎 La gema emite un brillo moderado.')
+else:
+    await context.send_message(character, '🔹 La gema apenas titila, reflejando tu debilidad.')
+""",
+            # AFTER on_drop: Mensaje de despedida
+            "after_on_drop": """
+await context.send_message(character, '<i>La gema deja de vibrar al separarte de ella.</i>')
+"""
+        },
+        "display": {
+            "icon": "💎",
+        }
+    },
+
+    # Item que usa estado persistente para limitar usos
+    "anillo_deseos": {
+        "name": "un anillo de los deseos",
+        "keywords": ["anillo", "deseos"],
+        "description": "Un anillo dorado con una inscripción: 'Solo tres deseos concederé'.",
+        "category": "magico",
+        "tags": ["anillo", "magico", "unico"],
+        "scripts": {
+            # BEFORE on_use: Verifica usos restantes
+            "before_on_use": """
+from src.services import state_service
+
+# Obtener usos restantes del estado persistente del item
+usos_restantes = await state_service.get_persistent(session, target, 'usos_restantes', default=3)
+
+if usos_restantes <= 0:
+    result.cancel_action = True
+    result.message = '❌ El anillo ha perdido su magia. No quedan deseos.'
+else:
+    # Decrementar usos
+    await state_service.set_persistent(session, target, 'usos_restantes', usos_restantes - 1)
+    await context.send_message(character, f'✨ El anillo brilla. Te quedan {usos_restantes - 1} deseos.')
+""",
+            # AFTER on_use: Curar al personaje (el "deseo")
+            "after_on_use": "global:curar_personaje(cantidad=100, mensaje='Tu deseo es concedido: ¡salud restaurada!')"
+        },
+        "display": {
+            "icon": "💍",
+        }
+    },
 }

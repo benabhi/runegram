@@ -16,11 +16,11 @@ referencias_código:
 estado: "actual"
 ---
 
-# Categories and Tags System
+# Sistema de Categorías y Etiquetas
 
 ## 📋 Visión General
 
-El sistema de **Categories y Tags** permite organizar y buscar contenido (Rooms, Items) de forma eficiente. Inspirado en **Evennia**, el framework de MUDs más popular de Python.
+El sistema de **Categorías y Etiquetas** permite organizar y buscar contenido (Rooms, Items) de forma eficiente. Inspirado en **Evennia**, el framework de MUDs más popular de Python.
 
 ### Conceptos Clave
 

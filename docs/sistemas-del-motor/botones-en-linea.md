@@ -15,7 +15,7 @@ referencias_código:
 estado: "actual"
 ---
 
-# Inline Buttons System
+# Sistema de Botones Inline
 
 El sistema de **botones inline** de Runegram permite a los jugadores interactuar con el juego mediante botones en lugar de comandos de texto. Esto mejora significativamente la experiencia de usuario en dispositivos móviles, reduciendo la necesidad de escribir comandos largos.
 

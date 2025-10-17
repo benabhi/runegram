@@ -183,7 +183,7 @@ Este documento enumera las funcionalidades específicas planificadas para Runegr
 
 **Tareas:**
 - Crear tabla `notification_inbox` en BD
-- Modificar `pulse_service` para guardar tickers importantes
+- Modificar `scheduler_service` para guardar tickers importantes
 - Implementar comando `/buzon` o `/notificaciones`
 - Mostrar notificaciones pendientes al reconectar
 - Sistema de expiración de mensajes antiguos

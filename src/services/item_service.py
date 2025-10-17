@@ -23,7 +23,7 @@ async def spawn_item_in_room(session: AsyncSession, room_id: int, item_key: str)
     """
     Crea una instancia de un prototipo de objeto y la coloca en una sala.
 
-    Los tick_scripts se procesan automáticamente por el pulse_service global.
+    Los tick_scripts se procesan automáticamente por el scheduler_service global.
     """
     if item_key not in ITEM_PROTOTYPES:
         raise ValueError(f"No existe un prototipo de objeto con la clave '{item_key}'")

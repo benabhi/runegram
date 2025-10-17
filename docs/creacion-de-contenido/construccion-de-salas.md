@@ -363,7 +363,7 @@ Las salas pueden tener eventos periódicos usando el sistema de pulse:
 - 5 minutos → `300 / 2 = 150 ticks`
 - 1 hora → `3600 / 2 = 1800 ticks`
 
-Ver: `docs/sistemas-del-motor/sistema-de-pulso.md` y `docs/creacion-de-contenido/escritura-de-scripts.md`
+Ver: `docs/sistemas-del-motor/sistema-de-scheduling.md` y `docs/creacion-de-contenido/escritura-de-scripts.md`
 
 ## Ejemplo de Sala Completo
 
@@ -574,6 +574,5 @@ Construyendo salas en Runegram:
 - [Creando Items](creacion-de-items.md)
 - [Escribiendo Scripts](escritura-de-scripts.md)
 - [Sistema de Prototipos](../sistemas-del-motor/sistema-de-prototipos.md)
-- [Servicio World Loader](../sistemas-del-motor/world-loader.md)
 - [Categorías y Etiquetas](../sistemas-del-motor/categorias-y-etiquetas.md)
-- [Sistema de Pulse](../sistemas-del-motor/sistema-de-pulso.md)
+- [Sistema de Scheduling](../sistemas-del-motor/sistema-de-scheduling.md)

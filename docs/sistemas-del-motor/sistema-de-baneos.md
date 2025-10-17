@@ -145,7 +145,7 @@ await submit_appeal(
 ### 4. Expiración Automática de Baneos
 
 ```python
-# Llamar periódicamente (ej: pulse global cada 1 hora)
+# Llamar periódicamente (ej: cada 1 hora mediante scheduler)
 expired_count = await check_and_expire_bans(session)
 ```
 
@@ -485,10 +485,10 @@ logging.info(
 
 ### Ejecutar Expiración Periódica
 
-**Recomendación**: Llamar `check_and_expire_bans()` desde el pulse global cada 1 hora.
+**Recomendación**: Llamar `check_and_expire_bans()` desde el sistema de scheduling cada 1 hora.
 
 ```python
-# En src/services/pulse_service.py
+# En src/services/scheduler_service.py o mediante cron scripts
 @scheduler.scheduled_job('interval', hours=1, id='expire_bans')
 async def expire_bans_job():
     async with get_session() as session:

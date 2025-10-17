@@ -41,7 +41,7 @@ Todas las definiciones de items viven en el diccionario `ITEM_PROTOTYPES` en est
     "grants_command_sets": list[str],  # Opcional: Comandos otorgados al equipar
     "attributes": dict,                # Opcional: Atributos personalizados
     "scripts": dict,                   # Opcional: Scripts reactivos (on_look, etc.)
-    "tick_scripts": list[dict],        # Opcional: Scripts proactivos (pulse)
+    "tick_scripts": list[dict],        # Opcional: Scripts proactivos (scheduling)
     "display": {
         "icon": str,                   # Opcional: Emoji personalizado
         "template": str                # Opcional: Template Jinja2 personalizado
@@ -543,7 +543,7 @@ Ver: `docs/sistemas-del-motor/sistema-de-eventos.md` para documentación complet
 
 ## Items con Scripts Proactivos (Tick Scripts)
 
-Los tick scripts permiten que los objetos actúen por sí solos periódicamente usando el sistema de pulse:
+Los tick scripts permiten que los objetos actúen por sí solos periódicamente usando el sistema de scheduling:
 
 ```python
 "craneo_susurrante": {
@@ -568,13 +568,13 @@ Los tick scripts permiten que los objetos actúen por sí solos periódicamente 
 
 **Resultado**: Cada 5 minutos, todos los jugadores online en la misma sala que el cráneo recibirán un mensaje privado con un "secreto" aleatorio.
 
-**Cálculo de ticks** (con pulse predeterminado de 2s):
+**Cálculo de ticks** (con tick predeterminado de 2s):
 - 10 segundos → `10 / 2 = 5 ticks`
 - 1 minuto → `60 / 2 = 30 ticks`
 - 5 minutos → `300 / 2 = 150 ticks`
 - 1 hora → `3600 / 2 = 1800 ticks`
 
-Ver: `docs/sistemas-del-motor/sistema-de-pulso.md` y `docs/creacion-de-contenido/escritura-de-scripts.md`
+Ver: `docs/sistemas-del-motor/sistema-de-scheduling.md` y `docs/creacion-de-contenido/escritura-de-scripts.md`
 
 ---
 
@@ -859,4 +859,4 @@ Creando items en Runegram:
 - [Sistema de Prototipos](../sistemas-del-motor/sistema-de-prototipos.md)
 - [Sistema de Permisos](../sistemas-del-motor/sistema-de-permisos.md)
 - [Categorías y Etiquetas](../sistemas-del-motor/categorias-y-etiquetas.md)
-- [Sistema de Pulse](../sistemas-del-motor/sistema-de-pulso.md)
+- [Sistema de Scheduling](../sistemas-del-motor/sistema-de-scheduling.md)

@@ -168,20 +168,46 @@ Ver: [Filosofía del Proyecto](../primeros-pasos/filosofia-central.md)
 
 ---
 
-#### 11. [Sistema de Pulse Global](sistema-de-pulso.md)
+#### 10. [Sistema de Scheduling](sistema-de-scheduling.md)
 **Audiencia**: Desarrolladores de sistemas, diseñadores de eventos periódicos
 **Contenido**:
-- Corazón temporal (tick cada 2 segundos)
-- Sincronización perfecta de eventos
-- Tick scripts en prototipos
-- Escalabilidad O(1) vs O(n)
+- Sistema híbrido tick-based + cron-based
+- Tick scripts (v1.0 retrocompatible)
+- Cron scripts (v2.0 nuevo)
+- Escalabilidad optimizada
 - Integración con APScheduler
 
 **Cuándo leer**: Para entender el sistema temporal o crear eventos periódicos.
 
 ---
 
-#### 12. [Sistema de Narrativa](sistema-de-narrativa.md)
+#### 11. [Sistema de Eventos](sistema-de-eventos.md)
+**Audiencia**: Desarrolladores de sistemas, creadores de contenido avanzados
+**Contenido**:
+- Event Hub centralizado
+- Scripts BEFORE/AFTER con prioridades
+- Cancelación de acciones (scripts BEFORE)
+- Hooks globales del motor
+- Normalización de formatos v1.0 y v2.0
+
+**Cuándo leer**: Para crear scripts reactivos con eventos BEFORE/AFTER.
+
+---
+
+#### 12. [Sistema de Estado](sistema-de-estado.md)
+**Audiencia**: Desarrolladores de scripts, creadores de contenido avanzados
+**Contenido**:
+- Estado persistente (PostgreSQL + JSONB)
+- Estado transiente (Redis con TTL)
+- Cooldowns y timers
+- Contadores y progreso de quests
+- Integración con scripts v2.0
+
+**Cuándo leer**: Para scripts que necesitan mantener estado entre ejecuciones.
+
+---
+
+#### 13. [Sistema de Narrativa](sistema-de-narrativa.md)
 **Audiencia**: Desarrolladores, creadores de contenido
 **Contenido**:
 - 41 mensajes evocativos en 6 categorías
@@ -196,7 +222,7 @@ Ver: [Filosofía del Proyecto](../primeros-pasos/filosofia-central.md)
 
 ### Sistemas de Presentación
 
-#### 13. [Sistema de Categorías y Etiquetas](categorias-y-etiquetas.md)
+#### 14. [Sistema de Categorías y Etiquetas](categorias-y-etiquetas.md)
 **Audiencia**: Desarrolladores, creadores de contenido
 **Contenido**:
 - Category (una por objeto)
@@ -209,7 +235,7 @@ Ver: [Filosofía del Proyecto](../primeros-pasos/filosofia-central.md)
 
 ---
 
-#### 14. [Sistema de Botones Inline](botones-en-linea.md)
+#### 15. [Sistema de Botones Inline](botones-en-linea.md)
 **Audiencia**: Desarrolladores de UX, creadores de FSM
 **Contenido**:
 - Botones de navegación en salas
@@ -260,10 +286,12 @@ Si administras el juego:
 Si quieres extender el motor:
 
 1. Lee [Configuración del Sistema](../arquitectura/configuracion.md)
-2. Lee [Sistema de Pulse Global](sistema-de-pulso.md)
-3. Lee [Sistema de Scripts](sistema-de-scripts.md)
-4. Lee [Sistema de Validación](sistema-de-validacion.md)
-5. Revisa código fuente en `src/services/`
+2. Lee [Sistema de Scripts](sistema-de-scripts.md)
+3. Lee [Sistema de Eventos](sistema-de-eventos.md)
+4. Lee [Sistema de Scheduling](sistema-de-scheduling.md)
+5. Lee [Sistema de Estado](sistema-de-estado.md)
+6. Lee [Sistema de Validación](sistema-de-validacion.md)
+7. Revisa código fuente en `src/services/`
 
 ---
 
@@ -348,10 +376,12 @@ src/
 │   ├── permission_service.py
 │   ├── broadcaster_service.py
 │   ├── narrative_service.py
-│   ├── pulse_service.py
+│   ├── scheduler_service.py    # v2.0 (reemplaza pulse_service)
+│   ├── event_service.py        # v2.0 (nuevo)
+│   ├── state_service.py        # v2.0 (nuevo)
 │   ├── online_service.py
 │   ├── ban_service.py
-│   └── script_service.py
+│   └── script_service.py       # v2.0 (actualizado)
 ├── models/                 # Modelos SQLAlchemy
 │   ├── account.py
 │   ├── character.py

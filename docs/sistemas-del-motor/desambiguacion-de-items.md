@@ -15,7 +15,7 @@ referencias_código:
 estado: "actual"
 ---
 
-# Item Disambiguation System (Ordinales)
+# Sistema de Desambiguación de Objetos (Ordinales)
 
 El Sistema de Desambiguación resuelve uno de los problemas más comunes en MUDs: **cómo identificar objetos específicos cuando hay múltiples instancias con el mismo nombre**. Runegram implementa el patrón estándar de ordinales usado en MUDs clásicos (Diku, CircleMUD), proporcionando una solución elegante, intuitiva y retrocompatible.
 

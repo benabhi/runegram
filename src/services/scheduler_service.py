@@ -7,7 +7,7 @@ Scheduler híbrido que soporta:
 - Cron-based scheduling (calendario real)
 - Timestamp scheduling (eventos únicos en fecha/hora específica)
 
-Este servicio REEMPLAZA a pulse_service.py (legado) manteniendo 100% de retrocompatibilidad.
+Este servicio implementa scheduling híbrido (tick-based + cron-based) con retrocompatibilidad v1.0.
 
 Responsabilidades:
 1. Mantener sistema de ticks actual (retrocompatibilidad).
@@ -68,9 +68,7 @@ class SchedulerService:
     Scheduler híbrido que soporta ticks, cron y timestamps.
 
     Mantiene 100% retrocompatibilidad con sistema v1.0 mientras
-    agrega nuevas funcionalidades.
-
-    REEMPLAZA a pulse_service.py manteniendo la misma API pública.
+    agrega nuevas funcionalidades con arquitectura event-driven.
     """
 
     def __init__(self):
@@ -185,7 +183,7 @@ class SchedulerService:
         """
         Procesa un tick_script individual (lógica v1.0).
 
-        Mantiene la lógica exacta de pulse_service.py para retrocompatibilidad.
+        Mantiene retrocompatibilidad completa con el formato tick-based original.
         """
         interval_ticks = tick_script.get("interval_ticks")
         script_string = tick_script.get("script")

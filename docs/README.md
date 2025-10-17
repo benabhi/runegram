@@ -6,81 +6,84 @@ Bienvenido a la documentación completa de Runegram, un motor de juego de rol te
 
 La documentación está organizada en secciones lógicas para facilitar la navegación:
 
-### 🚀 [Getting Started](primeros-pasos/) - Primeros Pasos
+### 🚀 [Primeros Pasos](primeros-pasos/)
 Documentación para nuevos desarrolladores y jugadores.
 
-- **[Installation](primeros-pasos/instalacion.md)** - Configuración del entorno de desarrollo
-- **[Core Philosophy](primeros-pasos/filosofia-central.md)** - Filosofía y principios de diseño
+- **[Instalación](primeros-pasos/instalacion.md)** - Configuración del entorno de desarrollo
+- **[Filosofía Central](primeros-pasos/filosofia-central.md)** - Filosofía y principios de diseño
 
-### 🏗️ [Architecture](arquitectura/) - Arquitectura del Sistema
+### 🏗️ [Arquitectura](arquitectura/)
 Documentación técnica sobre la estructura del proyecto.
 
-- **[Configuration System](arquitectura/configuracion.md)** - Sistema de configuración híbrido (.env + TOML)
+- **[Sistema de Configuración](arquitectura/configuracion.md)** - Sistema de configuración híbrido (.env + TOML)
 
-### ⚙️ [Engine Systems](sistemas-del-motor/) - Sistemas del Motor
+### ⚙️ [Sistemas del Motor](sistemas-del-motor/)
 Documentación detallada de los sistemas core del motor.
 
-- **[Command System](sistemas-del-motor/sistema-de-comandos.md)** - Sistema de comandos dinámico
-- **[Permission System](sistemas-del-motor/sistema-de-permisos.md)** - Sistema de locks y permisos
-- **[Prototype System](sistemas-del-motor/sistema-de-prototipos.md)** - Sistema data-driven de prototipos
-- **[Scripting Engine](sistemas-del-motor/sistema-de-scripts.md)** - Motor de scripts Python
-- **[Validation System](sistemas-del-motor/sistema-de-validacion.md)** - Sistema de validación de integridad
-- **[Ban and Appeal System](sistemas-del-motor/sistema-de-baneos.md)** - Sistema de baneos y apelaciones
-- **[Pulse System](sistemas-del-motor/sistema-de-pulso.md)** - Sistema de pulso temporal global
-- **[Online Presence System](sistemas-del-motor/presencia-en-linea.md)** - Sistema de presencia online/offline
-- **[Channels System](sistemas-del-motor/sistema-de-canales.md)** - Sistema de canales de comunicación
-- **[Narrative Service](sistemas-del-motor/sistema-de-narrativa.md)** - Mensajes evocativos aleatorios
-- **[Item Disambiguation](sistemas-del-motor/desambiguacion-de-items.md)** - Sistema de ordinales para objetos duplicados
-- **[Social Systems](sistemas-del-motor/sistemas-sociales.md)** - Sistemas de interacción social
-- **[Categories and Tags](sistemas-del-motor/categorias-y-etiquetas.md)** - Sistema de categorización y etiquetado
-- **[Inline Buttons](sistemas-del-motor/botones-en-linea.md)** - Sistema de botones inline de Telegram
+- **[Sistema de Comandos](sistemas-del-motor/sistema-de-comandos.md)** - Sistema de comandos dinámico
+- **[Sistema de Permisos](sistemas-del-motor/sistema-de-permisos.md)** - Sistema de locks y permisos
+- **[Sistema de Prototipos](sistemas-del-motor/sistema-de-prototipos.md)** - Sistema data-driven de prototipos
+- **[Motor de Scripts](sistemas-del-motor/sistema-de-scripts.md)** - Motor de scripts Python v2.0
+- **[Sistema de Eventos](sistemas-del-motor/sistema-de-eventos.md)** - Sistema de eventos BEFORE/AFTER
+- **[Sistema de Scheduling](sistemas-del-motor/sistema-de-scheduling.md)** - Sistema de scheduling (tick + cron)
+- **[Sistema de Estado](sistemas-del-motor/sistema-de-estado.md)** - Gestión de estado persistente y transiente
+- **[Sistema de Validación](sistemas-del-motor/sistema-de-validacion.md)** - Sistema de validación de integridad
+- **[Sistema de Baneos](sistemas-del-motor/sistema-de-baneos.md)** - Sistema de baneos y apelaciones
+- **[Sistema de Presencia Online](sistemas-del-motor/presencia-en-linea.md)** - Sistema de presencia online/offline
+- **[Sistema de Canales](sistemas-del-motor/sistema-de-canales.md)** - Sistema de canales de comunicación
+- **[Servicio de Narrativa](sistemas-del-motor/sistema-de-narrativa.md)** - Mensajes evocativos aleatorios
+- **[Desambiguación de Items](sistemas-del-motor/desambiguacion-de-items.md)** - Sistema de ordinales para objetos duplicados
+- **[Sistemas Sociales](sistemas-del-motor/sistemas-sociales.md)** - Sistemas de interacción social
+- **[Categorías y Etiquetas](sistemas-del-motor/categorias-y-etiquetas.md)** - Sistema de categorización y etiquetado
+- **[Botones Inline](sistemas-del-motor/botones-en-linea.md)** - Sistema de botones inline de Telegram
+- **[Servicio de Broadcasting](sistemas-del-motor/servicio-de-broadcasting.md)** - Sistema de mensajería a salas y personajes
 
-### 🎨 [Content Creation](creacion-de-contenido/) - Creación de Contenido
+### 🎨 [Creación de Contenido](creacion-de-contenido/)
 Guías para diseñadores de contenido y builders.
 
-- **[Creating Commands](creacion-de-contenido/creacion-de-comandos.md)** - Cómo crear nuevos comandos
-- **[Creating Rooms](creacion-de-contenido/construccion-de-salas.md)** - Construir salas y mundos
-- **[Creating Items](creacion-de-contenido/creacion-de-items.md)** - Diseñar objetos y prototipos
-- **[Writing Scripts](creacion-de-contenido/escritura-de-scripts.md)** - Escribir scripts de comportamiento
-- **[Output Style Guide](creacion-de-contenido/guia-de-estilo-de-salida.md)** - Guía de estilo para outputs
+- **[Creación de Comandos](creacion-de-contenido/creacion-de-comandos.md)** - Cómo crear nuevos comandos
+- **[Construcción de Salas](creacion-de-contenido/construccion-de-salas.md)** - Construir salas y mundos
+- **[Creación de Items](creacion-de-contenido/creacion-de-items.md)** - Diseñar objetos y prototipos
+- **[Escritura de Scripts](creacion-de-contenido/escritura-de-scripts.md)** - Escribir scripts de comportamiento
+- **[Guía de Estilo de Salida](creacion-de-contenido/guia-de-estilo-de-salida.md)** - Guía de estilo para outputs
 
-### 👨‍💼 [Admin Guide](guia-de-administracion/) - Guía de Administración
+### 👨‍💼 [Guía de Administración](guia-de-administracion/)
 Documentación para administradores del juego.
 
-- **[Admin Commands](guia-de-administracion/comandos-de-administracion.md)** - Referencia de comandos de administración
-- **[Database Migrations](guia-de-administracion/migraciones-de-base-de-datos.md)** - Sistema de base de datos y Alembic
+- **[Comandos de Administración](guia-de-administracion/comandos-de-administracion.md)** - Referencia de comandos de administración
+- **[Migraciones de Base de Datos](guia-de-administracion/migraciones-de-base-de-datos.md)** - Sistema de base de datos y Alembic
 
-### 📖 [Reference](referencia/) - Material de Referencia
+### 📖 [Referencia](referencia/)
 Referencias técnicas completas.
 
-- **[Complete Command Reference](referencia/referencia-de-comandos.md)** - Referencia exhaustiva de todos los comandos
+- **[Referencia Completa de Comandos](referencia/referencia-de-comandos.md)** - Referencia exhaustiva de todos los comandos
 
-### 🗺️ [Roadmap](hoja-de-ruta/) - Hoja de Ruta
+### 🗺️ [Hoja de Ruta](hoja-de-ruta/)
 Planificación y sistemas futuros.
 
-- **[Vision and Goals](hoja-de-ruta/vision-y-objetivos.md)** - Visión a largo plazo del proyecto
-- **[Planned Features](hoja-de-ruta/funcionalidades-planificadas.md)** - Funcionalidades planificadas
-- **[Combat System](hoja-de-ruta/diseno-sistema-de-combate.md)** - Sistema de combate planificado (futuro)
-- **[Skill System](hoja-de-ruta/diseno-sistema-de-habilidades.md)** - Sistema de habilidades planificado (futuro)
+- **[Visión y Objetivos](hoja-de-ruta/vision-y-objetivos.md)** - Visión a largo plazo del proyecto
+- **[Funcionalidades Planificadas](hoja-de-ruta/funcionalidades-planificadas.md)** - Funcionalidades planificadas
+- **[Sistema de Combate](hoja-de-ruta/diseno-sistema-de-combate.md)** - Sistema de combate planificado (futuro)
+- **[Sistema de Habilidades](hoja-de-ruta/diseno-sistema-de-habilidades.md)** - Sistema de habilidades planificado (futuro)
 
 ---
 
 ## 🔍 Navegación Rápida
 
 ### Para Desarrolladores Nuevos
-1. Empieza con [Installation](primeros-pasos/instalacion.md)
-2. Lee [Core Philosophy](primeros-pasos/filosofia-central.md)
-3. Explora [Engine Systems](sistemas-del-motor/)
+1. Empieza con [Instalación](primeros-pasos/instalacion.md)
+2. Lee [Filosofía Central](primeros-pasos/filosofia-central.md)
+3. Explora [Sistemas del Motor](sistemas-del-motor/)
 
 ### Para Creadores de Contenido
-1. Lee [Core Philosophy](primeros-pasos/filosofia-central.md)
-2. Consulta [Creating Rooms](creacion-de-contenido/construccion-de-salas.md)
-3. Consulta [Creating Items](creacion-de-contenido/creacion-de-items.md)
-4. Lee [Output Style Guide](creacion-de-contenido/guia-de-estilo-de-salida.md)
+1. Lee [Filosofía Central](primeros-pasos/filosofia-central.md)
+2. Consulta [Construcción de Salas](creacion-de-contenido/construccion-de-salas.md)
+3. Consulta [Creación de Items](creacion-de-contenido/creacion-de-items.md)
+4. Lee [Guía de Estilo de Salida](creacion-de-contenido/guia-de-estilo-de-salida.md)
 
 ### Para Administradores
-1. Consulta [Admin Commands](guia-de-administracion/comandos-de-administracion.md)
-2. Familiarízate con [Complete Command Reference](referencia/referencia-de-comandos.md)
+1. Consulta [Comandos de Administración](guia-de-administracion/comandos-de-administracion.md)
+2. Familiarízate con [Referencia Completa de Comandos](referencia/referencia-de-comandos.md)
 
 ---
 
@@ -91,24 +94,25 @@ Todos los archivos de documentación incluyen metadatos YAML frontmatter:
 
 ```yaml
 ---
-title: "Título del Documento"
-category: "Getting Started" | "Architecture" | "Engine Systems" | etc.
-version: "1.0"
-last_updated: "YYYY-MM-DD"
-author: "Runegram Project"
-tags: ["tag1", "tag2"]
-related_docs:
+título: "Título del Documento"
+categoría: "Comenzando" | "Arquitectura" | "Sistemas del Motor" | etc.
+versión: "1.0"
+última_actualización: "YYYY-MM-DD"
+autor: "Proyecto Runegram"
+etiquetas: ["etiqueta1", "etiqueta2"]
+documentos_relacionados:
   - "ruta/relativa/documento.md"
-code_references:
+referencias_código:
   - "src/services/example_service.py"
-status: "current" | "draft" | "deprecated"
+estado: "actual" | "borrador"
+importancia: "alta" | "crítica" | "normal"
+audiencia: "desarrollador" | "creador-de-contenido" | "admin" | "jugador" | "todos"
 ---
 ```
 
 ### Estados de Documentación
-- **current**: Documentación actualizada y precisa
-- **draft**: Documentación en progreso
-- **deprecated**: Documentación obsoleta (marcada para revisión/eliminación)
+- **actual**: Documentación actualizada y precisa
+- **borrador**: Documentación en progreso
 
 ### Íconos y Emojis
 Los emojis se usan estratégicamente para facilitar el escaneo visual:
@@ -142,11 +146,12 @@ Los emojis se usan estratégicamente para facilitar el escaneo visual:
 
 ## 📊 Estado de la Documentación
 
-**Versión:** 2.1
-**Última actualización:** 2025-01-11
-**Estado:** ✅ Actualizado con sistema de baneos
+**Versión:** 2.2
+**Última actualización:** 2025-10-17
+**Estado:** ✅ Actualizado con Scripts v2.0 y traducción completa al español
 
 ### Changelog de Estructura
+- **v2.2 (2025-10-17)**: Scripts v2.0 (eventos, scheduling, estado), eliminación de pulse_service, traducción completa al español
 - **v2.1 (2025-01-11)**: Agregado sistema de baneos y apelaciones
 - **v2.0 (2025-10-09)**: Reestructuración completa con nueva jerarquía de directorios y YAML frontmatter
 - **v1.0 (2025-01-09)**: Estructura original con numeración prefijada

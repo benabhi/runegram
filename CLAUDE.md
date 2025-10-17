@@ -966,9 +966,10 @@ Crear un juego masivo, funcional e inmersivo que aproveche las fortalezas única
 
 ---
 
-**Versión**: 2.3
+**Versión**: 2.4
 **Última actualización**: 2025-10-17
 **Changelog**:
+- v2.4 (2025-10-17): Agregada política de verificación de codificación UTF-8 (sección crítica sobre encoding)
 - v2.3 (2025-10-17): Sistema de Scripts v2.0 (event_service, scheduler_service, state_service) - Arquitectura event-driven completa
 - v2.2.1 (2025-01-16): Bugfix: CmdDrop ahora verifica locks con access_type="drop" (completa implementación de locks contextuales)
 - v2.2 (2025-01-16): Sistema de Permisos v2.0 (locks contextuales, 9 lock functions, mensajes personalizados, async support)
@@ -981,7 +982,79 @@ Crear un juego masivo, funcional e inmersivo que aproveche las fortalezas única
 - v1.7 (2025-10-04): Sistema de ordinales para objetos duplicados
 **Mantenedor**: Proyecto Runegram
 
+### 🔤 Verificación de Codificación de Archivos (CRÍTICO)
+
+**IMPORTANTE**: Este proyecto ha tenido **problemas recurrentes** con codificación de archivos. Todos los archivos de texto deben usar **UTF-8 sin BOM**.
+
+#### Verificación Obligatoria Antes de Escribir/Editar Archivos
+
+**SIEMPRE verificar codificación ANTES de crear/editar archivos markdown o Python:**
+
+```bash
+# Verificar codificación de archivo específico
+file -i archivo.md
+
+# Verificar todos los archivos markdown
+find . -name "*.md" -not -path "./venv/*" -exec file -i {} \;
+```
+
+#### Corrección de Problemas de Codificación
+
+Si un archivo tiene problemas de codificación (caracteres corruptos como `�`):
+
+**Método 1: Recrear con Python (Recomendado)**
+```python
+# Leer con encoding correcto y reescribir en UTF-8
+with open('archivo.md', 'r', encoding='utf-8', errors='ignore') as f:
+    content = f.read()
+
+with open('archivo.md', 'w', encoding='utf-8', newline='\n') as f:
+    f.write(content)
+```
+
+**Método 2: Usar iconv**
+```bash
+iconv -f WINDOWS-1252 -t UTF-8 archivo.md -o archivo_fixed.md
+mv archivo_fixed.md archivo.md
+```
+
+#### Configuración del Editor
+
+**Asegurar que el editor use UTF-8:**
+
+**VS Code (.vscode/settings.json):**
+```json
+{
+  "files.encoding": "utf8",
+  "files.autoGuessEncoding": false,
+  "files.eol": "\n"
+}
+```
+
+**PyCharm/IntelliJ:**
+- File → Settings → Editor → File Encodings
+- Project Encoding: UTF-8
+- Default encoding for properties files: UTF-8
+
+#### Reglas para Claude
+
+**ANTES de usar Write o Edit:**
+1. ✅ SIEMPRE especificar `encoding='utf-8'` en Python
+2. ✅ SIEMPRE usar `newline='\n'` para consistencia de líneas
+3. ✅ NUNCA asumir que un archivo existente tiene codificación correcta
+4. ✅ Si detectas caracteres corruptos (�), recrear el archivo con UTF-8
+
+**DESPUÉS de crear/editar archivos importantes:**
+1. ✅ Verificar codificación con `file -i`
+2. ✅ Verificar que no haya caracteres corruptos
+3. ✅ Si hay problemas, recrear el archivo inmediatamente
+
+**Scripts de verificación:** Ver `scripts/fix_prompt_encoding.py` como ejemplo de recreación correcta.
+
+---
+
 ### Notas Finales
 - **Reiniciar servicios**: `scripts/full_reset.bat`
 - **Notificaciones Sociales**: SIEMPRE verificar si es necesario usar `broadcaster_service.send_message_to_room()` para acciones visibles
 - **Regla de Oro**: Si una acción es visible, debe notificarse a jugadores presentes (online)
+- **Codificación**: SIEMPRE verificar que archivos usen UTF-8 sin BOM (ver sección específica arriba)

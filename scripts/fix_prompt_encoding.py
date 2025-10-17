@@ -1,4 +1,10 @@
-# 🧹 Plan de Limpieza y Actualización de Runegram
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Script para recrear prompt.md con codificación UTF-8 correcta.
+"""
+
+content = """# 🧹 Plan de Limpieza y Actualización de Runegram
 
 **Fecha:** 2025-10-17
 **Versión:** 1.0
@@ -141,7 +147,7 @@ file -i CLAUDE.md
 file -i docs/**/*.md
 
 # Verificar todos los archivos markdown
-find . -name "*.md" -exec file -i {} \;
+find . -name "*.md" -exec file -i {} \\;
 ```
 
 #### Corrección de Problemas de Codificación
@@ -167,7 +173,7 @@ with open('archivo.md', 'w', encoding='utf-8') as f:
 {
   "files.encoding": "utf8",
   "files.autoGuessEncoding": false,
-  "files.eol": "\n"
+  "files.eol": "\\n"
 }
 ```
 
@@ -196,3 +202,19 @@ for md_file in glob.glob('**/*.md', recursive=True):
 **Autor:** Claude Code (Análisis exhaustivo)
 **Basado en:** Análisis de 126 archivos Python + 46 archivos markdown
 **Estado:** ✅ Plan completo y listo para ejecución
+"""
+
+if __name__ == "__main__":
+    import os
+    from pathlib import Path
+
+    # Guardar en la raíz del proyecto
+    project_root = Path(__file__).parent.parent
+    output_file = project_root / "prompt.md"
+
+    with open(output_file, 'w', encoding='utf-8', newline='\n') as f:
+        f.write(content)
+
+    print(f"✅ Archivo recreado correctamente en: {output_file}")
+    print(f"📏 Tamaño: {len(content)} caracteres")
+    print(f"🔤 Codificación: UTF-8")

@@ -119,12 +119,15 @@ docker exec runegram-bot-1 alembic upgrade head
 
 ### Migración de Comandos a Sistema de Eventos
 **Fecha**: 2025-10-17
-**Estado**: ✅ COMPLETO (3 comandos migrados)
+**Estado**: ✅ COMPLETO (6 comandos migrados)
 
 **Comandos migrados**:
 - ✅ `CmdLook` (`commands/player/general.py`) - Evento ON_LOOK con BEFORE/AFTER
 - ✅ `CmdGet` (`commands/player/interaction.py`) - Evento ON_GET con BEFORE/AFTER
 - ✅ `CmdDrop` (`commands/player/interaction.py`) - Evento ON_DROP con BEFORE/AFTER
+- ✅ `CmdPut` (`commands/player/interaction.py`) - Evento ON_PUT con BEFORE/AFTER + extra container
+- ✅ `CmdTake` (`commands/player/interaction.py`) - Evento ON_TAKE con BEFORE/AFTER + extra container
+- ✅ `CmdUse` (`commands/player/interaction.py`) - Evento ON_USE con BEFORE/AFTER (100% script-driven)
 
 **Patrón implementado**:
 ```python
@@ -158,6 +161,10 @@ await event_service.trigger_event(
 - ✅ `gema_resonante` - Demuestra mensajes adaptativos basados en estado
 - ✅ `anillo_deseos` - Demuestra uso de estado persistente (3 usos máximo)
 
+**Características especiales de comandos migrados**:
+- **CmdPut/CmdTake**: Pasan el contenedor en `extra={"container": container}` para permitir scripts que reaccionen al contenedor específico
+- **CmdUse**: Es 100% script-driven (no tiene acción principal). Toda la lógica de uso está en scripts ON_USE. Nuevos objetos usables solo requieren agregar scripts al prototipo, sin modificar el comando
+
 **Documentación actualizada**:
 - ✅ `docs/sistemas-del-motor/sistema-de-eventos.md` - Sección "Migración de Comandos Existentes"
 - ✅ `.claude/agents/runegram-command-auditor.md` - Verificación de eventos en auditorías
@@ -166,20 +173,21 @@ await event_service.trigger_event(
 
 ## 🚧 Componentes Pendientes
 
-### Fase 6b: Migración de Comandos Adicionales (Opcional)
-**Archivos afectados**:
-- `commands/player/interaction.py` (CmdPut, CmdTake)
-- Otros comandos con interacción de items
-
+### Fase 6b: Migración de Comandos Administrativos (Opcional)
 **Estado**: ⏳ PENDIENTE (Opcional)
 
-**Descripción**: Migrar comandos adicionales a event_service.trigger_event()
+**Comandos candidatos para migración futura**:
+- `/mover` (CmdMove) → ON_ENTER, ON_LEAVE (mover personaje entre salas)
+- `/teleport` (CmdTeleport) → ON_ENTER, ON_LEAVE (teletransporte admin)
+- `/generarobjeto` (CmdSpawnItem) → ON_SPAWN (crear items)
+- `/destruirobjeto` (CmdDestroyItem) → ON_DESTROY (eliminar items)
 
-**Comandos candidatos**:
-- `/meter` (CmdPut) → ON_PUT
-- `/sacar` (CmdTake) → ON_TAKE
-- `/usar` (CmdUse - crear nuevo) → ON_USE
-- Comandos de movimiento → ON_ENTER, ON_LEAVE
+**Comandos que NO requieren eventos** (lectura/social/admin):
+- ✅ `/inventario`, `/items`, `/personajes` - Solo lectura
+- ✅ `/decir`, `/susurrar`, `/emocion` - Social (sin efectos de estado)
+- ✅ `/canales`, `/activarcanal`, `/desactivarcanal` - Configuración
+- ✅ `/listarsalas`, `/examinarsala`, `/examinarobjeto` - Admin de lectura
+- ✅ `/asignarrol`, `/banear`, `/desbanear` - Admin sin interacción de items
 
 ---
 
@@ -201,7 +209,8 @@ await event_service.trigger_event(
 | - | Example Items | ✅ COMPLETO | 7 items de ejemplo (4 globales + 3 BEFORE/AFTER) |
 | - | Documentation | ✅ COMPLETO | sistema-de-eventos.md actualizado |
 | - | Agent Update | ✅ COMPLETO | runegram-command-auditor.md actualizado |
-| 6b | More Commands | ⏳ OPCIONAL | CmdPut, CmdTake, CmdUse (futuro) |
+| 6b | Interaction Commands | ✅ COMPLETO | CmdPut, CmdTake, CmdUse migrados (2025-10-17) |
+| 6c | Admin Commands | ⏳ OPCIONAL | CmdMove, CmdTeleport, CmdSpawnItem, CmdDestroyItem (futuro) |
 
 ---
 
@@ -336,28 +345,75 @@ if await state_service.is_on_cooldown(item, "uso_especial"):
 ### 📊 Métricas
 
 - **Archivos creados**: 3 (event_service.py, scheduler_service.py, state_service.py)
-- **Archivos modificados**: 15+
+- **Archivos modificados**: 20+
 - **Scripts globales**: 4 (curar, dañar, teleport, spawn)
 - **Items de ejemplo**: 7 (4 globales + 3 BEFORE/AFTER)
-- **Comandos migrados**: 3 (Look, Get, Drop)
-- **Documentación**: 2 archivos actualizados + 1 agente actualizado
-- **Commits**: 3 principales + múltiples menores
-- **Líneas agregadas**: ~2000+
+- **Comandos migrados**: 6 (Look, Get, Drop, Put, Take, Use)
+- **Documentación**: 4 archivos actualizados + 1 agente actualizado
+- **Commits**: 5 principales + múltiples menores
+- **Líneas agregadas**: ~3000+
 
 ### 🚀 Próximos Pasos (Opcionales)
 
 El sistema está completo y listo para producción. Futuras mejoras opcionales:
 
-1. Migrar más comandos (CmdPut, CmdTake, CmdUse)
-2. Agregar más scripts globales según necesidades del juego
-3. Crear más items demostrativos con scripts complejos
-4. Implementar eventos de combate (ON_ATTACK, ON_DEFEND, etc.)
-5. Agregar hooks globales para analytics/achievements
+1. ✅ ~~Migrar comandos de interacción (CmdPut, CmdTake, CmdUse)~~ → COMPLETADO 2025-10-17
+2. Migrar comandos administrativos (CmdMove, CmdTeleport, CmdSpawnItem, CmdDestroyItem)
+3. Agregar más scripts globales según necesidades del juego
+4. Crear más items demostrativos con scripts complejos
+5. Implementar eventos de combate (ON_ATTACK, ON_DEFEND, etc.)
+6. Agregar hooks globales para analytics/achievements
 
 ---
 
-**Última actualización**: 2025-10-17 18:30 UTC
+## 📋 Auditoría Completa de Comandos
+
+### Comandos Usando Sistema de Eventos (6)
+| Comando | EventType | Estado |
+|---------|-----------|--------|
+| `/mirar` | ON_LOOK | ✅ Migrado |
+| `/coger` | ON_GET | ✅ Migrado |
+| `/dejar` | ON_DROP | ✅ Migrado |
+| `/meter` | ON_PUT | ✅ Migrado |
+| `/sacar` | ON_TAKE | ✅ Migrado |
+| `/usar` | ON_USE | ✅ Migrado |
+
+### Comandos Candidatos para Migración Futura (4)
+| Comando | EventType Sugerido | Prioridad |
+|---------|-------------------|-----------|
+| `/mover` | ON_ENTER, ON_LEAVE | Media |
+| `/teleport` | ON_ENTER, ON_LEAVE | Media |
+| `/generarobjeto` | ON_SPAWN | Baja |
+| `/destruirobjeto` | ON_DESTROY | Baja |
+
+### Comandos que NO Requieren Eventos (18)
+**Lectura/Listado:**
+- `/inventario`, `/items`, `/personajes`, `/quien`, `/ayuda`
+- `/listarsalas`, `/listaritems`, `/listarcategorias`, `/listartags`, `/listabaneados`
+- `/examinarsala`, `/examinarpersonaje`, `/examinarobjeto`
+
+**Social:**
+- `/decir`, `/susurrar`, `/emocion`
+
+**Configuración:**
+- `/canales`, `/activarcanal`, `/desactivarcanal`, `/config`
+
+**Admin/Moderación:**
+- `/asignarrol`, `/banear`, `/desbanear`, `/verapelacion`, `/validar`
+
+**Gestión de Personaje:**
+- `/crearpersonaje`, `/suicidio`, `/apelar`, `/desconectar`, `/afk`
+
+**Movimiento:**
+- `/norte`, `/sur`, `/este`, `/oeste`, `/arriba`, `/abajo`, `/noreste`, `/noroeste`, `/sureste`, `/suroeste`
+
+---
+
+**Última actualización**: 2025-10-17 22:00 UTC
 **Autor**: Claude Code
 **Basado en**: prompt.md (Sistema de Scripts v2.0)
 **Status**: ✅ IMPLEMENTACIÓN COMPLETA - LISTO PARA PRODUCCIÓN
-**Versión**: 2.0.0
+**Versión**: 2.1.0
+**Changelog**:
+- v2.1.0 (2025-10-17): Migrados CmdPut, CmdTake, CmdUse + Auditoría completa de comandos
+- v2.0.0 (2025-10-17): Sistema de Scripts v2.0 completo con 3 comandos migrados

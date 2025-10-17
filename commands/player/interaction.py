@@ -484,6 +484,27 @@ class CmdPut(Command):
                 await message.answer("No puedes meter un objeto dentro de sí mismo.")
                 return
 
+            # FASE BEFORE: Permite cancelar o modificar la acción de meter
+            before_context = EventContext(
+                session=session,
+                character=character,
+                target=item_to_store,
+                room=character.room,
+                extra={"container": container}
+            )
+
+            before_result = await event_service.trigger_event(
+                event_type=EventType.ON_PUT,
+                phase=EventPhase.BEFORE,
+                context=before_context
+            )
+
+            # Si un script BEFORE cancela la acción, detener
+            if before_result.cancel_action:
+                await message.answer(before_result.message or "No puedes meter eso ahora.")
+                return
+
+            # Acción principal: mover item al contenedor
             await item_service.move_item_to_container(session, item_to_store.id, container.id)
 
             # Mensaje al jugador
@@ -496,6 +517,21 @@ class CmdPut(Command):
                 room_id=character.room_id,
                 message_text=f"<i>{character.name} guarda {item_to_store.get_name()} en {container.get_name()}.</i>",
                 exclude_character_id=character.id
+            )
+
+            # FASE AFTER: Ejecutar efectos después de meter
+            after_context = EventContext(
+                session=session,
+                character=character,
+                target=item_to_store,
+                room=character.room,
+                extra={"container": container}
+            )
+
+            await event_service.trigger_event(
+                event_type=EventType.ON_PUT,
+                phase=EventPhase.AFTER,
+                context=after_context
             )
 
         except Exception:
@@ -561,6 +597,27 @@ class CmdTake(Command):
                 await message.answer(f"No ves ningún '{item_name}' en {container.get_name()}.")
                 return
 
+            # FASE BEFORE: Permite cancelar o modificar la acción de sacar
+            before_context = EventContext(
+                session=session,
+                character=character,
+                target=item_to_take,
+                room=character.room,
+                extra={"container": container}
+            )
+
+            before_result = await event_service.trigger_event(
+                event_type=EventType.ON_TAKE,
+                phase=EventPhase.BEFORE,
+                context=before_context
+            )
+
+            # Si un script BEFORE cancela la acción, detener
+            if before_result.cancel_action:
+                await message.answer(before_result.message or "No puedes sacar eso ahora.")
+                return
+
+            # Acción principal: mover item al personaje
             await item_service.move_item_to_character(session, item_to_take.id, character.id)
 
             # Mensaje al jugador
@@ -575,9 +632,145 @@ class CmdTake(Command):
                 exclude_character_id=character.id
             )
 
+            # FASE AFTER: Ejecutar efectos después de sacar
+            after_context = EventContext(
+                session=session,
+                character=character,
+                target=item_to_take,
+                room=character.room,
+                extra={"container": container}
+            )
+
+            await event_service.trigger_event(
+                event_type=EventType.ON_TAKE,
+                phase=EventPhase.AFTER,
+                context=after_context
+            )
+
         except Exception:
             await message.answer("❌ Ocurrió un error al intentar sacar el objeto.")
             logging.exception(f"Fallo al ejecutar /sacar para {character.name}")
+
+class CmdUse(Command):
+    """
+    Comando para usar un objeto del inventario o de la sala.
+
+    Los objetos deben responder al evento ON_USE para tener efecto.
+    Este comando es genérico y escalable: toda la lógica de qué hace
+    cada objeto al usarse está definida en los scripts del prototipo.
+    """
+    names = ["usar", "use", "u"]
+    description = "Usa un objeto. Uso: /usar <objeto>"
+    lock = ""
+
+    async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
+        try:
+            if not args:
+                await message.answer("¿Qué quieres usar?")
+                return
+
+            item_name = " ".join(args).lower()
+
+            # Buscar item en inventario + sala con soporte para ordinales
+            available_items = character.items + character.room.items
+            item_to_use, error_msg = find_item_in_list_with_ordinal(
+                item_name,
+                available_items,
+                enable_disambiguation=True
+            )
+
+            # Manejar desambiguación
+            if error_msg:
+                await message.answer(error_msg, parse_mode="HTML")
+                return
+
+            if not item_to_use:
+                await message.answer("No tienes ni ves eso por aquí.")
+                return
+
+            # Verificar locks con access type "use"
+            locks = item_to_use.prototype.get("locks", "")
+            lock_messages = item_to_use.prototype.get("lock_messages", {})
+            can_pass, error_message = await permission_service.can_execute(
+                character,
+                locks,
+                access_type="use",
+                lock_messages=lock_messages
+            )
+            if not can_pass:
+                await message.answer(error_message or "No puedes usar eso.")
+                return
+
+            # FASE BEFORE: Permite cancelar o modificar la acción de usar
+            before_context = EventContext(
+                session=session,
+                character=character,
+                target=item_to_use,
+                room=character.room
+            )
+
+            before_result = await event_service.trigger_event(
+                event_type=EventType.ON_USE,
+                phase=EventPhase.BEFORE,
+                context=before_context
+            )
+
+            # Si un script BEFORE cancela la acción, detener
+            if before_result.cancel_action:
+                await message.answer(before_result.message or "No puedes usar eso ahora.")
+                return
+
+            # DISEÑO: Este comando es 100% script-driven (no tiene acción principal)
+            # La lógica de uso está completamente en los scripts AFTER de cada prototipo.
+            # Escalabilidad: Nuevos objetos usables solo requieren agregar scripts,
+            # no modificar este comando.
+
+            # Capturar nombre del item ANTES de AFTER (por si scripts lo destruyen)
+            item_name = item_to_use.get_name()
+
+            # FASE AFTER: Ejecutar efectos del uso
+            after_context = EventContext(
+                session=session,
+                character=character,
+                target=item_to_use,
+                room=character.room
+            )
+
+            after_result = await event_service.trigger_event(
+                event_type=EventType.ON_USE,
+                phase=EventPhase.AFTER,
+                context=after_context
+            )
+
+            # Commit para persistir cambios de scripts
+            await session.commit()
+
+            # Actualizar comandos si el item otorgaba command sets
+            # (por si scripts lo destruyeron/modificaron durante el uso)
+            if item_to_use.prototype.get("grants_command_sets"):
+                refreshed_character = await player_service.get_character_with_relations_by_id(
+                    session, character.id
+                )
+                await command_service.update_telegram_commands(refreshed_character)
+
+            # Mensaje social a la sala (INCONDICIONAL - acción visible)
+            from src.services import broadcaster_service
+            await broadcaster_service.send_message_to_room(
+                session=session,
+                room_id=character.room_id,
+                message_text=f"<i>{character.name} usa {item_name}.</i>",
+                exclude_character_id=character.id
+            )
+
+            # Mensaje al jugador
+            if not after_result.message:
+                await message.answer(f"Usas {item_name}.")
+            else:
+                await message.answer(after_result.message)
+
+        except Exception:
+            await message.answer("❌ Ocurrió un error al intentar usar el objeto.")
+            logging.exception(f"Fallo al ejecutar /usar para {character.name}")
 
 class CmdGive(Command):
     """Comando para dar un objeto a otro personaje."""
@@ -671,5 +864,6 @@ INTERACTION_COMMANDS = [
     CmdDrop(),
     CmdPut(),
     CmdTake(),
+    CmdUse(),
     CmdGive(),
 ]

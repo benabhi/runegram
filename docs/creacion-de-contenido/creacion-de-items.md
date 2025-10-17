@@ -2,10 +2,10 @@
 título: "Creando Items en Runegram"
 categoría: "Creación de Contenido"
 audiencia: "creador-de-contenido"
-versión: "2.0"
-última_actualización: "2025-01-16"
+versión: "2.1"
+última_actualización: "2025-10-17"
 autor: "Proyecto Runegram"
-etiquetas: ["items", "prototipos", "contenedores", "locks", "locks-contextuales", "objetos"]
+etiquetas: ["items", "prototipos", "contenedores", "locks", "locks-contextuales", "objetos", "eventos", "scripts"]
 documentos_relacionados:
   - "sistemas-del-motor/sistema-de-prototipos.md"
   - "creacion-de-contenido/construccion-de-salas.md"
@@ -335,9 +335,11 @@ Los items pueden otorgar comandos adicionales cuando están en el inventario del
 
 ---
 
-## Items con Scripts Reactivos
+## Items con Scripts Reactivos (Sistema de Eventos)
 
-Los scripts reactivos responden a eventos como examinar el objeto:
+Los scripts reactivos responden a eventos del jugador usando el Sistema de Eventos v2.0. Cada evento tiene fases BEFORE (puede cancelar) y AFTER (efectos).
+
+### Items que Responden a ON_LOOK
 
 ```python
 "amuleto_magico": {
@@ -347,7 +349,10 @@ Los scripts reactivos responden a eventos como examinar el objeto:
     "category": "joyería",
     "tags": ["mágico", "joyería"],
     "scripts": {
-        "on_look": "script_notificar_brillo_magico(color=púrpura)"
+        "after_on_look": [{
+            "script": "script_notificar_brillo_magico(color=púrpura)",
+            "priority": 0
+        }]
     },
     "display": {
         "icon": "💎"
@@ -357,7 +362,182 @@ Los scripts reactivos responden a eventos como examinar el objeto:
 
 **Resultado**: Cuando un jugador use `/mirar amuleto`, verá la descripción normal Y recibirá un mensaje adicional privado: *"Notas que emite un suave brillo de color púrpura."*
 
-Ver: `docs/creacion-de-contenido/escritura-de-scripts.md` para crear nuevos scripts.
+### Items que Responden a ON_PUT y ON_TAKE
+
+Estos eventos se disparan cuando un jugador mete o saca objetos de contenedores.
+
+#### Ejemplo: Item que no puede guardarse
+
+```python
+"espada_maldita": {
+    "name": "una espada maldita",
+    "description": "La hoja emite un brillo maligno...",
+    "category": "arma",
+    "tags": ["arma", "espada", "maldita"],
+    "scripts": {
+        "before_on_put": [{
+            "script": "cancel_action(mensaje='La espada maldita se resiste a ser guardada')",
+            "priority": 10
+        }]
+    },
+    "display": {
+        "icon": "⚔️"
+    }
+}
+```
+
+**Resultado**: Si intentas `/meter espada mochila`, el comando se cancela y ves el mensaje: *"La espada maldita se resiste a ser guardada"*
+
+#### Ejemplo: Contenedor que reacciona a objetos guardados
+
+```python
+"cofre_magico": {
+    "name": "un cofre mágico",
+    "keywords": ["cofre", "magico"],
+    "description": "Un cofre ornamentado con runas brillantes.",
+    "category": "contenedor",
+    "tags": ["contenedor", "mágico"],
+    "is_container": True,
+    "capacity": 10,
+    "scripts": {
+        "after_on_put": [{
+            "script": "broadcast_room(mensaje='El cofre brilla al recibir un objeto')",
+            "priority": 0
+        }]
+    },
+    "display": {
+        "icon": "📦✨"
+    }
+}
+```
+
+**Resultado**: Cuando alguien usa `/meter espada cofre`, todos los jugadores en la sala ven: *"El cofre brilla al recibir un objeto"*
+
+### Items que Responden a ON_USE (Items Usables)
+
+El comando `/usar` es completamente script-driven. **Toda la lógica** de qué hace un objeto al usarse está en los scripts.
+
+#### Ejemplo: Poción Curativa Simple
+
+```python
+"pocion_vida": {
+    "name": "una poción de vida",
+    "keywords": ["poción", "vida", "pocion vida"],
+    "description": "Un frasco con líquido rojo brillante. Huele a hierbas medicinales.",
+    "category": "consumible",
+    "tags": ["poción", "consumible", "curación"],
+    "scripts": {
+        "after_on_use": [{
+            "script": "global:curar_personaje(cantidad=50, mensaje='Te sientes revitalizado')",
+            "priority": 0
+        }]
+    },
+    "display": {
+        "icon": "🧪"
+    }
+}
+```
+
+**Resultado**: Al usar `/usar pocion`, el jugador se cura 50 HP y recibe el mensaje: *"Te sientes revitalizado"*
+
+#### Ejemplo: Item Consumible con Usos Limitados
+
+```python
+"anillo_deseos": {
+    "name": "un anillo de los deseos",
+    "keywords": ["anillo", "deseos"],
+    "description": "Un anillo antiguo con tres gemas. Dicen que puede cumplir tres deseos.",
+    "category": "joyería",
+    "tags": ["joyería", "mágico", "consumible"],
+    "scripts": {
+        "before_on_use": [{
+            "script": """
+# Verificar usos restantes (estado persistente)
+usos = await state_service.get_persistent(session, target, 'usos', default=3)
+if usos <= 0:
+    return False  # Cancelar acción
+return True
+""",
+            "cancel_message": "El anillo ha perdido todo su poder. No quedan deseos.",
+            "priority": 10
+        }],
+        "after_on_use": [{
+            "script": """
+# Decrementar usos
+usos = await state_service.get_persistent(session, target, 'usos', default=3)
+await state_service.set_persistent(session, target, 'usos', usos - 1)
+
+# Curar 100 HP
+character.hp = min(character.hp + 100, character.max_hp)
+await broadcaster_service.send_message_to_character(
+    character,
+    f'✨ El anillo brilla intensamente y te sientes completamente restaurado. (Quedan {usos - 1} usos)'
+)
+
+# Si era el último uso, cambiar descripción
+if usos - 1 <= 0:
+    await state_service.set_persistent(session, target, 'agotado', True)
+""",
+            "priority": 0
+        }]
+    },
+    "display": {
+        "icon": "💍"
+    }
+}
+```
+
+**Resultado**: Cada uso cura 100 HP y consume un uso. Después de 3 usos, el anillo deja de funcionar.
+
+#### Ejemplo: Item que Otorga Buff Temporal
+
+```python
+"elixir_fuerza": {
+    "name": "un elixir de fuerza",
+    "keywords": ["elixir", "fuerza"],
+    "description": "Una poción densa con un brillo dorado.",
+    "category": "consumible",
+    "tags": ["consumible", "buff", "temporal"],
+    "scripts": {
+        "after_on_use": [{
+            "script": """
+# Otorgar buff temporal (30 minutos)
+from datetime import timedelta
+await state_service.set_transient(character, 'fuerza_aumentada', True, ttl=timedelta(minutes=30))
+
+# Notificar jugador
+await broadcaster_service.send_message_to_character(
+    character,
+    '<i>Sientes una oleada de fuerza sobrehumana recorrer tu cuerpo.</i>'
+)
+
+# Destruir item (consumible)
+await session.delete(target)
+await session.flush()
+""",
+            "priority": 0
+        }]
+    },
+    "display": {
+        "icon": "🧪"
+    }
+}
+```
+
+**Resultado**: Al usar `/usar elixir`, el jugador recibe un buff de 30 minutos y el item se destruye.
+
+### Eventos Disponibles para Items
+
+| Evento | Cuándo se Dispara | Uso Común |
+|--------|------------------|-----------|
+| `ON_LOOK` | `/mirar <item>` | Mensajes descriptivos, efectos visuales |
+| `ON_GET` | `/coger <item>` | Validaciones, trampas, efectos al coger |
+| `ON_DROP` | `/dejar <item>` | Efectos al soltar, notificaciones |
+| `ON_PUT` | `/meter <item> en <contenedor>` | Prevenir guardado, reacciones del contenedor |
+| `ON_TAKE` | `/sacar <item> de <contenedor>` | Purificaciones, activaciones |
+| `ON_USE` | `/usar <item>` | **Lógica completa de uso** (pociones, pergaminos, etc.) |
+
+Ver: `docs/sistemas-del-motor/sistema-de-eventos.md` para documentación completa sobre eventos y scripts.
 
 ---
 

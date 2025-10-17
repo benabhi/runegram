@@ -1,10 +1,10 @@
 ---
 título: "Sistema de Eventos"
 categoría: "Sistemas del Motor"
-versión: "2.0"
+versión: "2.1"
 última_actualización: "2025-10-17"
 autor: "Proyecto Runegram"
-etiquetas: ["eventos", "event-driven", "scripts", "hooks", "prioridades"]
+etiquetas: ["eventos", "event-driven", "scripts", "hooks", "prioridades", "on_put", "on_take", "on_use"]
 documentos_relacionados:
   - "sistemas-del-motor/sistema-de-scripts.md"
   - "sistemas-del-motor/sistema-de-scheduling.md"
@@ -383,6 +383,9 @@ Los siguientes comandos han sido migrados al sistema de eventos:
 | `/mirar` | `commands/player/general.py` | `ON_LOOK` | BEFORE, AFTER | Migrado 2025-10-17 |
 | `/coger` | `commands/player/interaction.py` | `ON_GET` | BEFORE, AFTER | Migrado 2025-10-17 |
 | `/dejar` | `commands/player/interaction.py` | `ON_DROP` | BEFORE, AFTER | Migrado 2025-10-17 |
+| `/meter` | `commands/player/interaction.py` | `ON_PUT` | BEFORE, AFTER | Migrado 2025-10-17 + extra container |
+| `/sacar` | `commands/player/interaction.py` | `ON_TAKE` | BEFORE, AFTER | Migrado 2025-10-17 + extra container |
+| `/usar` | `commands/player/interaction.py` | `ON_USE` | BEFORE, AFTER | Migrado 2025-10-17 (100% script-driven) |
 
 #### Checklist de Migración
 
@@ -395,6 +398,22 @@ Antes de considerar completa la migración de un comando:
 - [ ] Evento AFTER disparado después de la acción
 - [ ] Mensajes de error usan `result.message` si está disponible
 - [ ] Commits de sesión ocurren DESPUÉS de AFTER (para que scripts puedan modificar BD)
+
+#### Características Especiales de Comandos Migrados
+
+**CmdPut y CmdTake (Comandos de Contenedor)**:
+- Pasan información adicional del contenedor en `extra={"container": container}`
+- Permite que scripts reaccionen al contenedor específico usado
+- Los scripts pueden acceder al contenedor mediante `context.extra.get("container")`
+
+**CmdUse (Comando 100% Script-Driven)**:
+- NO tiene "acción principal" - toda la lógica está en scripts ON_USE
+- Escalable: Nuevos objetos usables solo requieren agregar scripts al prototipo
+- No necesita modificarse para agregar nuevos tipos de objetos usables
+- Captura el nombre del item ANTES de AFTER (por si scripts lo destruyen)
+- Hace commit después de AFTER para persistir cambios de scripts
+- Actualiza comandos de Telegram si el item otorgaba command sets
+- Broadcasting incondicional (acción siempre visible)
 
 #### Items de Ejemplo con Scripts BEFORE/AFTER
 
@@ -412,6 +431,155 @@ Ver `game_data/item_prototypes.py` para ejemplos completos:
 **Anillo de los Deseos** (`anillo_deseos`):
 - BEFORE on_use: Verifica usos restantes (estado persistente)
 - AFTER on_use: Cura 100 HP
+
+## Ejemplos de Uso de Eventos por Tipo
+
+### ON_PUT y ON_TAKE (Eventos de Contenedor)
+
+Estos eventos se disparan cuando un jugador mete o saca objetos de contenedores. El contenedor está disponible en `context.extra["container"]`.
+
+#### Ejemplo: Item que se resiste a ser guardado
+
+```python
+"espada_maldita": {
+    "name": "una espada maldita",
+    "description": "La hoja emite un brillo maligno...",
+    "scripts": {
+        "before_on_put": [{
+            "script": "cancel_action(mensaje='La espada maldita se resiste a ser guardada')",
+            "priority": 10
+        }]
+    }
+}
+```
+
+#### Ejemplo: Contenedor que reacciona a objetos metidos
+
+```python
+"cofre_magico": {
+    "name": "un cofre mágico",
+    "is_container": True,
+    "capacity": 10,
+    "scripts": {
+        "after_on_put": [{
+            "script": "broadcast_room(mensaje='El cofre brilla al recibir un objeto')",
+            "priority": 0
+        }]
+    }
+}
+```
+
+#### Ejemplo: Item que purifica al sacarse de contenedor específico
+
+```python
+"arma_corrupta": {
+    "name": "un arma corrupta",
+    "scripts": {
+        "after_on_take": [{
+            "script": """
+# Acceder al contenedor desde context.extra
+container = context.extra.get('container')
+if container and container.key == 'altar_purificador':
+    # Cambiar estado del item
+    await state_service.set_persistent(session, target, 'purificada', True)
+    await broadcaster_service.send_message_to_character(
+        character,
+        '<i>El arma brilla intensamente al salir del altar. ¡Ha sido purificada!</i>'
+    )
+""",
+            "priority": 0
+        }]
+    }
+}
+```
+
+**Nota sobre context.extra**: Los scripts de ON_PUT y ON_TAKE pueden acceder al contenedor mediante `context.extra.get("container")`.
+
+### ON_USE (Eventos de Uso)
+
+El evento ON_USE es completamente script-driven. El comando `/usar` NO tiene acción principal - toda la lógica está en los scripts.
+
+#### Ejemplo: Poción que cura
+
+```python
+"pocion_vida": {
+    "name": "una poción de vida",
+    "description": "Un frasco con líquido rojo brillante.",
+    "scripts": {
+        "after_on_use": [{
+            "script": "global:curar_personaje(cantidad=50, mensaje='Te sientes revitalizado')",
+            "priority": 0
+        }]
+    }
+}
+```
+
+#### Ejemplo: Item consumible con usos limitados
+
+```python
+"pergamino_teleport": {
+    "name": "un pergamino de teletransporte",
+    "scripts": {
+        "before_on_use": [{
+            "script": """
+# Verificar si tiene usos restantes
+usos = await state_service.get_persistent(session, target, 'usos', default=3)
+if usos <= 0:
+    return False  # Cancelar acción
+return True
+""",
+            "cancel_message": "El pergamino se desintegra. Ya no tiene más poder.",
+            "priority": 10
+        }],
+        "after_on_use": [{
+            "script": """
+# Decrementar usos
+usos = await state_service.get_persistent(session, target, 'usos', default=3)
+await state_service.set_persistent(session, target, 'usos', usos - 1)
+
+# Teletransportar a sala aleatoria
+await global_scripts.teleport_aleatorio(session, character, target, room)
+
+# Destruir item si era el último uso
+if usos - 1 <= 0:
+    await session.delete(target)
+    await session.flush()
+""",
+            "priority": 0
+        }]
+    }
+}
+```
+
+#### Ejemplo: Item que otorga habilidades temporales
+
+```python
+"elixir_fuerza": {
+    "name": "un elixir de fuerza",
+    "scripts": {
+        "after_on_use": [{
+            "script": """
+# Otorgar buff temporal (30 minutos)
+from datetime import timedelta
+await state_service.set_transient(target, 'fuerza_aumentada', True, ttl=timedelta(minutes=30))
+
+# Notificar jugador
+await broadcaster_service.send_message_to_character(
+    character,
+    '<i>Sientes una oleada de fuerza sobrehumana recorrer tu cuerpo.</i>'
+)
+
+# Destruir item (consumible)
+await session.delete(target)
+await session.flush()
+""",
+            "priority": 0
+        }]
+    }
+}
+```
+
+**Diseño de CmdUse**: Es 100% genérico. Nuevos objetos usables solo requieren definir scripts ON_USE en el prototipo. No necesitas modificar el comando.
 
 ## Definición de Scripts en Prototipos
 

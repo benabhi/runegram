@@ -1,10 +1,10 @@
 ---
 título: "Referencia Completa de Comandos"
 categoría: "Referencia"
-versión: "1.8"
-última_actualización: "2025-01-11"
+versión: "1.9"
+última_actualización: "2025-10-17"
 autor: "Proyecto Runegram"
-etiquetas: ["comandos", "referencia", "jugadores", "admin"]
+etiquetas: ["comandos", "referencia", "jugadores", "admin", "eventos"]
 documentos_relacionados:
   - "../creacion-de-contenido/creacion-de-comandos.md"
   - "../sistemas-del-motor/sistema-de-comandos.md"
@@ -277,6 +277,24 @@ Todos los comandos de movimiento siguen el mismo patrón: se mueven en la direcc
   - Se notifica a la sala cuando sacas un objeto.
   - Ambos argumentos (objeto y contenedor) soportan ordinales (ver [Sistema de Ordinales](#-sistema-de-ordinales-para-objetos-duplicados)).
 
+### `/usar <objeto>`
+- **Alias:** `/use`, `/u`
+- **Descripción:** Usa un objeto de tu inventario o de la sala. Los efectos del objeto dependen completamente de los scripts ON_USE definidos en su prototipo.
+- **Uso:**
+  - `/usar pocion` - Usa una poción (ej: curación)
+  - `/usar 2.pergamino` - Usa el segundo pergamino (si hay duplicados)
+  - `/usar anillo` - Usa un anillo mágico
+- **Restricciones:**
+  - El objeto puede tener locks con `access_type="use"` que restrinjan su uso.
+  - El objeto debe responder a evento ON_USE para tener efectos.
+- **Notas:**
+  - **100% script-driven**: Toda la lógica de uso está en scripts del prototipo, no en el comando.
+  - **Escalable**: Nuevos objetos usables solo requieren agregar scripts ON_USE al prototipo.
+  - **Eventos BEFORE/AFTER**: Los scripts BEFORE pueden cancelar el uso (ej: usos agotados, cooldowns).
+  - **Broadcasting incondicional**: La acción `/usar` siempre es visible para otros jugadores en la sala.
+  - Soporta ordinales para objetos duplicados (ver [Sistema de Ordinales](#-sistema-de-ordinales-para-objetos-duplicados)).
+  - Ver: `docs/sistemas-del-motor/sistema-de-eventos.md` para crear objetos usables.
+
 ### `/dar <objeto> a <personaje>`
 - **Alias:** `/give`
 - **Descripción:** Da un objeto de tu inventario a otro personaje.
@@ -339,6 +357,8 @@ Para especificar un objeto duplicado, usa el formato **`N.nombre`** donde N es e
 - `/dejar N.objeto` - Dejar objetos duplicados
 - `/meter N.objeto en N.contenedor` - Ambos argumentos soportan ordinales
 - `/sacar N.objeto de N.contenedor` - Ambos argumentos soportan ordinales
+- `/usar N.objeto` - Usar objetos duplicados
+- `/dar N.objeto a <personaje>` - Dar objetos duplicados
 - `/inventario N.contenedor` - Ver contenido de contenedores duplicados
 
 #### Notas Importantes
@@ -682,9 +702,10 @@ Todos los comandos de administrador requieren el rol **ADMIN** o superior, a men
 
 ---
 
-**Versión:** 1.8
-**Última actualización:** 2025-01-11
+**Versión:** 1.9
+**Última actualización:** 2025-10-17
 **Changelog:**
+- v1.9 (2025-10-17): Agregado comando `/usar` - Sistema de Eventos v2.0 (items usables 100% script-driven)
 - v1.8 (2025-01-11): Agregado sistema de baneos y apelaciones - comandos `/banear`, `/desbanear`, `/listabaneados`, `/verapelacion`, `/apelar`
 - v1.7 (2025-01-09): Implementado Sistema de Narrativa - mensajes evocativos aleatorios para `/generarobjeto`, `/destruirobjeto`, `/teleport` y `/suicidio`
 - v1.6 (2025-10-09): Agregado comando `/destruirobjeto` para eliminar objetos del juego

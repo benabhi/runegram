@@ -557,7 +557,7 @@ class CmdRules(Command):
         try:
             from src.templates import render_template
 
-            rules_text = render_template('base/rules.html.j2')
+            rules_text = render_template('rules.html.j2')
             await message.answer(rules_text, parse_mode="HTML")
 
         except Exception:

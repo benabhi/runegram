@@ -1,7 +1,6 @@
 ---
 título: "Sistema de Scheduling"
 categoría: "Sistemas del Motor"
-versión: "2.0"
 última_actualización: "2025-10-17"
 autor: "Proyecto Runegram"
 etiquetas: ["scheduling", "temporización", "ticks", "cron", "automatización", "scheduler"]
@@ -16,9 +15,9 @@ estado: "actual"
 importancia: "crítica"
 ---
 
-# Sistema de Scheduling (v2.0)
+# Sistema de Scheduling
 
-El Sistema de Scheduling es el "corazón" temporal de Runegram. Gestiona la ejecución programada de scripts mediante un sistema híbrido que soporta **tick-based scheduling** (v1.0) y **cron-based scheduling** (v2.0).
+El Sistema de Scheduling es el "corazón" temporal de Runegram. Gestiona la ejecución programada de scripts mediante un sistema híbrido que soporta **tick-based scheduling** y **cron-based scheduling**.
 
 **IMPORTANTE**: Este servicio **reemplaza completamente** al antiguo `pulse_service.py` (eliminado), manteniendo 100% de retrocompatibilidad con el sistema de ticks existente.
 
@@ -28,9 +27,9 @@ El Sistema de Scheduling es el "corazón" temporal de Runegram. Gestiona la ejec
 
 El `scheduler_service` combina tres tipos de scheduling:
 
-1. **Tick-based** (v1.0): Intervalos basados en ticks (mantiene compatibilidad)
-2. **Cron-based** (v2.0 - nuevo): Expresiones cron de calendario real
-3. **Timestamp-based** (v2.0 - futuro): Eventos únicos en fecha/hora específica
+1. **Tick-based**: Intervalos basados en ticks (mantiene compatibilidad con sistema anterior)
+2. **Cron-based**: Expresiones cron de calendario real
+3. **Timestamp-based** (futuro): Eventos únicos en fecha/hora específica
 
 ### ¿Por Qué un Sistema Híbrido?
 
@@ -40,7 +39,7 @@ El `scheduler_service` combina tres tipos de scheduling:
 - ✅ Simple para diseñadores ("cada 60 ticks")
 - ✅ Escalable (un solo job global)
 
-**Ventajas del sistema cron** (nuevo en v2.0):
+**Ventajas del sistema cron**:
 - ✅ Eventos basados en calendario real
 - ✅ "Todos los días a las 12:00" sin calcular ticks
 - ✅ Sintaxis estándar reconocible
@@ -79,7 +78,7 @@ El scheduler gestiona 3 jobs automáticamente:
 2. **`cron_processor`**: Ejecuta cada minuto - procesa cron scripts
 3. **`cron_reload`**: Ejecuta cada 5 min - recarga cache de cron scripts
 
-### 2. Tick-based Scheduling (v1.0 - Retrocompatible)
+### 2. Tick-based Scheduling (Retrocompatible)
 
 Mantiene el sistema de pulse original sin cambios.
 
@@ -128,7 +127,7 @@ Con configuración por defecto (`interval_seconds = 2`):
 
 **Fórmula**: `interval_ticks = segundos_deseados / interval_seconds`
 
-### 3. Cron-based Scheduling (v2.0 - Nuevo)
+### 3. Cron-based Scheduling
 
 Permite scheduling basado en expresiones cron estándar.
 
@@ -229,7 +228,7 @@ El scheduler mantiene un cache interno de cron scripts que se recarga cada 5 min
 
 ## Flujo de Ejecución
 
-### Tick-based (v1.0)
+### Tick-based
 
 ```
 ┌──────────────────────────────────────┐
@@ -262,7 +261,7 @@ El scheduler mantiene un cache interno de cron scripts que se recarga cada 5 min
 └──────────────────────────────────────┘
 ```
 
-### Cron-based (v2.0)
+### Cron-based
 
 ```
 ┌──────────────────────────────────────┐
@@ -424,7 +423,7 @@ interval_seconds = 2  # Por defecto: 2 segundos
 - ⚠️ Cambiar este valor afecta todos los `interval_ticks` en prototipos
 - ✅ 2 segundos es un buen balance
 
-## Optimizaciones v2.0
+## Optimizaciones
 
 ### 1. Query Optimizada para tick_scripts
 

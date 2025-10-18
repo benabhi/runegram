@@ -78,7 +78,7 @@ ITEM_PROTOTYPES = {
         "tags": ["cofre", "fijo", "madera", "cerrado"],
         "is_container": True,
         "capacity": 20,
-        # Sistema de locks contextuales (v2.0)
+        # Sistema de locks contextuales
         "locks": {
             "get": "rol(SUPERADMIN)",  # Solo SUPERADMIN puede cogerlo (muy pesado)
             "put": "",                  # Todos pueden meter cosas (sin lock)
@@ -167,7 +167,7 @@ ITEM_PROTOTYPES = {
         }
     },
 
-    # --- EJEMPLOS DE SCRIPTS GLOBALES (Sistema v2.0) ---
+    # --- EJEMPLOS DE SCRIPTS GLOBALES ---
 
     # Poción de curación que usa script global
     "pocion_curacion": {

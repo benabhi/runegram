@@ -2,7 +2,6 @@
 título: "Construyendo Salas en Runegram"
 categoría: "Creación de Contenido"
 audiencia: "creador-de-contenido"
-versión: "1.0"
 última_actualización: "2025-01-09"
 autor: "Proyecto Runegram"
 etiquetas: ["salas", "construcción-mundo", "prototipos", "salidas"]
@@ -238,7 +237,7 @@ Ver: `docs/creacion-de-contenido/guia-de-estilo-de-salida.md` para creación de 
 
 ## Salas Reactivas con Scripts de Eventos
 
-Las salas pueden responder a las acciones de los jugadores usando el Sistema de Eventos v3.0. Esto permite crear salas dinámicas que reaccionan al movimiento de jugadores.
+Las salas pueden responder a las acciones de los jugadores usando el Sistema de Eventos. Esto permite crear salas dinámicas que reaccionan al movimiento de jugadores.
 
 ### Scripts ON_ENTER y ON_LEAVE
 

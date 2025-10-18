@@ -1,7 +1,6 @@
 ---
 título: "Filosofía del Núcleo"
 categoría: "Comenzando"
-versión: "1.1"
 última_actualización: "2025-10-09"
 autor: "Proyecto Runegram"
 etiquetas: ["filosofía", "arquitectura", "principios-diseño", "dirigido-por-datos"]
@@ -80,5 +79,5 @@ Estos principios combinados buscan crear una experiencia de juego fluida, donde 
 ---
 
 **Changelog:**
-- v1.1 (2025-10-09): Migrado a nueva estructura con YAML frontmatter, actualizado "tickers" a "pulso global"
-- v1.0 (2025-01-09): Versión original
+- **2025-10-09**: Migrado a nueva estructura con YAML frontmatter, actualizado "tickers" a "pulso global"
+- **2025-01-09**: Versión original

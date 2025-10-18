@@ -1,7 +1,6 @@
 ---
 título: "Sistema de Permisos (Locks)"
 categoría: "Sistemas del Motor"
-versión: "2.0.1"
 última_actualización: "2025-01-16"
 autor: "Proyecto Runegram"
 etiquetas: ["permisos", "locks", "seguridad", "roles", "contextuales"]
@@ -15,23 +14,23 @@ referencias_código:
   - "commands/player/movement.py"
 estado: "actual"
 importancia: "crítica"
-notas_de_version: "v2.0.1: CmdDrop ahora verifica locks con access_type='drop'"
+notas_de_version: "CmdDrop ahora verifica locks con access_type='drop'"
 ---
 
-# Sistema de Permisos (Locks) - Versión 2.0
+# Sistema de Permisos (Locks)
 
 El Sistema de Permisos, o sistema de `locks`, es el "guardián" de Runegram. Es un motor de reglas potente y extensible que determina si un personaje (`Character`) tiene permiso para realizar una acción determinada, como usar un comando, pasar por una salida o coger un objeto.
 
 El diseño está inspirado en los sistemas de `locks` de frameworks de MUDs avanzados como Evennia y se basa en tres pilares: **`lock strings` expresivos**, **locks contextuales por tipo de acción**, y un **motor de evaluación seguro con soporte async**.
 
-## Novedades en Versión 2.0
+## Características Principales
 
-La versión 2.0 introduce mejoras significativas:
+El sistema ofrece las siguientes características:
 
 ✅ **Locks Contextuales**: Diferentes restricciones según el tipo de acción (get, put, take, traverse, etc.)
 ✅ **Lock Functions Asíncronas**: Soporte para funciones de lock que requieren acceso a Redis u otras operaciones async
 ✅ **Mensajes de Error Personalizados**: Define mensajes específicos para cada tipo de lock
-✅ **Nuevas Lock Functions**: 9 funciones de lock para casos de uso avanzados
+✅ **9 Lock Functions**: Funciones de lock para casos de uso avanzados
 ✅ **Backward Compatible**: Mantiene compatibilidad total con locks string simples
 
 ## 1. Arquitectura General
@@ -160,9 +159,9 @@ Cuando una parte del juego necesita comprobar un permiso (ej: el `dispatcher` pa
     *   Cualquier otro tipo de nodo (asignaciones, bucles, etc.) no está permitido y lanzará un `TypeError`, lo que garantiza la seguridad del sistema.
 4.  **Resultado:** La función `can_execute` devuelve una tupla `(True, "")` si el resultado final es verdadero, o `(False, "Mensaje de error")` si es falso.
 
-## 4. Sistema de Locks Contextuales (Versión 2.0)
+## 4. Sistema de Locks Contextuales
 
-Una de las mejoras más significativas de la versión 2.0 es el soporte para **locks contextuales**, que permiten definir diferentes restricciones según el tipo de acción que se intenta realizar.
+El sistema soporta **locks contextuales**, que permiten definir diferentes restricciones según el tipo de acción que se intenta realizar.
 
 ### ¿Qué son los Locks Contextuales?
 
@@ -380,7 +379,7 @@ LOCK_FUNCTIONS = {
 }
 ```
 
-### Función Asíncrona (Nuevo en v2.0)
+### Función Asíncrona
 
 Si tu lock function necesita acceso a la base de datos, Redis, o cualquier operación asíncrona:
 
@@ -432,21 +431,21 @@ Una vez registrada, la función de lock está disponible inmediatamente en todos
 
 Este diseño hace que el Sistema de Permisos sea una de las herramientas más potentes y escalables del motor de Runegram.
 
-## Resumen de Cambios v2.0
+## Resumen de Características
 
-**Cambios Principales:**
+**Características del Sistema:**
 - ✅ Sistema de locks contextuales por access_type
 - ✅ Soporte para lock functions asíncronas
 - ✅ Mensajes de error personalizados por access type
-- ✅ 9 lock functions (5 nuevas en v2.0)
+- ✅ 9 lock functions disponibles
 - ✅ Backward compatible con locks string simples
 
-**Migración desde v1.0:**
+**Migración:**
 - Los locks string simples siguen funcionando sin cambios
 - Para aprovechar locks contextuales, convierte el lock a diccionario
 - Para mensajes personalizados, añade campo `lock_messages` en prototipos
 
-**Archivos Afectados:**
+**Archivos Relevantes:**
 - `src/services/permission_service.py` - Core del sistema
 - `commands/player/interaction.py` - Usa access types (get, drop, put, take)
 - `commands/player/movement.py` - Usa access type (traverse)

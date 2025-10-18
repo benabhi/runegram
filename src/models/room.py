@@ -31,7 +31,7 @@ class Room(Base):
     description = Column(Text, nullable=False, default="Esta es una sala sin describir.")
     locks = Column(String, nullable=False, default="")
 
-    # --- Estado de Scripts v2.0 ---
+    # --- Estado de Scripts ---
     # Estado persistente para scripts de sala (eventos globales, timers, etc.)
     # Gestionado por state_service
     script_state = Column(JSONB, nullable=True, default=dict)

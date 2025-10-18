@@ -2,7 +2,6 @@
 título: "Índice de Sistemas del Motor"
 categoría: "Sistemas del Motor"
 audiencia: "desarrollador"
-versión: "1.1"
 última_actualización: "2025-01-11"
 autor: "Proyecto Runegram"
 etiquetas: ["índice", "navegación", "motor", "arquitectura"]
@@ -172,8 +171,8 @@ Ver: [Filosofía del Proyecto](../primeros-pasos/filosofia-central.md)
 **Audiencia**: Desarrolladores de sistemas, diseñadores de eventos periódicos
 **Contenido**:
 - Sistema híbrido tick-based + cron-based
-- Tick scripts (v1.0 retrocompatible)
-- Cron scripts (v2.0 nuevo)
+- Tick scripts (retrocompatible)
+- Cron scripts
 - Escalabilidad optimizada
 - Integración con APScheduler
 
@@ -188,7 +187,7 @@ Ver: [Filosofía del Proyecto](../primeros-pasos/filosofia-central.md)
 - Scripts BEFORE/AFTER con prioridades
 - Cancelación de acciones (scripts BEFORE)
 - Hooks globales del motor
-- Normalización de formatos v1.0 y v2.0
+- Normalización de formatos
 
 **Cuándo leer**: Para crear scripts reactivos con eventos BEFORE/AFTER.
 
@@ -201,7 +200,7 @@ Ver: [Filosofía del Proyecto](../primeros-pasos/filosofia-central.md)
 - Estado transiente (Redis con TTL)
 - Cooldowns y timers
 - Contadores y progreso de quests
-- Integración con scripts v2.0
+- Integración con scripts
 
 **Cuándo leer**: Para scripts que necesitan mantener estado entre ejecuciones.
 
@@ -376,12 +375,12 @@ src/
 │   ├── permission_service.py
 │   ├── broadcaster_service.py
 │   ├── narrative_service.py
-│   ├── scheduler_service.py    # v2.0 (reemplaza pulse_service)
-│   ├── event_service.py        # v2.0 (nuevo)
-│   ├── state_service.py        # v2.0 (nuevo)
+│   ├── scheduler_service.py    # (reemplaza pulse_service)
+│   ├── event_service.py
+│   ├── state_service.py
 │   ├── online_service.py
 │   ├── ban_service.py
-│   └── script_service.py       # v2.0 (actualizado)
+│   └── script_service.py
 ├── models/                 # Modelos SQLAlchemy
 │   ├── account.py
 │   ├── character.py

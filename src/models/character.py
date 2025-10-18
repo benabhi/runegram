@@ -43,7 +43,7 @@ class Character(Base):
         default=["general", "character_creation", "interaction", "movement", "channels", "dynamic_channels", "settings", "appeal"]
     )
 
-    # --- Estado de Scripts v2.0 ---
+    # --- Estado de Scripts ---
     # Estado persistente para scripts de personaje (quests, achievements, stats, etc.)
     # Gestionado por state_service
     script_state = Column(JSONB, nullable=True, default=dict)

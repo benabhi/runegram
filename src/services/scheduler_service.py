@@ -1,17 +1,17 @@
 # src/services/scheduler_service.py
 """
-Servicio de Scheduling para Sistema de Scripts v2.0.
+Servicio de Scheduling para Sistema de Scripts.
 
 Scheduler híbrido que soporta:
-- Tick-based scheduling (sistema actual v1.0)
+- Tick-based scheduling (intervalos de ticks)
 - Cron-based scheduling (calendario real)
 - Timestamp scheduling (eventos únicos en fecha/hora específica)
 
-Este servicio implementa scheduling híbrido (tick-based + cron-based) con retrocompatibilidad v1.0.
+Este servicio implementa scheduling híbrido con tick-based y cron-based.
 
 Responsabilidades:
-1. Mantener sistema de ticks actual (retrocompatibilidad).
-2. Agregar scheduling basado en expresiones cron.
+1. Mantener sistema de ticks para scripts periódicos.
+2. Scheduling basado en expresiones cron.
 3. Cache de scripts cron para performance.
 4. Soportar scripts globales vs por jugador.
 """
@@ -65,10 +65,7 @@ class ScheduledScript:
 
 class SchedulerService:
     """
-    Scheduler híbrido que soporta ticks, cron y timestamps.
-
-    Mantiene 100% retrocompatibilidad con sistema v1.0 mientras
-    agrega nuevas funcionalidades con arquitectura event-driven.
+    Scheduler híbrido que soporta ticks, cron y timestamps con arquitectura event-driven.
     """
 
     def __init__(self):
@@ -80,7 +77,7 @@ class SchedulerService:
 
     def start(self):
         """Inicializa el scheduler con todos sus jobs."""
-        # Job 1: Pulse global (tick-based scripts) - v1.0
+        # Job 1: Pulse global (tick-based scripts)
         self.scheduler.add_job(
             self._execute_tick_pulse,
             trigger=IntervalTrigger(seconds=settings.pulse_interval_seconds),
@@ -88,7 +85,7 @@ class SchedulerService:
             replace_existing=True
         )
 
-        # Job 2: Procesar scripts cron - v2.0
+        # Job 2: Procesar scripts cron
         self.scheduler.add_job(
             self._process_cron_scripts,
             trigger=IntervalTrigger(minutes=1),  # Verificar cada minuto
@@ -96,7 +93,7 @@ class SchedulerService:
             replace_existing=True
         )
 
-        # Job 3: Cargar scripts cron desde prototipos - v2.0
+        # Job 3: Cargar scripts cron desde prototipos
         self.scheduler.add_job(
             self._reload_cron_scripts,
             trigger=IntervalTrigger(minutes=5),  # Recargar cada 5 min
@@ -117,11 +114,11 @@ class SchedulerService:
         """Retorna el contador global de ticks actual."""
         return self._tick_counter
 
-    # =================== TICK-BASED SCHEDULING (v1.0) ===================
+    # =================== TICK-BASED SCHEDULING ===================
 
     async def _execute_tick_pulse(self):
         """
-        Pulse global de ticks (mantiene comportamiento v1.0).
+        Pulse global de ticks.
         """
         self._tick_counter += 1
         current_tick = self._tick_counter
@@ -134,7 +131,7 @@ class SchedulerService:
 
     async def _process_tick_scripts(self, session: AsyncSession, current_tick: int):
         """
-        Procesa tick_scripts (sistema v1.0 - mantenido por retrocompatibilidad).
+        Procesa tick_scripts de items con scheduling basado en ticks.
 
         NOTA: Carga todos los items y filtra en Python, ya que prototype es una
         propiedad Python, no una columna JSONB en la BD.
@@ -181,9 +178,7 @@ class SchedulerService:
         current_tick: int
     ):
         """
-        Procesa un tick_script individual (lógica v1.0).
-
-        Mantiene retrocompatibilidad completa con el formato tick-based original.
+        Procesa un tick_script individual con formato tick-based.
         """
         interval_ticks = tick_script.get("interval_ticks")
         script_string = tick_script.get("script")
@@ -266,7 +261,7 @@ class SchedulerService:
         from sqlalchemy.orm.attributes import flag_modified
         flag_modified(item, "tick_data")
 
-    # =================== CRON-BASED SCHEDULING (v2.0) ===================
+    # =================== CRON-BASED SCHEDULING ===================
 
     async def _reload_cron_scripts(self):
         """

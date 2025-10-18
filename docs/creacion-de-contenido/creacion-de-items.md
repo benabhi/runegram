@@ -2,7 +2,6 @@
 título: "Creando Items en Runegram"
 categoría: "Creación de Contenido"
 audiencia: "creador-de-contenido"
-versión: "2.1"
 última_actualización: "2025-10-17"
 autor: "Proyecto Runegram"
 etiquetas: ["items", "prototipos", "contenedores", "locks", "locks-contextuales", "objetos", "eventos", "scripts"]
@@ -143,7 +142,7 @@ Para restricciones que se aplican a todas las acciones:
 }
 ```
 
-### Locks Contextuales (Diccionario) - Versión 2.0
+### Locks Contextuales (Diccionario)
 
 Para restricciones diferentes según el tipo de acción:
 
@@ -337,7 +336,7 @@ Los items pueden otorgar comandos adicionales cuando están en el inventario del
 
 ## Items con Scripts Reactivos (Sistema de Eventos)
 
-Los scripts reactivos responden a eventos del jugador usando el Sistema de Eventos v2.0. Cada evento tiene fases BEFORE (puede cancelar) y AFTER (efectos).
+Los scripts reactivos responden a eventos del jugador usando el Sistema de Eventos. Cada evento tiene fases BEFORE (puede cancelar) y AFTER (efectos).
 
 ### Items que Responden a ON_LOOK
 

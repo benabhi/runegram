@@ -1,10 +1,9 @@
 ---
 título: "Sistema de Scripts"
 categoría: "Sistemas del Motor"
-versión: "2.0"
 última_actualización: "2025-10-17"
 autor: "Proyecto Runegram"
-etiquetas: ["scripts", "eventos", "scheduling", "automatización", "v2.0"]
+etiquetas: ["scripts", "eventos", "scheduling", "automatización"]
 documentos_relacionados:
   - "sistemas-del-motor/sistema-de-eventos.md"
   - "sistemas-del-motor/sistema-de-scheduling.md"
@@ -20,33 +19,27 @@ estado: "actual"
 importancia: "crítica"
 ---
 
-# Sistema de Scripts (v2.0)
+# Sistema de Scripts
 
 El Sistema de Scripts es el puente que conecta el **Contenido** del juego (prototipos en `game_data/`) con la **Lógica** del motor (servicios en `src/services/`). Permite que objetos, salas y el mundo tengan comportamiento dinámico.
 
-## Evolución del Sistema
+## Características Actuales
 
-### v1.0 (Original)
-- Scripts reactivos (`on_look`)
-- Tick scripts (`tick_scripts`)
-- Formato simple (strings)
-
-### v2.0 (Actual)
 - ✅ **Event-driven architecture** (`event_service`)
 - ✅ **Hybrid scheduling** (`scheduler_service` con tick + cron)
 - ✅ **State management** (`state_service` persistente + transiente)
 - ✅ **Prioridades** en scripts de eventos
 - ✅ **Cancelación de acciones** (scripts BEFORE)
 - ✅ **Hooks globales** para sistemas del motor
-- ✅ **Retrocompatibilidad** completa con v1.0
+- ✅ **Retrocompatibilidad** completa con formatos anteriores
 
-## Arquitectura v2.0
+## Arquitectura
 
-El sistema de scripts v2.0 se compone de **4 servicios principales**:
+El sistema de scripts se compone de **4 servicios principales**:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    SISTEMA DE SCRIPTS v2.0                  │
+│                    SISTEMA DE SCRIPTS                       │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │  ┌────────────────┐  ┌────────────────┐  ┌──────────────┐ │
@@ -79,7 +72,7 @@ El servicio central que:
 
 **Archivo**: `src/services/script_service.py`
 
-### 2. event_service (Nuevo en v2.0)
+### 2. event_service
 
 Event Hub para scripts reactivos:
 - Eventos BEFORE/AFTER
@@ -89,16 +82,16 @@ Event Hub para scripts reactivos:
 
 Ver: [Sistema de Eventos](sistema-de-eventos.md)
 
-### 3. scheduler_service (Nuevo en v2.0)
+### 3. scheduler_service
 
 Scheduler híbrido para scripts proactivos:
-- Tick-based (v1.0 - retrocompatible)
-- Cron-based (v2.0 - calendario real)
+- Tick-based (retrocompatible)
+- Cron-based (calendario real)
 - Scripts globales vs por jugador
 
 Ver: [Sistema de Scheduling](sistema-de-scheduling.md)
 
-### 4. state_service (Nuevo en v2.0)
+### 4. state_service
 
 Gestión de estado para scripts:
 - Estado persistente (PostgreSQL JSONB)
@@ -179,7 +172,7 @@ Se disparan cuando ocurre una acción del jugador.
 - `on_enter`, `on_leave`, `on_room_look`
 - Y más (ver `EventType` en `event_service.py`)
 
-**Formato v2.0** (con prioridades):
+**Formato con prioridades**:
 ```python
 "espada_magica": {
     "scripts": {
@@ -202,7 +195,7 @@ Se disparan cuando ocurre una acción del jugador.
 }
 ```
 
-**Formato v1.0** (retrocompatible):
+**Formato simple** (retrocompatible):
 ```python
 "espada_magica": {
     "scripts": {
@@ -217,7 +210,7 @@ Ver: [Sistema de Eventos](sistema-de-eventos.md) para detalles completos.
 
 Se ejecutan automáticamente basados en tiempo.
 
-#### Tick Scripts (v1.0 - Retrocompatible)
+#### Tick Scripts (Retrocompatible)
 
 Basados en intervalos de ticks:
 
@@ -234,7 +227,7 @@ Basados en intervalos de ticks:
 }
 ```
 
-#### Scheduled Scripts (v2.0 - Cron)
+#### Scheduled Scripts (Cron)
 
 Basados en calendario real:
 
@@ -316,7 +309,7 @@ Ver: [Sistema de Estado](sistema-de-estado.md) para detalles completos.
 
 ## Flujo de Ejecución Completo
 
-### Ejemplo: Comando /coger con Scripts v2.0
+### Ejemplo: Comando /coger con Sistema de Scripts
 
 ```
 1. Jugador ejecuta: /coger espada
@@ -495,14 +488,14 @@ async def check_todo():
     pass
 ```
 
-## Migración v1.0 → v2.0
+## Retrocompatibilidad
 
-El sistema es 100% retrocompatible. No es necesario migrar scripts v1.0.
+El sistema es 100% retrocompatible. No es necesario migrar scripts anteriores.
 
-### Prototipos v1.0 Siguen Funcionando
+### Formatos Anteriores Siguen Funcionando
 
 ```python
-# v1.0 - Sigue funcionando perfectamente
+# Formato anterior - Sigue funcionando perfectamente
 "espada": {
     "scripts": {
         "on_look": "script_brillo()"
@@ -516,12 +509,12 @@ El sistema es 100% retrocompatible. No es necesario migrar scripts v1.0.
 }
 ```
 
-### Migrar a v2.0 es Opcional
+### Migrar al Formato Nuevo es Opcional
 
-Para aprovechar las nuevas funcionalidades:
+Para aprovechar las funcionalidades completas:
 
 ```python
-# v2.0 - Con prioridades y fases
+# Formato con prioridades y fases
 "espada": {
     "scripts": {
         "before_on_get": [
@@ -532,7 +525,7 @@ Para aprovechar las nuevas funcionalidades:
         ]
     },
     "tick_scripts": [...],  # Sin cambios
-    "scheduled_scripts": [  # Nuevo en v2.0
+    "scheduled_scripts": [  # Formato cron
         {"schedule": "0 12 * * *", "script": "...", "global": True}
     ]
 }

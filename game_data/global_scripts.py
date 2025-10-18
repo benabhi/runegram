@@ -1,6 +1,6 @@
 # game_data/global_scripts.py
 """
-Registro de Scripts Globales Reutilizables para Sistema de Scripts v2.0.
+Registro de Scripts Globales Reutilizables para Sistema de Scripts.
 
 Los scripts globales son funciones Python que pueden ser invocadas desde prototipos
 con parámetros validados, facilitando la reutilización y mantenimiento.

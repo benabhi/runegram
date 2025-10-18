@@ -2,7 +2,6 @@
 título: "Creando Comandos en Runegram"
 categoría: "Creación de Contenido"
 audiencia: "creador-de-contenido"
-versión: "1.1"
 última_actualización: "2025-01-16"
 autor: "Proyecto Runegram"
 etiquetas: ["comandos", "desarrollo", "python", "aiogram", "locks"]
@@ -297,7 +296,7 @@ class CmdTeleport(Command):
             logging.exception(f"Error en /tp para {character.name}")
 ```
 
-**Funciones de lock disponibles (v2.0):**
+**Funciones de lock disponibles:**
 
 Basadas en Roles:
 - `rol(ADMIN)` - Admin o superior

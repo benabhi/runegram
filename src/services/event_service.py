@@ -1,6 +1,6 @@
 # src/services/event_service.py
 """
-Servicio de Manejo de Eventos para el Sistema de Scripts v2.0.
+Servicio de Manejo de Eventos para el Sistema de Scripts.
 
 Este servicio centraliza el manejo de eventos para que los comandos
 puedan disparar eventos sin necesidad de conocer qué scripts existen.
@@ -158,7 +158,7 @@ class EventHub:
         """
         Ejecuta los scripts definidos en el prototipo de una entidad.
 
-        Soporta tanto formato v1.0 (string simple) como v2.0 (lista con prioridades).
+        Soporta tanto formato simple (string) como avanzado (lista con prioridades).
         """
         from src.services import script_service
 
@@ -210,15 +210,15 @@ class EventHub:
 
     def _normalize_scripts(self, event_scripts: Any, phase: EventPhase) -> list:
         """
-        Normaliza scripts de v1.0 y v2.0 a formato unificado.
+        Normaliza scripts a formato unificado.
 
-        v1.0: "on_look": "script()"
-        v2.0: "on_look": [{"script": "script()", "priority": 0, "phase": "after"}]
+        Formato simple: "on_look": "script()"
+        Formato avanzado: "on_look": [{"script": "script()", "priority": 0, "phase": "after"}]
 
         Returns:
             Lista normalizada de scripts con prioridad.
         """
-        # v1.0: String simple
+        # String simple
         if isinstance(event_scripts, str):
             return [{
                 "script": event_scripts,
@@ -226,7 +226,7 @@ class EventHub:
                 "phase": phase.value
             }]
 
-        # v2.0: Lista de scripts
+        # Lista de scripts
         if isinstance(event_scripts, list):
             normalized = []
             for script_def in event_scripts:
@@ -238,7 +238,7 @@ class EventHub:
                         "phase": phase.value
                     })
                 elif isinstance(script_def, dict):
-                    # Ya está en formato v2.0
+                    # Ya está en formato avanzado
                     normalized.append({
                         "script": script_def.get("script"),
                         "priority": script_def.get("priority", 0),

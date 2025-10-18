@@ -2,7 +2,6 @@
 título: "Sistema de Configuración de Runegram"
 categoría: "Arquitectura"
 audiencia: "desarrollador, administrador"
-versión: "1.3"
 última_actualización: "2025-01-11"
 autor: "Proyecto Runegram"
 etiquetas: ["configuración", "toml", "pydantic", "env", "settings", "moderacion", "personajes", "paginacion"]
@@ -571,7 +570,7 @@ threshold_minutes = 5  # Int
 
 ## 📝 Changelog
 
-### v1.3 (2025-01-11)
+### 2025-01-11
 - ✅ **Nueva sección `[characters]`**: Agregados `name_min_length` y `name_max_length` para validación centralizada
 - ✅ **Corrección de inconsistencia histórica**: Resuelto conflicto entre límites hardcodeados (50 vs 15) para longitud de nombres
 - ✅ **Expansión de `[moderation]`**: Agregados 4 nuevos campos configurables:
@@ -581,14 +580,10 @@ threshold_minutes = 5  # Int
   - `banned_accounts_per_page` (10)
 - ✅ **Migración de hardcoded a configuración**: Todos los límites del sistema de baneos ahora son configurables
 - ✅ **Documentación completa**: Ejemplos de uso en código para todas las nuevas configuraciones
-
-### v1.2 (2025-01-11)
 - ✅ Documentación de paginación universal consolidada
 - ✅ Explicación de diferencia entre `pagination` y `display_limits`
-
-### v1.1 (2025-01-11)
 - ✅ Agregado sistema de configuración de notificaciones de apelaciones (`moderation.ban_appeal_channel`)
 - ✅ Canal de moderación preconfigurado
 
-### v1.0 (2025-01-09)
+### 2025-01-09
 - ✅ Documentación inicial del sistema de configuración

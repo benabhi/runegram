@@ -1,6 +1,6 @@
 # src/services/script_service.py
 """
-Servicio de Ejecución de Scripts v2.0.
+Servicio de Ejecución de Scripts.
 
 Este servicio actúa como el "traductor" entre el contenido del juego (definido
 como strings en los archivos de prototipos) y la lógica del motor (código Python).
@@ -14,7 +14,7 @@ Funciona con un sistema de registro:
 4.  El método `execute_script` se encarga de parsear el string, buscar la
     función en el registro y ejecutarla con el contexto adecuado.
 
-Mejoras v2.0:
+Características:
 - Enhanced parser con soporte de argumentos complejos (strings con espacios, listas)
 - Soporte de scripts globales con prefijo "global:"
 - Integración con global_script_registry
@@ -97,7 +97,7 @@ def _parse_script_string(script_string: str) -> tuple[str, dict]:
     Parsea un string de script como 'nombre(clave=valor, ...)' y devuelve
     el nombre de la función y un diccionario de argumentos.
 
-    v2.0 Enhanced Parser:
+    Enhanced Parser:
     - Soporta strings con espacios: script(msg="Hola mundo")
     - Soporta booleanos: script(activo=true)
     - Soporta números: script(cantidad=50)
@@ -180,10 +180,10 @@ def _parse_value(value: str):
 
 async def execute_script(script_string: str, session: AsyncSession, **context):
     """
-    El corazón del motor de scripts v2.0. Parsea el string, busca la función en
+    El corazón del motor de scripts. Parsea el string, busca la función en
     el registro (local o global) y la ejecuta con el contexto proporcionado.
 
-    v2.0 Mejoras:
+    Características:
     - Soporte de scripts globales con prefijo "global:"
     - Enhanced parser con argumentos complejos
     - Integración con global_script_registry
@@ -204,7 +204,7 @@ async def execute_script(script_string: str, session: AsyncSession, **context):
 
     (script_name, kwargs), is_global = _parse_script_string(script_string)
 
-    # Scripts globales (nuevo en v2.0)
+    # Scripts globales
     if is_global:
         from game_data.global_scripts import global_script_registry
 
@@ -219,7 +219,7 @@ async def execute_script(script_string: str, session: AsyncSession, **context):
             logging.exception(f"Error ejecutando script global '{script_name}'")
             return None
 
-    # Scripts locales (v1.0 - retrocompatibilidad)
+    # Scripts locales
     if script_name in SCRIPT_REGISTRY:
         script_function = SCRIPT_REGISTRY[script_name]
         try:

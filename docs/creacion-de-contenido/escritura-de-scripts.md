@@ -2,10 +2,9 @@
 título: "Escribiendo Scripts en Runegram"
 categoría: "Creación de Contenido"
 audiencia: "creador-de-contenido, desarrollador"
-versión: "2.0"
 última_actualización: "2025-10-17"
 autor: "Proyecto Runegram"
-etiquetas: ["scripts", "prototipos", "eventos", "scheduling", "estado", "scripts-v2"]
+etiquetas: ["scripts", "prototipos", "eventos", "scheduling", "estado"]
 documentos_relacionados:
   - "sistemas-del-motor/sistema-de-scheduling.md"
   - "sistemas-del-motor/sistema-de-eventos.md"
@@ -22,13 +21,13 @@ estado: "actual"
 importancia: "alta"
 ---
 
-# Guía Práctica: Escribiendo Scripts v2.0
+# Guía Práctica: Escribiendo Scripts
 
-El **Sistema de Scripts v2.0** es lo que permite que el contenido del juego tenga comportamiento dinámico. Es el puente que conecta las definiciones de datos con la lógica del motor, dando vida a los objetos y al mundo.
+El **Sistema de Scripts** es lo que permite que el contenido del juego tenga comportamiento dinámico. Es el puente que conecta las definiciones de datos con la lógica del motor, dando vida a los objetos y al mundo.
 
-## 🎯 Arquitectura v2.0
+## 🎯 Arquitectura
 
-El sistema de scripts v2.0 está compuesto por **4 servicios coordinados**:
+El sistema de scripts está compuesto por **4 servicios coordinados**:
 
 1. **`script_service`**: Core del sistema (registro y ejecución de scripts)
 2. **`event_service`**: Scripts **reactivos** (responden a eventos del juego)
@@ -54,7 +53,7 @@ Los scripts de evento reaccionan a las acciones de los jugadores. Se ejecutan en
 - **BEFORE**: Antes de la acción (puede cancelarla)
 - **AFTER**: Después de la acción (para efectos)
 
-#### Formato v2.0 (Recomendado)
+#### Formato con Prioridades (Recomendado)
 
 ```python
 # En game_data/item_prototypes.py
@@ -80,7 +79,7 @@ Los scripts de evento reaccionan a las acciones de los jugadores. Se ejecutan en
 }
 ```
 
-#### Formato v1.0 (Retrocompatible)
+#### Formato Simple (Retrocompatible)
 
 ```python
 "amuleto_antiguo": {
@@ -92,7 +91,7 @@ Los scripts de evento reaccionan a las acciones de los jugadores. Se ejecutan en
 }
 ```
 
-**Nota**: El formato v1.0 se ejecuta automáticamente en la fase AFTER con prioridad 0.
+**Nota**: El formato simple se ejecuta automáticamente en la fase AFTER con prioridad 0.
 
 #### Eventos Disponibles
 
@@ -128,7 +127,7 @@ Si `script_verificar_maldicion` retorna `False`, el jugador NO podrá coger la e
 
 Los scheduling scripts hacen que el mundo actúe por sí solo, ejecutándose basándose en el tiempo.
 
-#### Tick Scripts (v1.0 - Retrocompatible)
+#### Tick Scripts (Retrocompatible)
 
 Basados en ticks del sistema (1 tick = 2 segundos por defecto).
 
@@ -153,7 +152,7 @@ Basados en ticks del sistema (1 tick = 2 segundos por defecto).
 - 5 minutos → `300 / 2 = 150 ticks`
 - 1 hora → `3600 / 2 = 1800 ticks`
 
-#### Cron Scripts (v2.0 - Nuevo)
+#### Cron Scripts
 
 Basados en expresiones cron (más precisos y flexibles).
 
@@ -186,7 +185,7 @@ Basados en expresiones cron (más precisos y flexibles).
 - `"global": True` → Script se ejecuta UNA sola vez (ej: broadcast global)
 - `"global": False` → Script se ejecuta para CADA jugador online con el objeto
 
-### 1.3. Scripts con Estado (v2.0 - Nuevo)
+### 1.3. Scripts con Estado
 
 Los scripts pueden mantener estado entre ejecuciones usando `state_service`.
 
@@ -475,7 +474,7 @@ Crea un prototipo en `game_data/item_prototypes.py` que use el nuevo script:
 
 ### Para Diseñadores
 
-1. **Usa formatos v2.0** para nuevos prototipos (más control y flexibilidad)
+1. **Usa formato con prioridades** para nuevos prototipos (más control y flexibilidad)
 2. **Prioridades**: BEFORE scripts con prioridad alta (10+), AFTER con prioridad baja (1-5)
 3. **Cron vs Tick**: Usa cron para eventos precisos (12:00), tick para intervalos variables
 4. **Estado persistente**: Para contadores, progreso de quests, usos limitados

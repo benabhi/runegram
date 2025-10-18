@@ -22,7 +22,7 @@ from src.services import world_loader_service
 from src.services import item_service
 from src.services import tag_service
 
-# Scripts v2.0 Services - importar singletons directamente
+# Script Services - importar singletons directamente
 from src.services.event_service import event_service, EventType, EventPhase, EventContext, EventResult
 from src.services.scheduler_service import scheduler_service
 from src.services.state_service import state_service
@@ -44,7 +44,7 @@ __all__ = [
     "item_service",
     "tag_service",
 
-    # Scripts v2.0 Services
+    # Script Services
     "event_service",
     "scheduler_service",
     "state_service",

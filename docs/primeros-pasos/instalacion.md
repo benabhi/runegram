@@ -1,7 +1,6 @@
 ---
 título: "Guía de Instalación"
 categoría: "Comenzando"
-versión: "1.1"
 última_actualización: "2025-10-09"
 autor: "Proyecto Runegram"
 etiquetas: ["instalación", "configuración", "docker", "comenzando"]
@@ -144,5 +143,5 @@ Cuando modificas la estructura de un modelo en `src/models/` (ej: añades una nu
 ---
 
 **Changelog:**
-- v1.1 (2025-10-09): Migrado a nueva estructura con YAML frontmatter
-- v1.0 (2025-01-09): Versión original
+- **2025-10-09**: Migrado a nueva estructura con YAML frontmatter
+- **2025-01-09**: Versión original

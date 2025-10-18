@@ -1,7 +1,6 @@
 ---
 título: "Sistema de Eventos"
 categoría: "Sistemas del Motor"
-versión: "3.0"
 última_actualización: "2025-10-17"
 autor: "Proyecto Runegram"
 etiquetas: ["eventos", "event-driven", "scripts", "hooks", "prioridades", "on_put", "on_take", "on_use", "on_enter", "on_leave", "on_spawn"]
@@ -22,7 +21,7 @@ importancia: "crítica"
 audiencia: "desarrollador"
 ---
 
-# Sistema de Eventos (v2.0)
+# Sistema de Eventos
 
 El Sistema de Eventos es el núcleo de la arquitectura **event-driven** de Runegram MUD. Permite que las acciones del jugador (y del sistema) disparen scripts de forma centralizada, sin que los comandos necesiten conocer qué scripts existen.
 
@@ -33,7 +32,7 @@ El Sistema de Eventos es el núcleo de la arquitectura **event-driven** de Runeg
 En lugar de que cada comando ejecute scripts manualmente:
 
 ```python
-# ❌ ANTIPATRÓN (hardcoded)
+# ❌ ANTIPATRÓN (scripts hardcodeados)
 class CmdLook(Command):
     async def execute(self, character, session, message, args):
         # ... mostrar descripción ...
@@ -71,7 +70,7 @@ class CmdLook(Command):
 - ✅ **Prioridades**: Control fino sobre orden de ejecución
 - ✅ **Cancelación**: Scripts BEFORE pueden cancelar acciones
 - ✅ **Hooks globales**: Sistemas del motor pueden escuchar eventos
-- ✅ **Normalización**: Soporta formatos v1.0 y v2.0
+- ✅ **Normalización**: Soporta formatos antiguos y nuevos automáticamente
 
 ## Componentes del Sistema
 
@@ -123,12 +122,12 @@ class EventType(Enum):
     ON_CLOSE = "on_close"
     ON_PUT = "on_put"
     ON_TAKE = "on_take"
-    ON_SPAWN = "on_spawn"      # ✅ NUEVO v3.0
+    ON_SPAWN = "on_spawn"      # Generación de objetos
     ON_DESTROY = "on_destroy"
 
     # Rooms
-    ON_ENTER = "on_enter"      # ✅ USADO v3.0
-    ON_LEAVE = "on_leave"      # ✅ USADO v3.0
+    ON_ENTER = "on_enter"      # Entrada a salas
+    ON_LEAVE = "on_leave"      # Salida de salas
     ON_ROOM_LOOK = "on_room_look"
 
     # Characters
@@ -300,7 +299,7 @@ Esta sección documenta el patrón para migrar comandos que ejecutan scripts man
 
 #### Ejemplo: Migración de CmdGet
 
-**Antes (v1.0 - Scripts hardcodeados)**:
+**Antes (scripts hardcodeados)**:
 
 ```python
 class CmdGet(Command):
@@ -322,7 +321,7 @@ class CmdGet(Command):
         await message.answer(f"Has cogido: {item.get_name()}")
 ```
 
-**Después (v2.0 - Sistema de eventos)**:
+**Después (sistema de eventos)**:
 
 ```python
 from src.services import event_service, EventType, EventPhase, EventContext
@@ -381,7 +380,7 @@ class CmdGet(Command):
 
 #### Comandos Migrados
 
-**ESTADO: COMPLETO** - Todos los comandos significativos han sido migrados al Sistema de Eventos v3.0.
+**ESTADO: COMPLETO** - Todos los comandos significativos han sido migrados al Sistema de Eventos.
 
 | Comando | Archivo | EventType | Fases | Notas |
 |---------|---------|-----------|-------|-------|
@@ -425,23 +424,6 @@ Antes de considerar completa la migración de un comando:
 - Hace commit después de AFTER para persistir cambios de scripts
 - Actualiza comandos de Telegram si el item otorgaba command sets
 - Broadcasting incondicional (acción siempre visible)
-
-#### Items de Ejemplo con Scripts BEFORE/AFTER
-
-Ver `game_data/item_prototypes.py` para ejemplos completos:
-
-**Orbe Maldito** (`orbe_maldito`):
-- BEFORE on_get: Cancela si HP < 50
-- AFTER on_get: Daña 20 HP
-- AFTER on_drop: Cura 30 HP
-
-**Gema Resonante** (`gema_resonante`):
-- BEFORE on_look: Cancela si HP < 30
-- AFTER on_look: Mensaje basado en HP actual
-
-**Anillo de los Deseos** (`anillo_deseos`):
-- BEFORE on_use: Verifica usos restantes (estado persistente)
-- AFTER on_use: Cura 100 HP
 
 ## Ejemplos de Uso de Eventos por Tipo
 
@@ -785,7 +767,7 @@ await broadcaster_service.send_message_to_room(
 
 ## Definición de Scripts en Prototipos
 
-### Formato v2.0 (con Prioridades)
+### Formato con Prioridades
 
 ```python
 # En game_data/item_prototypes.py
@@ -818,12 +800,12 @@ await broadcaster_service.send_message_to_room(
 }
 ```
 
-### Formato v1.0 (Retrocompatible)
+### Formato Simple (Retrocompatible)
 
-El sistema normaliza automáticamente el formato antiguo:
+El sistema normaliza automáticamente el formato simple:
 
 ```python
-# Formato v1.0 (sigue funcionando)
+# Formato simple (sigue funcionando)
 "espada_magica": {
     "scripts": {
         "on_look": "script_notificar_brillo_magico(color=azul)"
@@ -975,13 +957,13 @@ async def trigger_combat_on_attack(phase, context):
 
 ## Normalización de Formatos
 
-El event_service normaliza automáticamente scripts v1.0 y v2.0.
+El event_service normaliza automáticamente scripts en diferentes formatos.
 
 ### Conversiones Automáticas
 
 **String simple** → Lista con priority 0:
 ```python
-# Entrada v1.0
+# Entrada simple
 "on_look": "script_brillo()"
 
 # Normalizado internamente
@@ -990,7 +972,7 @@ El event_service normaliza automáticamente scripts v1.0 y v2.0.
 
 **Lista de strings** → Lista con priority 0:
 ```python
-# Entrada v1.0
+# Entrada simple
 "on_get": ["script_1()", "script_2()"]
 
 # Normalizado internamente
@@ -1000,7 +982,7 @@ El event_service normaliza automáticamente scripts v1.0 y v2.0.
 ]
 ```
 
-**Lista con dicts** → Ya en formato v2.0:
+**Lista con dicts** → Ya en formato completo:
 ```python
 # Ya normalizado
 "before_on_get": [

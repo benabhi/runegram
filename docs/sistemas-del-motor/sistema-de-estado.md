@@ -1,7 +1,6 @@
 ---
 título: "Sistema de Estado"
 categoría: "Sistemas del Motor"
-versión: "2.0"
 última_actualización: "2025-10-17"
 autor: "Proyecto Runegram"
 etiquetas: ["estado", "persistencia", "redis", "cooldowns", "scripts"]
@@ -16,7 +15,7 @@ importancia: "alta"
 audiencia: "desarrollador"
 ---
 
-# Sistema de Estado (v2.0)
+# Sistema de Estado
 
 El Sistema de Estado proporciona una API unificada para que scripts puedan almacenar y recuperar estado de dos formas: **persistente** (PostgreSQL) y **transiente** (Redis).
 
@@ -528,7 +527,7 @@ script_state = Column(JSONB, nullable=True, default=dict)
 ### Crear Migración
 
 ```bash
-docker exec -it runegram-bot-1 alembic revision --autogenerate -m "Add script_state for Scripts v2.0"
+docker exec -it runegram-bot-1 alembic revision --autogenerate -m "Add script_state for Scripts system"
 docker exec -it runegram-bot-1 alembic upgrade head
 ```
 

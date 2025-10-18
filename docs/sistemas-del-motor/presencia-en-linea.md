@@ -1,7 +1,6 @@
 ---
 título: "Sistema de Presencia en Línea"
 categoría: "Sistemas del Motor"
-versión: "1.1"
 última_actualización: "2025-10-09"
 autor: "Proyecto Runegram"
 etiquetas: ["online", "presencia", "redis", "social", "afk"]
@@ -179,5 +178,5 @@ await online_service.disconnect_character(character_id, bot)
 ---
 
 **Changelog:**
-- v1.1 (2025-10-09): Migrado a nueva estructura, agregado sistema AFK, actualizado con YAML frontmatter
-- v1.0 (2025-01-09): Versión original como parte de SOCIAL_SYSTEMS.md
+- **2025-10-09**: Migrado a nueva estructura, agregado sistema AFK, actualizado con YAML frontmatter
+- **2025-01-09**: Versión original como parte de SOCIAL_SYSTEMS.md

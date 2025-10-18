@@ -1,6 +1,6 @@
 # src/services/state_service.py
 """
-Servicio de Manejo de Estado para Sistema de Scripts v2.0.
+Servicio de Manejo de Estado para Sistema de Scripts.
 
 Gestiona estado persistente (PostgreSQL) y transiente (Redis) para scripts.
 

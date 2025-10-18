@@ -12,7 +12,7 @@ El sistema es extensible y soporta lógica booleana compleja:
 3. La clase `LockEvaluator` (un `ast.NodeVisitor`) recorre el árbol y evalúa el resultado.
 4. Las funciones de lock (ej: `rol()`) están registradas en `LOCK_FUNCTIONS`.
 
-Versión 2.0 - Sistema de Locks Contextuales:
+Sistema de Locks Contextuales:
 - Soporte para locks contextuales (diccionarios por access_type)
 - Soporte para lock functions asíncronas
 - Sistema de mensajes de error personalizados (lock_messages)
@@ -148,7 +148,7 @@ class LockEvaluator(ast.NodeVisitor):
     Un visitante de nodos AST que evalúa un lock string de forma segura.
     Recorre el árbol de sintaxis y calcula el resultado booleano final.
 
-    Versión 2.0: Soporta lock functions asíncronas.
+    Soporta lock functions asíncronas.
     """
     def __init__(self, character: Character):
         self.character = character
@@ -231,7 +231,7 @@ async def can_execute(
     """
     Evalúa un lock contra un personaje para un tipo de acceso específico.
 
-    Versión 2.0 - Sistema de Locks Contextuales:
+    Sistema de Locks Contextuales:
     - Soporta locks como string simple (backward compatible)
     - Soporta locks como diccionario contextual por access_type
     - Soporta mensajes de error personalizados

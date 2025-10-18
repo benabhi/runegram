@@ -96,7 +96,6 @@ Todos los archivos de documentación incluyen metadatos YAML frontmatter:
 ---
 título: "Título del Documento"
 categoría: "Comenzando" | "Arquitectura" | "Sistemas del Motor" | etc.
-versión: "1.0"
 última_actualización: "YYYY-MM-DD"
 autor: "Proyecto Runegram"
 etiquetas: ["etiqueta1", "etiqueta2"]
@@ -146,15 +145,14 @@ Los emojis se usan estratégicamente para facilitar el escaneo visual:
 
 ## 📊 Estado de la Documentación
 
-**Versión:** 2.2
 **Última actualización:** 2025-10-17
-**Estado:** ✅ Actualizado con Scripts v2.0 y traducción completa al español
+**Estado:** ✅ Actualizado con sistema de scripts completo y traducción completa al español
 
 ### Changelog de Estructura
-- **v2.2 (2025-10-17)**: Scripts v2.0 (eventos, scheduling, estado), eliminación de pulse_service, traducción completa al español
-- **v2.1 (2025-01-11)**: Agregado sistema de baneos y apelaciones
-- **v2.0 (2025-10-09)**: Reestructuración completa con nueva jerarquía de directorios y YAML frontmatter
-- **v1.0 (2025-01-09)**: Estructura original con numeración prefijada
+- **2025-10-17**: Sistema de scripts (eventos, scheduling, estado), eliminación de pulse_service, traducción completa al español
+- **2025-01-11**: Agregado sistema de baneos y apelaciones
+- **2025-10-09**: Reestructuración completa con nueva jerarquía de directorios y YAML frontmatter
+- **2025-01-09**: Estructura original con numeración prefijada
 
 ---
 

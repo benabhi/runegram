@@ -70,7 +70,7 @@ async def on_startup(dispatcher):
         #    Si hay errores de configuración, el bot no debe arrancar.
         validation_service.validate_all()
 
-        # 1. Registrar scripts globales (Sistema de Scripts v2.0)
+        # 1. Registrar scripts globales
         from game_data.global_scripts import register_all_global_scripts
         register_all_global_scripts()
 

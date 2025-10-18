@@ -1,7 +1,6 @@
 ---
 título: "Sistema de Baneos y Apelaciones"
 categoría: "Sistemas del Motor"
-versión: "1.2"
 última_actualización: "2025-01-11"
 autor: "Proyecto Runegram"
 etiquetas: ["baneos", "moderacion", "apelaciones", "administracion", "configuracion"]
@@ -499,7 +498,7 @@ async def expire_bans_job():
 
 ## 📝 Changelog
 
-### v1.2 (2025-01-11)
+### 2025-01-11
 - ✅ **Límites configurables**: Migración completa de valores hardcodeados a `gameconfig.toml`
   - `ban_reason_max_length` (500)
   - `appeal_max_length` (1000)
@@ -507,15 +506,11 @@ async def expire_bans_job():
   - `banned_accounts_per_page` (10)
 - ✅ **Documentación actualizada**: Sección "Límites Configurables" con ejemplos de uso
 - ✅ **Referencia cruzada**: Enlaces a documentación de configuración
-
-### v1.1 (2025-01-11)
 - ✅ **Desbaneo resetea apelación**: Ahora `/desbanear` resetea los campos de apelación, permitiendo que el jugador pueda apelar de nuevo si es baneado en el futuro
 - ✅ **Canal de moderación**: Agregado canal "moderacion" en `channel_prototypes.py` con lock de ADMIN
 - ✅ **Configuración de notificaciones**: Agregado `moderation.ban_appeal_channel` en `gameconfig.toml`
 - ✅ **Fallback a mensajes directos**: Si no hay canal configurado, se envían mensajes directos a todos los administradores
 - ✅ **Documentación de configuración**: Sección completa sobre cómo configurar notificaciones de apelaciones
-
-### v1.0 (2025-01-11)
 - ✅ Sistema completo de baneos y apelaciones implementado
 - ✅ Baneos temporales y permanentes
 - ✅ Sistema de apelaciones (una por cuenta)
@@ -525,6 +520,5 @@ async def expire_bans_job():
 
 ---
 
-**Versión:** 1.2
 **Última actualización:** 2025-01-11
 **Estado:** Sistema completo y funcional con configuración centralizada

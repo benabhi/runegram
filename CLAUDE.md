@@ -119,9 +119,9 @@ runegram/
 │   │   ├── permission_service.py
 │   │   ├── broadcaster_service.py
 │   │   ├── narrative_service.py
-│   │   ├── scheduler_service.py  # v2.0 (reemplaza pulse_service)
-│   │   ├── event_service.py      # v2.0 (nuevo)
-│   │   ├── state_service.py      # v2.0 (nuevo)
+│   │   ├── scheduler_service.py  # Reemplaza pulse_service
+│   │   ├── event_service.py
+│   │   ├── state_service.py
 │   │   └── online_service.py
 │   ├── templates/                # Jinja2 templates + icons
 │   ├── utils/                    # Presenters, helpers
@@ -258,16 +258,16 @@ Ver: `docs/arquitectura/configuracion.md`
 
 Ver: `src/services/command_service.py`
 
-### 2. Sistema de Permisos (Locks) - v2.0
+### 2. Sistema de Permisos (Locks)
 Sistema extensible de permisos con **9 lock functions** y soporte para **locks contextuales** (diferentes restricciones por tipo de acción).
 
 ```python
-# Lock simple (backward compatible)
+# Lock simple (compatible con formato tradicional)
 lock = ""                         # Todos pueden acceder
 lock = "rol(ADMIN)"               # Solo admins
 lock = "tiene_objeto(llave)"      # Necesita item específico
 
-# Locks contextuales (v2.0) - diferentes por access_type
+# Locks contextuales - diferentes por access_type
 locks = {
     "get": "rol(SUPERADMIN)",      # Solo SUPERADMIN puede coger
     "put": "tiene_objeto(llave)",  # Necesita llave para meter
@@ -329,13 +329,13 @@ await broadcaster_service.send_message_to_room(
 
 Ver: `src/services/broadcaster_service.py`
 
-### 6. Sistema de Scheduling (v2.0 - reemplaza Pulse)
-Scheduler híbrido que soporta **tick-based** (v1.0) y **cron-based** (v2.0):
+### 6. Sistema de Scheduling (reemplaza Pulse)
+Scheduler híbrido que soporta **tick-based** y **cron-based**:
 
 ```python
 from src.services import scheduler_service
 
-# Tick scripts (v1.0 - retrocompatible)
+# Tick scripts (retrocompatible)
 "tick_scripts": [
     {
         "interval_ticks": 60,  # Cada 120s (60 ticks * 2s)
@@ -344,7 +344,7 @@ from src.services import scheduler_service
     }
 ]
 
-# Cron scripts (v2.0 - nuevo)
+# Cron scripts (calendario real)
 "scheduled_scripts": [
     {
         "schedule": "0 12 * * *",  # Diario a las 12:00
@@ -359,7 +359,7 @@ from src.services import scheduler_service
 
 Ver: `docs/sistemas-del-motor/sistema-de-scheduling.md`
 
-### 7. Sistema de Eventos (v2.0 - nuevo)
+### 7. Sistema de Eventos
 Event Hub centralizado para scripts reactivos con arquitectura event-driven:
 
 ```python
@@ -388,11 +388,11 @@ await event_service.trigger_event(
 - Scripts BEFORE/AFTER con prioridades
 - Cancelación de acciones (scripts BEFORE retornan False)
 - Hooks globales para sistemas del motor
-- Normaliza formatos v1.0 y v2.0
+- Normaliza formatos antiguos y nuevos automáticamente
 
 Ver: `docs/sistemas-del-motor/sistema-de-eventos.md`
 
-### 8. Sistema de Estado (v2.0 - nuevo)
+### 8. Sistema de Estado
 Gestión de estado persistente (PostgreSQL) y transiente (Redis) para scripts:
 
 ```python
@@ -419,7 +419,7 @@ if await state_service.is_on_cooldown(item, "habilidad_especial"):
 
 Ver: `docs/sistemas-del-motor/sistema-de-estado.md`
 
-### 9. Sistema de Scripts (v2.0)
+### 9. Sistema de Scripts
 Permite ejecutar código Python desde prototipos usando 4 servicios coordinados:
 
 ```python
@@ -433,7 +433,7 @@ await script_service.execute_script(
 )
 ```
 
-**Arquitectura v2.0**:
+**Arquitectura actual**:
 - `script_service`: Core (SCRIPT_REGISTRY, ejecutor)
 - `event_service`: Scripts reactivos (eventos)
 - `scheduler_service`: Scripts proactivos (tick + cron)
@@ -886,10 +886,8 @@ Ver: `docs/sistemas-del-motor/sistemas-sociales.md`
   - `filosofia-central.md` - Filosofía de diseño
 - `docs/sistemas-del-motor/` - Sistemas del motor detallados (18 documentos)
   - `sistema-de-comandos.md`, `sistema-de-permisos.md`, `sistema-de-prototipos.md`
-  - `sistema-de-scheduling.md` (v2.0 - reemplaza sistema-de-pulso.md)
-  - `sistema-de-eventos.md` (v2.0 - nuevo)
-  - `sistema-de-estado.md` (v2.0 - nuevo)
-  - `sistema-de-scripts.md` (actualizado v2.0)
+  - `sistema-de-scheduling.md` (reemplaza sistema-de-pulso.md)
+  - `sistema-de-eventos.md`, `sistema-de-estado.md`, `sistema-de-scripts.md`
   - `sistema-de-narrativa.md`, `presencia-en-linea.md`
   - `sistema-de-baneos.md` - Sistema de baneos y apelaciones
   - `sistema-de-canales.md`, `sistema-de-validacion.md`
@@ -953,10 +951,10 @@ Después de CUALQUIER cambio:
 - **Broadcasting**: Notificaciones automáticas (filtra offline)
 - **Narrativa**: Mensajes evocativos aleatorios (41 variantes)
 - **Ordinales**: Sistema `N.nombre` para objetos duplicados
-- **Scheduling (v2.0)**: Tick-based + cron-based híbrido (reemplaza Pulse)
-- **Eventos (v2.0)**: Event-driven architecture con BEFORE/AFTER y prioridades
-- **Estado (v2.0)**: Gestión de estado persistente (PostgreSQL) + transiente (Redis)
-- **Scripts (v2.0)**: 4 servicios coordinados (script, event, scheduler, state)
+- **Scheduling**: Tick-based + cron-based híbrido (reemplaza Pulse)
+- **Eventos**: Event-driven architecture con BEFORE/AFTER y prioridades
+- **Estado**: Gestión de estado persistente (PostgreSQL) + transiente (Redis)
+- **Scripts**: 4 servicios coordinados (script, event, scheduler, state)
 - **Offline**: Jugadores desconectados = ausentes del juego
 - **Baneos**: Moderación con baneos temporales/permanentes y apelaciones
 - **Filtrado de Audiencia**: Canales con restricción de destinatarios (campo `audience`)
@@ -966,20 +964,7 @@ Crear un juego masivo, funcional e inmersivo que aproveche las fortalezas única
 
 ---
 
-**Versión**: 2.4
 **Última actualización**: 2025-10-17
-**Changelog**:
-- v2.4 (2025-10-17): Agregada política de verificación de codificación UTF-8 (sección crítica sobre encoding)
-- v2.3 (2025-10-17): Sistema de Scripts v2.0 (event_service, scheduler_service, state_service) - Arquitectura event-driven completa
-- v2.2.1 (2025-01-16): Bugfix: CmdDrop ahora verifica locks con access_type="drop" (completa implementación de locks contextuales)
-- v2.2 (2025-01-16): Sistema de Permisos v2.0 (locks contextuales, 9 lock functions, mensajes personalizados, async support)
-- v2.1.2 (2025-01-11): Canales con audience se activan automáticamente si hay permisos
-- v2.1.1 (2025-01-11): Mejora UX: /canales oculta canales sin permiso de acceso
-- v2.1 (2025-01-11): Sistema de Filtrado de Audiencia para Canales implementado
-- v2.0 (2025-01-11): Sistema de Baneos y Apelaciones implementado
-- v1.9 (2025-01-09): Compactación del archivo sin pérdida de información crítica (~64% reducción: 2057→744 líneas)
-- v1.8 (2025-01-09): Sistema de Narrativa implementado
-- v1.7 (2025-10-04): Sistema de ordinales para objetos duplicados
 **Mantenedor**: Proyecto Runegram
 
 ### 🔤 Verificación de Codificación de Archivos (CRÍTICO)

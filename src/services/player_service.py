@@ -122,7 +122,8 @@ async def create_character(session: AsyncSession, telegram_id: int, character_na
         f"¡Bienvenido al mundo, {full_character.name}! "
         "Usa los comandos de movimiento como <b>/norte</b> o <b>/sur</b> para explorar. "
         "Si necesitas ayuda, puedes preguntar en este canal usando <b>/novato [tu pregunta]</b>. "
-        "Para una lista de comandos más detallada, escribe <b>/ayuda</b>."
+        "Para una lista de comandos más detallada, escribe <b>/ayuda</b>. "
+        "📜 <b>IMPORTANTE:</b> Revisa las reglas del servidor con <b>/reglas</b>."
     )
     await channel_service.broadcast_to_channel(session, "novato", welcome_message)
 

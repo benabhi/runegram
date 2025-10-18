@@ -355,7 +355,8 @@ class CmdHelp(Command):
             "/coger [objeto] - Recoges un objeto del suelo.\n"
             "/dejar [objeto] - Dejas un objeto en el suelo.\n"
             "/quien - Muestra quién está conectado (con paginación).\n"
-            "/canales - Gestiona tus suscripciones a canales.\n\n"
+            "/canales - Gestiona tus suscripciones a canales.\n"
+            "/reglas - Muestra las reglas del servidor.\n\n"
             "<b>Comandos de Listados</b>\n"
             "/items - Lista todos los items de la sala.\n"
             "/personajes - Lista todos los personajes aquí.\n"
@@ -546,6 +547,23 @@ class CmdWhisper(Command):
             await message.answer("❌ Ocurrió un error al intentar susurrar.")
             logging.exception(f"Fallo al ejecutar /susurrar para {character.name}")
 
+class CmdRules(Command):
+    """Comando para mostrar las reglas del servidor."""
+    names = ["reglas", "rules"]
+    lock = ""
+    description = "Muestra las reglas de convivencia del servidor."
+
+    async def execute(self, character: Character, session: AsyncSession, message: types.Message, args: list[str]):
+        try:
+            from src.templates import render_template
+
+            rules_text = render_template('base/rules.html.j2')
+            await message.answer(rules_text, parse_mode="HTML")
+
+        except Exception:
+            await message.answer("❌ Ocurrió un error al mostrar las reglas.")
+            logging.exception(f"Fallo al ejecutar /reglas para {character.name}")
+
 
 # Exportamos la lista de comandos de este módulo.
 GENERAL_COMMANDS = [
@@ -559,4 +577,5 @@ GENERAL_COMMANDS = [
     CmdDisconnect(),
     CmdAFK(),
     CmdWhisper(),
+    CmdRules(),
 ]

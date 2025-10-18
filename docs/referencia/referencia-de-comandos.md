@@ -1,7 +1,7 @@
 ---
 título: "Referencia Completa de Comandos"
 categoría: "Referencia"
-última_actualización: "2025-10-17"
+última_actualización: "2025-10-18"
 autor: "Proyecto Runegram"
 etiquetas: ["comandos", "referencia", "jugadores", "admin", "eventos", "movimiento", "building"]
 documentos_relacionados:
@@ -144,6 +144,22 @@ Esta es la referencia completa de todos los comandos disponibles en Runegram MUD
 - **Alias:** `/help`
 - **Descripción:** Muestra una lista con los comandos básicos del juego.
 - **Notas:** Proporciona un resumen rápido de los comandos más comunes.
+
+### `/reglas`
+- **Alias:** `/rules`
+- **Descripción:** Muestra las reglas de convivencia del servidor.
+- **Uso:** `/reglas`
+- **Contenido del comando:**
+  - Normas de respeto y convivencia
+  - Prohibiciones (spam, exploits, multicuentas, contenido ofensivo)
+  - Sistema de sanciones (advertencias, baneos temporales y permanentes)
+  - Cómo reportar problemas a administradores
+  - Principios de juego limpio y colaboración
+- **Notas:**
+  - Comando informativo que no requiere argumentos
+  - Las reglas son vinculantes para todos los jugadores
+  - Se menciona en el mensaje de bienvenida de nuevos jugadores
+  - También listado en `/ayuda`
 
 ### `/quien [página]`
 - **Alias:** `/who`
@@ -714,8 +730,9 @@ Todos los comandos de administrador requieren el rol **ADMIN** o superior, a men
 
 ---
 
-**Última actualización:** 2025-10-17
+**Última actualización:** 2025-10-18
 **Changelog:**
+- **2025-10-18**: Agregado comando `/reglas` para mostrar reglas del servidor en la sección de Comandos Generales
 - **2025-10-17**: Sistema de eventos completo - Todos los comandos significativos migrados (10 comandos totales). Agregados eventos ON_ENTER, ON_LEAVE, ON_SPAWN. Comandos de movimiento, `/teleport`, `/generarobjeto` y `/destruirobjeto` ahora usan sistema de eventos. Agregado comando `/usar` (items usables 100% script-driven)
 - **2025-01-11**: Agregado sistema de baneos y apelaciones - comandos `/banear`, `/desbanear`, `/listabaneados`, `/verapelacion`, `/apelar`
 - **2025-01-09**: Implementado Sistema de Narrativa - mensajes evocativos aleatorios para `/generarobjeto`, `/destruirobjeto`, `/teleport` y `/suicidio`. Agregado comando `/destruirobjeto` para eliminar objetos del juego. Paginación unificada - `/inventario` y `/quien` ahora usan paginación automática sin necesidad de "todo"

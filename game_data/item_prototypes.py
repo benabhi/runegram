@@ -330,4 +330,151 @@ else:
             "icon": "💍",
         }
     },
+
+    # --- FIXTURES (OBJETOS DE AMBIENTE) ---
+
+    # Fuente mágica que brilla cuando la miran
+    "fuente_magica_plaza": {
+        "name": "una fuente mágica",
+        "keywords": ["fuente", "magica", "fuente magica", "marmol"],
+        "description": "Una magnífica fuente de mármol blanco con aguas cristalinas que brillan con un tenue resplandor azulado. Las runas grabadas en su base emiten un leve zumbido mágico.",
+        "category": "ambiente",
+        "tags": ["fuente", "magica", "fija"],
+        "is_fixture": True,
+        "locks": {
+            "get": "rol(SUPERADMIN)"
+        },
+        "lock_messages": {
+            "get": "La fuente es parte integral de la plaza. No puedes llevártela."
+        },
+        "scripts": {
+            "after_on_look": """
+await context.send_message(character, '<i>Las aguas de la fuente brillan intensamente al sentir tu mirada.</i>')
+"""
+        },
+        "display": {
+            "icon": "⛲",
+        }
+    },
+
+    # Árbol frutal que da frutas periódicamente
+    "arbol_frutal_plaza": {
+        "name": "un árbol frutal",
+        "keywords": ["arbol", "frutal", "arbol frutal", "manzano"],
+        "description": "Un hermoso manzano de ramas retorcidas y hojas verdes vibrantes. Entre las hojas se asoman algunas manzanas rojas maduras.",
+        "category": "ambiente",
+        "tags": ["arbol", "frutal", "fijo"],
+        "is_fixture": True,
+        "locks": {
+            "get": "rol(SUPERADMIN)"
+        },
+        "lock_messages": {
+            "get": "El árbol tiene raíces profundas. No puedes arrancarlo del suelo."
+        },
+        "scheduled_scripts": [
+            {
+                "schedule": "0 */6 * * *",  # Cada 6 horas
+                "script": "global:spawn_item(item_key='manzana_roja', mensaje='Una manzana madura cae del árbol con un suave golpe')",
+                "permanent": True,
+                "global": True,
+                "category": "ambient"
+            }
+        ],
+        "display": {
+            "icon": "🌳",
+        }
+    },
+
+    # Manzana que da el árbol
+    "manzana_roja": {
+        "name": "una manzana roja",
+        "keywords": ["manzana", "roja", "fruta"],
+        "description": "Una manzana roja brillante, jugosa y apetitosa.",
+        "category": "consumible",
+        "tags": ["fruta", "consumible"],
+        "scripts": {
+            "after_on_use": "global:curar_personaje(cantidad=10, mensaje='La manzana te restaura un poco de energía')"
+        },
+        "display": {
+            "icon": "🍎",
+        }
+    },
+
+    # Palanca que abre una puerta secreta
+    "palanca_secreta": {
+        "name": "una palanca de hierro",
+        "keywords": ["palanca", "hierro", "manija"],
+        "description": "Una palanca de hierro oxidado sobresale de la pared. Parece activar algún mecanismo.",
+        "category": "mecanismo",
+        "tags": ["palanca", "mecanismo", "fijo"],
+        "is_fixture": True,
+        "locks": {
+            "get": "rol(SUPERADMIN)",
+            "use": ""
+        },
+        "lock_messages": {
+            "get": "La palanca está firmemente fijada a la pared."
+        },
+        "scripts": {
+            "after_on_use": """
+from src.services import state_service
+
+# Verificar si ya fue activada
+activada = await state_service.get_persistent(session, target, 'activada', default=False)
+
+if not activada:
+    await state_service.set_persistent(session, target, 'activada', True)
+    await context.send_message(character, '✅ ¡La palanca se mueve con un clic! Escuchas el sonido de piedra moviéndose en la distancia.')
+    # Aquí podrías agregar lógica para abrir una salida, etc.
+else:
+    await context.send_message(character, '⚠️ La palanca ya ha sido activada. No sucede nada.')
+"""
+        },
+        "display": {
+            "icon": "🎚️",
+        }
+    },
+
+    # Estatua decorativa con script on_look
+    "estatua_guerrero": {
+        "name": "una estatua de guerrero",
+        "keywords": ["estatua", "guerrero", "escultura"],
+        "description": "Una imponente estatua de piedra que representa a un guerrero antiguo con armadura completa. Sus ojos de gema parecen seguirte mientras te mueves.",
+        "category": "ambiente",
+        "tags": ["estatua", "decoracion", "fijo"],
+        "is_fixture": True,
+        "locks": {
+            "get": "rol(SUPERADMIN)"
+        },
+        "lock_messages": {
+            "get": "La estatua es maciza y está anclada al pedestal. Pesa toneladas."
+        },
+        "scripts": {
+            "after_on_look": """
+import random
+from src.services import state_service
+
+# Verificar cooldown (evitar spam)
+if await state_service.is_on_cooldown(target, 'mensaje_estatua'):
+    return
+
+# Mensajes aleatorios
+mensajes = [
+    '<i>Los ojos de gema de la estatua brillan fugazmente.</i>',
+    '<i>La estatua parece vigilante, como si protegiera algo.</i>',
+    '<i>Sientes una presencia antigua emanando de la piedra.</i>',
+]
+
+mensaje = random.choice(mensajes)
+await context.send_message(character, mensaje)
+
+# Establecer cooldown de 30 segundos
+from datetime import timedelta
+await state_service.set_cooldown(target, 'mensaje_estatua', timedelta(seconds=30))
+"""
+        },
+        "display": {
+            "icon": "🗿",
+        }
+    },
 }

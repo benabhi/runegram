@@ -8,17 +8,26 @@ Variables esperadas:
 -#}
 <pre>{{ icon('room') }} <b>{{ room.name|upper }}</b>
 {{ room.description|trim }}
-{%- if room.items %}
+{%- set fixtures = room.items|selectattr('prototype.is_fixture', 'equalto', true)|list %}
+{%- if fixtures %}
+{%- for fixture in fixtures %}
+{%- set fixture_icon = fixture.prototype.get('display', {}).get('icon', '') %}
+{{ fixture_icon }} {{ fixture.get_name()|capitalize }}{% if fixture.prototype.get('description') %}.{% endif %}
+{%- endfor %}
+
+{%- endif %}
+{%- set regular_items = room.items|rejectattr('prototype.is_fixture', 'equalto', true)|list %}
+{%- if regular_items %}
 
 {{ icon('look') }} <b>Cosas a la vista:</b>
-{%- if room.items|length > max_items %}
-{%- for item in room.items[:max_items] %}
+{%- if regular_items|length > max_items %}
+{%- for item in regular_items[:max_items] %}
 {%- set item_icon = item.prototype.get('display', {}).get('icon', icon('item')) %}
     {{ loop.index }}. {{ item_icon }} {{ item.get_name() }}{% if item.prototype.get('is_container') and item.contained_items %} ({{ item.contained_items|length }} {{ item.contained_items|length|pluralize('item', 'items') }}){% endif %}
 {%- endfor %}
-... y {{ room.items|length - max_items }} {{ (room.items|length - max_items)|pluralize('item', 'items') }} más.
+... y {{ regular_items|length - max_items }} {{ (regular_items|length - max_items)|pluralize('item', 'items') }} más.
 {%- else %}
-{%- for item in room.items %}
+{%- for item in regular_items %}
 {%- set item_icon = item.prototype.get('display', {}).get('icon', icon('item')) %}
     {{ loop.index }}. {{ item_icon }} {{ item.get_name() }}{% if item.prototype.get('is_container') and item.contained_items %} ({{ item.contained_items|length }} {{ item.contained_items|length|pluralize('item', 'items') }}){% endif %}
 {%- endfor %}

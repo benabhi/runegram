@@ -2,10 +2,11 @@
 título: "Construyendo Salas en Runegram"
 categoría: "Creación de Contenido"
 audiencia: "creador-de-contenido"
-última_actualización: "2025-01-09"
+última_actualización: "2025-10-18"
 autor: "Proyecto Runegram"
-etiquetas: ["salas", "construcción-mundo", "prototipos", "salidas"]
+etiquetas: ["salas", "construcción-mundo", "prototipos", "salidas", "fixtures", "detalles"]
 documentos_relacionados:
+  - "creacion-de-contenido/objetos-de-ambiente.md"
   - "sistemas-del-motor/sistema-de-prototipos.md"
   - "sistemas-del-motor/world-loader.md"
   - "creacion-de-contenido/creacion-de-items.md"
@@ -152,30 +153,103 @@ Para agregar una cerradura a una salida, usa un diccionario con las claves `"to"
 }
 ```
 
+## Agregando Objetos de Ambiente (Fixtures)
+
+Los **fixtures** son objetos permanentes que forman parte del ambiente de la sala. A diferencia de los detalles, son items completos con scripts, estado y capacidad de interacción.
+
+### ¿Qué son los Fixtures?
+
+- ✅ Objetos físicos (items completos)
+- ✅ Interactuables (mirar, usar, scripts)
+- ✅ Fijos en la sala (no se pueden coger)
+- ✅ Se sincronizan automáticamente al iniciar el bot
+- ✅ Se muestran integrados en la descripción de la sala
+
+### Agregando Fixtures a una Sala
+
+```python
+"plaza_central": {
+    "name": "Plaza Central de Runegard",
+    "description": "Estás en el corazón de la ciudad. El bullicio de mercaderes y aventureros llena el aire.",
+    "category": "ciudad_runegard",
+    "tags": ["ciudad", "seguro", "social", "exterior"],
+
+    # Lista de fixtures (keys de item_prototypes.py)
+    "fixtures": [
+        "fuente_magica_plaza",
+        "arbol_frutal_plaza",
+        "estatua_guerrero"
+    ],
+
+    "exits": {
+        "sur": "limbo",
+        "este": "calle_mercaderes"
+    }
+}
+```
+
+### Presentación en el Juego
+
+Los fixtures se muestran integrados en la descripción de la sala:
+
+```
+🏛️ PLAZA CENTRAL DE RUNEGARD
+Estás en el corazón de la ciudad. El bullicio de mercaderes...
+⛲ Una fuente mágica.
+🌳 Un árbol frutal.
+🗿 Una estatua de guerrero.
+
+👁️ Cosas a la vista:
+    1. ⚔️ una espada oxidada
+
+🚪 Salidas:
+    - ⬆️ Norte (Calle de los Mercaderes)
+```
+
+**Sincronización**: Los fixtures se crean automáticamente al reiniciar el bot. No requieren comandos de admin.
+
+**Ver**: [Objetos de Ambiente](objetos-de-ambiente.md) para documentación completa sobre cómo crear fixtures.
+
+---
+
 ## Agregando Detalles Interactivos
 
-Los detalles son elementos que no son items en una sala que los jugadores pueden examinar con `/mirar`, pero no pueden recoger.
+Los **detalles** son elementos puramente descriptivos que los jugadores pueden examinar con `/mirar`, pero no son objetos físicos.
+
+### Diferencia entre Fixtures y Detalles
+
+| Característica | Fixtures | Detalles |
+|---------------|----------|----------|
+| **Objeto físico** | ✅ Sí (Item completo) | ❌ Solo texto |
+| **Scripts** | ✅ Sí | ❌ No |
+| **Estado persistente** | ✅ Sí | ❌ No |
+| **Sincronización** | ✅ Automática | ➖ N/A |
+
+**Usa fixtures cuando** necesites interactividad completa (scripts, estado, uso).
+**Usa detalles cuando** solo necesites texto descriptivo.
+
+### Ejemplo de Detalles
 
 ```python
 "plaza_central": {
     "name": "Plaza Central de Runegard",
     "description": "Estás en el corazón de la ciudad. Una imponente fuente de mármol domina el centro de la plaza.",
     "details": {
-        "fuente_plaza": {
-            "keywords": ["fuente", "marmol", "fuente de marmol"],
-            "description": "Es una magnífica fuente esculpida en mármol blanco. El agua cristalina fluye desde la boca de tres leones de piedra. En el fondo, puedes ver el brillo de algunas monedas arrojadas por los transeúntes."
+        "bandera": {
+            "keywords": ["bandera", "estandarte"],
+            "description": "Una bandera azul con el escudo del reino ondea en lo alto de un mástil."
         },
-        "leones": {
-            "keywords": ["leones", "leon", "estatuas"],
-            "description": "Tres leones de piedra rodean la fuente, sus fauces abiertas vierten agua constantemente."
+        "escudo": {
+            "keywords": ["escudo", "blasón"],
+            "description": "El escudo muestra un águila dorada sobre campo azul."
         }
     }
 }
 ```
 
 **Resultado**:
-- `/mirar fuente` muestra la descripción de la fuente
-- `/mirar leones` muestra la descripción de los leones
+- `/mirar bandera` muestra la descripción de la bandera
+- `/mirar escudo` muestra la descripción del escudo
 - Estos NO son items, solo elementos descriptivos
 
 ## Usando Categorías y Etiquetas

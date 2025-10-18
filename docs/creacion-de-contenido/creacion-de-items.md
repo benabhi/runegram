@@ -2,10 +2,11 @@
 título: "Creando Items en Runegram"
 categoría: "Creación de Contenido"
 audiencia: "creador-de-contenido"
-última_actualización: "2025-10-17"
+última_actualización: "2025-10-18"
 autor: "Proyecto Runegram"
-etiquetas: ["items", "prototipos", "contenedores", "locks", "locks-contextuales", "objetos", "eventos", "scripts"]
+etiquetas: ["items", "prototipos", "contenedores", "locks", "locks-contextuales", "objetos", "eventos", "scripts", "fixtures"]
 documentos_relacionados:
+  - "creacion-de-contenido/objetos-de-ambiente.md"
   - "sistemas-del-motor/sistema-de-prototipos.md"
   - "creacion-de-contenido/construccion-de-salas.md"
   - "creacion-de-contenido/escritura-de-scripts.md"
@@ -79,6 +80,78 @@ ITEM_PROTOTYPES = {
 ```
 
 El objeto aparecerá en tu inventario.
+
+---
+
+## Items de Ambiente (Fixtures)
+
+Los **fixtures** son objetos especiales que forman parte permanente del ambiente de una sala. Son items completos con scripts y estado, pero están diseñados para permanecer fijos en su ubicación.
+
+### Características de los Fixtures
+
+- ✅ Se sincronizan automáticamente al iniciar el bot
+- ✅ Se muestran integrados en la descripción de la sala
+- ✅ No se pueden coger normalmente (bloqueados)
+- ✅ Completamente interactuables (mirar, usar, scripts)
+- ✅ Pueden tener estado persistente y transiente
+
+### Creando un Fixture
+
+Para crear un fixture, usa el flag `is_fixture: True` y locks contextuales:
+
+```python
+"fuente_magica_plaza": {
+    "name": "una fuente mágica",
+    "keywords": ["fuente", "magica", "fuente magica"],
+    "description": "Una magnífica fuente de mármol blanco con aguas cristalinas que brillan.",
+    "category": "ambiente",
+    "tags": ["fuente", "magica", "fija"],
+
+    # Flag crítico: marca como fixture
+    "is_fixture": True,
+
+    # Previene que sea recogido
+    "locks": {
+        "get": "rol(SUPERADMIN)"
+    },
+    "lock_messages": {
+        "get": "La fuente es parte integral de la plaza. No puedes llevártela."
+    },
+
+    # Scripts reactivos (opcional)
+    "scripts": {
+        "after_on_look": """
+await context.send_message(character, '<i>Las aguas brillan al sentir tu mirada.</i>')
+"""
+    },
+
+    "display": {
+        "icon": "⛲"
+    }
+}
+```
+
+### Agregando Fixtures a Salas
+
+Una vez definido, agrégalo al campo `fixtures` de la sala:
+
+```python
+# En game_data/room_prototypes.py
+
+"plaza_central": {
+    "name": "Plaza Central de Runegard",
+    "description": "Estás en el corazón de la ciudad...",
+    "fixtures": [
+        "fuente_magica_plaza",
+        "arbol_frutal_plaza"
+    ],
+    # ... resto de la configuración ...
+}
+```
+
+**Sincronización**: Los fixtures se crean automáticamente al iniciar el bot. No requieren comandos de admin.
+
+**Ver**: [Objetos de Ambiente](objetos-de-ambiente.md) para documentación completa sobre fixtures.
 
 ---
 

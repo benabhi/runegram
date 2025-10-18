@@ -19,6 +19,10 @@ Estructura de un Prototipo de Sala:
         - IMPORTANTE: Todas las salidas deben ser BIDIRECCIONALES y EXPLÍCITAS.
           Si la sala A tiene salida "norte" → sala B, entonces sala B debe tener
           explícitamente la salida de vuelta (ej: "sur" → sala A).
+    - "fixtures": (list[str], opcional) Lista de claves de prototipos de items
+                  que forman parte del ambiente de la sala. Estos objetos se
+                  crean automáticamente al iniciar el bot y se muestran integrados
+                  en la descripción de la sala.
     - "grants_command_sets": (list[str], opcional) CommandSets que la sala otorga.
     - "details": (dict, opcional) Elementos descriptivos de la sala que se
                  pueden mirar, pero no son objetos físicos.
@@ -59,13 +63,18 @@ ROOM_PROTOTYPES = {
     # Un nexo central con un nuevo detalle interactivo.
     "plaza_central": {
         "name": "Plaza Central de Runegard",
-        "description": "Estás en el corazón de la ciudad. El bullicio de mercaderes y aventureros llena el aire. Una imponente fuente de mármol domina el centro de la plaza. Varios caminos parten desde aquí.",
+        "description": "Estás en el corazón de la ciudad. El bullicio de mercaderes y aventureros llena el aire. Varios caminos parten desde aquí.",
         "category": "ciudad_runegard",
         "tags": ["ciudad", "seguro", "social", "exterior"],
         "exits": {
             "sur": "limbo",           # Salida de vuelta al Limbo
             "este": "calle_mercaderes"
         },
+        "fixtures": [
+            "fuente_magica_plaza",
+            "arbol_frutal_plaza",
+            "estatua_guerrero"
+        ],
         "details": {
             # Este diccionario permite que el comando `/mirar fuente` funcione en esta sala.
             "fuente_plaza": {

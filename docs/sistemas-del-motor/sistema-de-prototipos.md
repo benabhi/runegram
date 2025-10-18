@@ -2,18 +2,20 @@
 título: "Sistema de Prototipos"
 categoría: "Sistemas del Motor"
 versión: "1.0"
-última_actualización: "2025-10-09"
+última_actualización: "2025-10-18"
 autor: "Proyecto Runegram"
-etiquetas: ["prototipos", "dirigido-por-datos", "motor-contenido", "objetos", "salas"]
+etiquetas: ["prototipos", "dirigido-por-datos", "motor-contenido", "objetos", "salas", "fixtures", "world-loader"]
 documentos_relacionados:
   - "creacion-de-contenido/construccion-de-salas.md"
   - "creacion-de-contenido/creacion-de-items.md"
+  - "creacion-de-contenido/objetos-de-ambiente.md"
   - "arquitectura/overview.md"
 referencias_código:
   - "game_data/item_prototypes.py"
   - "game_data/room_prototypes.py"
   - "src/models/item.py"
   - "src/models/room.py"
+  - "src/services/world_loader_service.py"
 estado: "actual"
 ---
 
@@ -66,12 +68,16 @@ La clave del diccionario es una `key` única para el tipo de objeto.
 
     # --- Atributos de Contenedor (Opcional) ---
     "is_container": True,
-    "capacity": 20
+    "capacity": 20,
+
+    # --- Atributos de Fixture (Opcional) ---
+    "is_fixture": False  # Si es True, el objeto es un fixture (objeto de ambiente)
 }
 ```
 *   **`locks`**: Para un objeto normal, restringe el comando `/coger`. Para un contenedor, restringe `/meter`, `/sacar` y `/inv`.
 *   **`is_container`**: Si es `True`, el objeto puede contener otros ítems.
 *   **`capacity`**: El número máximo de ítems que puede albergar el contenedor.
+*   **`is_fixture`**: Si es `True`, el objeto es un fixture (objeto de ambiente fijo en una sala).
 
 ### Prototipos de Salas (`room_prototypes.py`)
 
@@ -96,15 +102,20 @@ La clave del diccionario es una `key` única para la sala, utilizada para las co
     "grants_command_sets": ["comercio_ciudad"],
 
     # --- Atributos de Entorno (Opcional) ---
+    "fixtures": [
+        "fuente_magica_plaza",
+        "arbol_frutal_plaza"
+    ],
     "details": {
-        "fuente": {
-            "keywords": ["fuente", "marmol"],
-            "description": "Una magnífica fuente esculpida en mármol blanco..."
+        "bandera": {
+            "keywords": ["bandera", "estandarte"],
+            "description": "Una bandera azul con el escudo del reino..."
         }
     }
 }
 ```
 *   **`exits`**: Puede usar una sintaxis simple (`"direccion": "destino"`) para una salida bidireccional sin `lock`, o una sintaxis avanzada (`"direccion": {"to": "destino", "locks": "..."}`) para añadir un `lock` a la salida de ida.
+*   **`fixtures`**: Lista de claves de items que forman parte permanente del ambiente. Se sincronizan automáticamente al iniciar el bot.
 *   **`details`**: Permite definir elementos de la descripción que se pueden `mirar` con `/mirar [keyword]` sin ser objetos físicos.
 
 ## 4. Conexión en el Código (Modelos)
@@ -128,8 +139,57 @@ class Item(Base):
 
 Todos los servicios y comandos del motor interactúan con las instancias de los modelos, pero utilizan la propiedad `.prototype` para acceder a la definición de contenido, manteniendo la separación limpia.
 
+## 5. Sincronización de Fixtures (World Loader)
+
+Los fixtures son objetos de ambiente definidos en el campo `fixtures` de los prototipos de sala. El `world_loader_service` los sincroniza automáticamente al iniciar el bot en el **PASO 4** de `sync_world_from_prototypes()`.
+
+### Proceso de Sincronización
+
+1. **Lectura de Prototipos**: Lee el campo `fixtures` de cada sala en `ROOM_PROTOTYPES`
+2. **Verificación de Existencia**: Para cada fixture, verifica si ya existe en la sala
+3. **Creación o Mantenimiento**:
+   - Si NO existe: crea nuevo fixture
+   - Si YA existe: lo mantiene (preserva `script_state`)
+4. **Registro**: Loguea todas las operaciones realizadas
+
+### Características Clave
+
+**Idempotente**: Reiniciar el bot múltiples veces no duplicará fixtures.
+
+**Preserva Estado**: El campo `script_state` (estado persistente) se mantiene en reinicios.
+
+**Seguro**: Solo crea nuevos fixtures, nunca elimina existentes.
+
+### Ejemplo de Código
+
+```python
+# En src/services/world_loader_service.py
+
+async def _sync_room_fixtures(session: AsyncSession, room_key_to_id_map: dict):
+    """
+    Sincroniza los fixtures (objetos de ambiente) definidos en las salas.
+    Esta función es idempotente: no duplicará fixtures en reinicios.
+    """
+    for room_key, room_data in ROOM_PROTOTYPES.items():
+        fixture_keys = room_data.get("fixtures", [])
+
+        for item_key in fixture_keys:
+            # Verificar si el fixture ya existe
+            existing_fixture = await session.execute(
+                select(Item).where(Item.key == item_key, Item.room_id == room_id)
+            )
+
+            if not existing_fixture:
+                # Crear nuevo fixture
+                new_fixture = Item(key=item_key, room_id=room_id)
+                session.add(new_fixture)
+```
+
+**Ver**: [Objetos de Ambiente](../creacion-de-contenido/objetos-de-ambiente.md) para documentación completa sobre fixtures.
+
 ## Ver También
 
 - [Building Rooms](../creacion-de-contenido/construccion-de-salas.md) - Cómo crear prototipos de salas
 - [Creating Items](../creacion-de-contenido/creacion-de-items.md) - Cómo crear prototipos de items
+- [Objetos de Ambiente](../creacion-de-contenido/objetos-de-ambiente.md) - Guía completa de fixtures
 - [Scripting System](sistema-de-scripts.md) - Agregar comportamiento a prototipos

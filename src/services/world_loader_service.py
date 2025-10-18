@@ -16,8 +16,9 @@ from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from src.models import Room, Exit
+from src.models import Room, Exit, Item
 from game_data.room_prototypes import ROOM_PROTOTYPES
+from game_data.item_prototypes import ITEM_PROTOTYPES
 
 # Mapa de direcciones opuestas (referencia).
 # NOTA: Ya no se usa para crear salidas automáticamente. Todas las salidas deben
@@ -31,6 +32,53 @@ OPPOSITE_DIRECTIONS = {
     "noroeste": "sureste", "sureste": "noroeste",
 }
 
+async def _sync_room_fixtures(session: AsyncSession, room_key_to_id_map: dict):
+    """
+    Sincroniza los fixtures (objetos de ambiente) definidos en las salas.
+
+    Los fixtures son items que forman parte del ambiente de la sala y están
+    definidos en el campo 'fixtures' del prototipo de sala. Esta función:
+
+    1. Lee el campo 'fixtures' de cada sala en ROOM_PROTOTYPES.
+    2. Para cada fixture definido, verifica si ya existe en la sala.
+    3. Si no existe, lo crea. Si ya existe, lo mantiene (preserva script_state).
+
+    Esta función es idempotente: no duplicará fixtures en reinicios.
+    """
+    logging.info("  -> Sincronizando fixtures de salas...")
+
+    for room_key, room_data in ROOM_PROTOTYPES.items():
+        fixture_keys = room_data.get("fixtures", [])
+        if not fixture_keys:
+            continue
+
+        room_id = room_key_to_id_map.get(room_key)
+        if not room_id:
+            logging.warning(f"  -> Sala '{room_key}' no encontrada en mapa de IDs. Ignorando fixtures.")
+            continue
+
+        for item_key in fixture_keys:
+            # Verificar que el prototipo existe
+            if item_key not in ITEM_PROTOTYPES:
+                logging.warning(f"  -> Fixture '{item_key}' no existe en ITEM_PROTOTYPES. Ignorando.")
+                continue
+
+            # Verificar si el fixture ya existe en esta sala
+            result = await session.execute(
+                select(Item).where(Item.key == item_key, Item.room_id == room_id)
+            )
+            existing_fixture = result.scalar_one_or_none()
+
+            if existing_fixture:
+                # Ya existe, mantenerlo (preserva script_state)
+                logging.debug(f"  -> Fixture '{item_key}' ya existe en '{room_key}'. Manteniendo.")
+            else:
+                # Crear nuevo fixture
+                new_fixture = Item(key=item_key, room_id=room_id)
+                session.add(new_fixture)
+                logging.info(f"  -> Creado fixture '{item_key}' en '{room_key}'.")
+
+
 async def sync_world_from_prototypes(session: AsyncSession):
     """
     Sincroniza la base de datos con los prototipos de salas. Esta función es
@@ -42,6 +90,7 @@ async def sync_world_from_prototypes(session: AsyncSession):
     3. Recrea todas las salidas tal como están definidas en los prototipos,
        aplicando los `locks` correspondientes. Todas las salidas deben estar
        explícitamente definidas en ambas direcciones en los prototipos.
+    4. Sincroniza los fixtures (objetos de ambiente) de cada sala.
     """
     logging.info("Sincronizando el mundo estático desde los prototipos...")
     try:
@@ -98,6 +147,9 @@ async def sync_world_from_prototypes(session: AsyncSession):
                     session.add(exit_forward)
                 else:
                     logging.warning(f"  -> La sala de destino '{to_room_key}' definida en la sala '{key}' no existe. Se ignora la salida.")
+
+        # --- PASO 4: Sincronizar Fixtures de Salas ---
+        await _sync_room_fixtures(session, room_key_to_id_map)
 
         await session.commit()
         logging.info("¡Sincronización del mundo completada!")

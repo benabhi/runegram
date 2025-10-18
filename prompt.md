@@ -63,7 +63,144 @@ Agregar una flag opcional `is_fixture: True` a los prototipos de items que:
 
 ## 🔧 Plan de Implementación
 
-### FASE 1: Modificar Template de Sala (CORE)
+### FASE 0: Extender World Loader para Sincronizar Fixtures (AUTOMÁTICO)
+
+**Archivos**:
+- `src/services/world_loader_service.py` - Agregar sincronización de fixtures
+- `game_data/room_prototypes.py` - Agregar campo `fixtures` a salas
+
+**Objetivo**: Permitir que los fixtures se definan en los prototipos de sala y se creen automáticamente al arrancar el bot (igual que las salas y salidas).
+
+**Respuesta a la pregunta del usuario**: ¡SÍ, ES POSIBLE Y MUY ELEGANTE! No necesitas ir sala por sala creando fixtures manualmente con `/generarobjeto`. Los fixtures se definen en `room_prototypes.py` (campo `fixtures`) y se sincronizan automáticamente al arrancar.
+
+**Cambios**:
+
+1. **Agregar nuevo paso en `sync_world_from_prototypes()`**: Paso 4 - Sincronizar Fixtures
+
+```python
+async def sync_world_from_prototypes(session: AsyncSession):
+    """
+    Sincroniza la base de datos con los prototipos de salas.
+    """
+    logging.info("Sincronizando el mundo estático desde los prototipos...")
+    try:
+        # --- PASO 1: Sincronizar Salas --- (existente)
+        room_key_to_id_map = {}
+        # ... código existente ...
+
+        # --- PASO 2: Limpiar Salidas Viejas --- (existente)
+        # ... código existente ...
+
+        # --- PASO 3: Crear Salidas Nuevas con Locks --- (existente)
+        # ... código existente ...
+
+        # --- PASO 4: Sincronizar Fixtures de Salas --- (NUEVO)
+        logging.info("  -> Sincronizando fixtures de salas...")
+        await _sync_room_fixtures(session, room_key_to_id_map)
+
+        await session.commit()
+        logging.info("¡Sincronización del mundo completada!")
+    except Exception:
+        logging.exception("Error fatal durante la sincronización del mundo.")
+        raise
+
+
+async def _sync_room_fixtures(session: AsyncSession, room_key_to_id_map: dict):
+    """
+    Sincroniza los fixtures definidos en prototipos de sala.
+
+    Para cada sala que tenga campo 'fixtures', verifica que existan
+    los items correspondientes. Si no existen, los crea.
+    Si ya existen, los mantiene (preserva su estado persistente).
+    """
+    from src.models.item import Item
+    from game_data.item_prototypes import ITEM_PROTOTYPES
+
+    for room_key, room_data in ROOM_PROTOTYPES.items():
+        fixture_keys = room_data.get("fixtures", [])
+
+        if not fixture_keys:
+            continue
+
+        room_id = room_key_to_id_map.get(room_key)
+        if not room_id:
+            continue
+
+        for item_key in fixture_keys:
+            # Verificar que el prototipo de item existe
+            if item_key not in ITEM_PROTOTYPES:
+                logging.warning(
+                    f"  -> Fixture '{item_key}' definido en sala '{room_key}' "
+                    f"no existe en ITEM_PROTOTYPES. Se ignora."
+                )
+                continue
+
+            # Verificar si el fixture ya existe en esta sala
+            result = await session.execute(
+                select(Item).where(
+                    Item.key == item_key,
+                    Item.room_id == room_id
+                )
+            )
+            existing_fixture = result.scalar_one_or_none()
+
+            if existing_fixture:
+                # Ya existe, mantenerlo (preserva script_state)
+                logging.debug(
+                    f"  -> Fixture '{item_key}' ya existe en '{room_key}'. "
+                    f"Mantenido (ID: {existing_fixture.id})."
+                )
+            else:
+                # No existe, crearlo
+                new_fixture = Item(key=item_key, room_id=room_id)
+                session.add(new_fixture)
+                logging.info(
+                    f"  -> Creado fixture '{item_key}' en sala '{room_key}'."
+                )
+```
+
+**Formato en prototipos de sala**:
+
+```python
+# game_data/room_prototypes.py
+"plaza_central": {
+    "name": "Plaza Central de Runegard",
+    "description": "Estás en el corazón de la ciudad...",
+    "category": "ciudad_runegard",
+    "tags": ["ciudad", "seguro", "social"],
+
+    # NUEVO CAMPO: Lista de fixtures que deben existir en esta sala
+    "fixtures": [
+        "fuente_magica_plaza",
+        "arbol_frutal_plaza",
+        "estatua_dios_guerra"
+    ],
+
+    "exits": {
+        "sur": "limbo",
+        "este": "calle_mercaderes"
+    }
+}
+```
+
+**Ventajas**:
+- ✅ **Declarativo**: Fixtures definidos junto con la sala
+- ✅ **Automático**: Se crean al arrancar (no hay que usar `/generarobjeto`)
+- ✅ **Idempotente**: Reiniciar el bot no duplica fixtures
+- ✅ **Preserva estado**: Fixtures existentes mantienen `script_state`
+- ✅ **Consistente**: Misma filosofía que salas y salidas
+
+**Comportamiento**:
+- Al arrancar bot → `sync_world_from_prototypes()` se ejecuta
+- Para cada sala con campo `fixtures`:
+  - Verifica si fixture existe en BD
+  - Si NO existe → crea nueva instancia de Item
+  - Si existe → lo mantiene intacto (¡preserva estado!)
+- Los fixtures usan sus prototipos de `item_prototypes.py`
+
+---
+
+### FASE 1: Modificar Template de Sala (VISUAL)
 
 **Archivo**: `src/templates/base/room.html.j2`
 
@@ -122,7 +259,9 @@ Estás en el corazón de la ciudad. El bullicio de mercaderes...
 
 ### FASE 2: Crear Prototipos de Ejemplo
 
-**Archivo**: `game_data/item_prototypes.py`
+**Archivos**:
+- `game_data/item_prototypes.py` - Definir prototipos de fixtures
+- `game_data/room_prototypes.py` - Agregar campo `fixtures` a salas
 
 **Ejemplos de fixtures con diferentes comportamientos**:
 
@@ -326,20 +465,24 @@ Estás en el corazón de la ciudad. El bullicio de mercaderes...
 ### Orden de Tareas
 
 1. ✅ **Análisis completo** (COMPLETADO)
-2. ⏳ **Modificar template** `room.html.j2`
-3. ⏳ **Crear 3-4 fixtures de ejemplo** en `item_prototypes.py`
-4. ⏳ **Agregar fixtures a sala de prueba** en `room_prototypes.py`
-5. ⏳ **Testing manual** en ambiente de desarrollo
-6. ⏳ **Documentación completa** (agente runegram-docs-keeper)
-7. ⏳ **Commit y push** con mensaje descriptivo
+2. ⏳ **Extender `world_loader_service.py`** para sincronizar fixtures automáticamente
+3. ⏳ **Modificar template** `room.html.j2` para separar fixtures visualmente
+4. ⏳ **Crear 3-4 fixtures de ejemplo** en `item_prototypes.py`
+5. ⏳ **Agregar campo `fixtures`** a salas en `room_prototypes.py`
+6. ⏳ **Testing manual** en ambiente de desarrollo
+7. ⏳ **Documentación completa** (agente runegram-docs-keeper)
+8. ⏳ **Commit y push** con mensaje descriptivo
 
 ### Criterios de Éxito
 
+✅ Fixtures definidos en `room_prototypes.py` se crean automáticamente al arrancar
 ✅ Fixtures aparecen integrados en descripción de sala
 ✅ Fixtures NO aparecen en "Cosas a la vista"
 ✅ `/mirar <fixture>` funciona correctamente
 ✅ Locks contextuales funcionan (no se pueden coger)
 ✅ Scripts y eventos del fixture se ejecutan
+✅ Reiniciar bot NO duplica fixtures (idempotencia)
+✅ Estado persistente de fixtures se preserva entre reinicios
 ✅ Documentación completa y clara
 ✅ Ejemplos listos para usar por creadores de contenido
 
